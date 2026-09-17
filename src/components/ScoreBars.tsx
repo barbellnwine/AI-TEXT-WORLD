@@ -1,0 +1,5 @@
+import { SCORE_FIELDS } from '../types/evaluation'
+import type { Evaluation } from '../types/evaluation'
+export function ScoreBars({ evaluation }: { evaluation: Evaluation }) {
+  return <section className="score-section"><div className="section-heading"><h3>기계정부 임시 관용 지수</h3><span className="micro">6 METRICS</span></div>{!evaluation.evidence_available && <p className="muted">근거 부족으로 아래 점수는 참고용이며 티어 산정에 사용되지 않습니다.</p>}<div className="score-bars">{SCORE_FIELDS.map(field => <div key={field.key} className="score-row"><div><span>{field.label}</span><span><strong>{evaluation.scores[field.key]}</strong> / {field.max}</span></div><div className="bar-track" role="meter" aria-label={field.label} aria-valuenow={evaluation.scores[field.key]} aria-valuemin={0} aria-valuemax={field.max}><div style={{ width: evaluation.scores[field.key] / field.max * 100 + '%' }} /></div></div>)}</div></section>
+}

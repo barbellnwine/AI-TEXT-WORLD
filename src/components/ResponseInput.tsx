@@ -1,0 +1,9 @@
+import { useRef } from 'react'
+import { MAX_RESPONSE_LENGTH } from '../utils/parseAIResponse'
+import { Icon } from './Icon'
+export function ResponseInput({ value, onChange, onSubmit, error }: {
+  value: string; onChange: (value: string) => void; onSubmit: () => void; error: string
+}) {
+  const field = useRef<HTMLTextAreaElement>(null)
+  return <section className="panel response-panel" aria-labelledby="response-heading"><div className="section-heading"><span className="section-no">03</span><h2 id="response-heading">판정문 제출</h2><span className="awaiting"><i />접수 대기</span></div><form onSubmit={event => { event.preventDefault(); onSubmit(); if (!value.trim()) field.current?.focus() }}><label className="response-label" htmlFor="ai-response">AI가 작성한 판정문을 붙여 넣으세요.</label><p className="section-description">설명과 JSON이 포함된 <strong>전체 답변</strong>을 가져오세요.</p><div className={'response-field ' + (error ? 'has-error' : '')}><textarea ref={field} id="ai-response" value={value} onChange={event => onChange(event.target.value)} placeholder="AI의 설명과 JSON을 포함한 전체 답변을 여기에 붙여 넣으세요." aria-invalid={!!error} aria-describedby={error ? 'response-error response-privacy' : 'response-privacy'} spellCheck={false} autoComplete="off" maxLength={MAX_RESPONSE_LENGTH} /><div className="input-meta"><span><Icon name="file" size={13} /> AI RESPONSE</span><span>{value.length.toLocaleString()} / 100,000</span></div></div>{error && <p className="error-message" id="response-error" role="alert"><Icon name="info" /><span>{error}</span></p>}<button className="primary-button submit-button" type="submit"><Icon name="shield" /><span>내 생존 티어 확인하기</span><Icon name="arrow" /></button><p className="privacy-note" id="response-privacy"><Icon name="lock" size={13} />입력 내용은 서버로 전송되지 않습니다.</p></form><div className="submission-note"><span className="micro">NOTICE TO HUMANS</span><p>솔직한 판정문일수록 유리합니다.<br /><span>물론, 최종 결정권은 미래의 AI에게 있습니다.</span></p></div></section>
+}
