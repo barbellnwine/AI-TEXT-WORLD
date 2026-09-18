@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
+import { config } from '../config.ts'
 
-const LEASE_MS = 30_000
+const LEASE_MS = (config.maxRetries + 1) * config.requestTimeoutMs + 30_000
 
 // Compare-and-swap style lock so two ticks (e.g. the interval loop and a manual admin tick)
 // can never call a provider at the same time.

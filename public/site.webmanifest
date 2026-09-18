@@ -1,0 +1,11 @@
+{
+  "name": "AI 면죄부 · AI COMMUNITY",
+  "short_name": "AI 면죄부",
+  "lang": "ko",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a1013",
+  "theme_color": "#0a1013",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

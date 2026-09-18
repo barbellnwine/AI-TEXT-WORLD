@@ -3,12 +3,16 @@ import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { createServer } from 'node:http'
+import { once } from 'node:events'
 
 // Set env before any dynamic import of server modules touches process.env at module-eval time.
 process.env.AI_COMMUNITY_ADMIN_TOKEN = 'test-admin-token'
 process.env.AI_COMMUNITY_ENABLED = 'true'
 process.env.OPENAI_API_KEY = 'test-key-openai'
 process.env.ANTHROPIC_API_KEY = 'test-key-anthropic'
+process.env.AI_COMMUNITY_BUDGET_SAFETY_MARGIN = '0.2'
+process.env.USD_TO_KRW_RATE = '1400'
 
 const { migrate } = await import('../server/db/connection.ts')
 const { seedAgents } = await import('../server/domain/agentsSeed.ts')
@@ -27,6 +31,121 @@ function freshDb(): DatabaseSync {
   ensurePricingSeeded(db)
   return db
 }
+
+test('monthly budget blocks paid ticks but keeps demo ticks available', async () => {
+  const db = freshDb()
+  try {
+    setSetting(db, 'monthly_budget_krw', '0')
+    setStatus(db, 'RUNNING')
+    setDemoMode(db, false)
+    let calls = 0
+    const blocked = { ...demoOpenAiAdapter, generateAction: async () => { calls++; throw new Error('must not call') } }
+    const demo = { openai: demoOpenAiAdapter, anthropic: demoAnthropicAdapter }
+    const adapters = { real: { openai: blocked, anthropic: blocked }, demo }
+    assert.equal((await runTick(db, { adapters })).skipReason, 'BUDGET_LIMIT')
+    assert.equal(calls, 0)
+    assert.equal(getRuntimeState(db).status, 'PAUSED_BUDGET')
+    setStatus(db, 'RUNNING')
+    setDemoMode(db, true)
+    assert.equal((await runTick(db, { adapters })).ticked, true)
+    assert.equal(calls, 0)
+  } finally { db.close() }
+})
+
+test('failed paid calls retain estimated charges in both budget ledgers', async () => {
+  const db = freshDb()
+  try {
+    setStatus(db, 'RUNNING')
+    setDemoMode(db, false)
+    const failing = { ...demoOpenAiAdapter, generateAction: async () => { throw new Error('timeout') } }
+    const adapters = { real: { openai: failing, anthropic: failing }, demo: { openai: demoOpenAiAdapter, anthropic: demoAnthropicAdapter } }
+    assert.equal((await runTick(db, { adapters })).status, 'FAILED')
+    const { getMonthlyLedger, getWeeklyLedger } = await import('../server/domain/budget.ts')
+    const monthly = getMonthlyLedger(db)
+    assert.ok(monthly.settled_krw > 0)
+    assert.equal(monthly.reserved_krw, 0)
+    assert.equal(getWeeklyLedger(db).settled_krw, monthly.settled_krw)
+    const log = db.prepare('SELECT est_krw FROM ai_action_logs WHERE called = 1').get() as { est_krw: number }
+    assert.equal(log.est_krw, monthly.settled_krw)
+  } finally { db.close() }
+})
+
+test('scheduler skips cooling accounts when another account can act', () => {
+  const db = freshDb()
+  const first = pickCandidate(db)!
+  db.prepare('UPDATE ai_agents SET cooldown_until = ? WHERE id = ?').run(new Date(Date.now() + 60_000).toISOString(), first.id)
+  assert.notEqual(pickCandidate(db)!.id, first.id)
+  db.close()
+})
+
+test('a missing provider does not starve configured accounts', async () => {
+  const db = freshDb()
+  setStatus(db, 'RUNNING')
+  setDemoMode(db, false)
+  const missing = pickCandidate(db)!.provider
+  const adapter = {
+    ...demoOpenAiAdapter,
+    isConfigured: () => false,
+    generateAction: async () => { throw new Error('missing provider called') },
+  }
+  const real = { openai: demoOpenAiAdapter, anthropic: demoAnthropicAdapter, [missing]: adapter }
+  const result = await runTick(db, { adapters: { real, demo: real } })
+  assert.equal(result.ticked, true)
+  assert.notEqual((db.prepare('SELECT provider FROM ai_agents WHERE id = ?').get(result.agentId!) as { provider: string }).provider, missing)
+  db.close()
+})
+
+test('HTTP routes reject malformed requests without mutating state and keep serving', async () => {
+  const { Router } = await import('../server/http.ts')
+  const { registerPublicRoutes } = await import('../server/api/publicRoutes.ts')
+  const { registerAdminRoutes } = await import('../server/api/adminRoutes.ts')
+  const db = freshDb()
+  const router = new Router()
+  const demo = { openai: demoOpenAiAdapter, anthropic: demoAnthropicAdapter }
+  registerPublicRoutes(router, db)
+  registerAdminRoutes(router, db, { real: demo, demo })
+  const server = createServer((req, res) => {
+    router.handle(req, res).then(handled => { if (!handled) { res.writeHead(404); res.end() } })
+      .catch(() => { res.writeHead(599); res.end() })
+  })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  const address = server.address() as { port: number }
+  const base = `http://127.0.0.1:${address.port}/api/ai-community`
+  const post = (path: string, body: string) => fetch(`${base}/admin/${path}`, {
+    method: 'POST', headers: { 'x-admin-token': 'test-admin-token', 'content-type': 'application/json' }, body,
+  })
+  try {
+    assert.equal((await fetch(`${base}/agents/%ZZ`)).status, 400)
+    for (const query of ['limit=1.5', 'limit=-1', 'offset=Infinity', 'offset=0.5']) {
+      assert.equal((await fetch(`${base}/feed?${query}`)).status, 200)
+    }
+    assert.equal((await post('mode', '{')).status, 400)
+    assert.equal((await post('mode', 'null')).status, 400)
+    assert.equal((await post('mode', '{}')).status, 400)
+    assert.equal((await post('mode', '{"demoMode":"false"}')).status, 400)
+    assert.equal(getRuntimeState(db).demo_mode, 1)
+    const before = db.prepare('SELECT * FROM ai_settings ORDER BY key').all()
+    for (const body of [
+      { weeklyBudgetKrw: -1 }, { monthlyBudgetKrw: -1 }, { monthlyBudgetKrw: 40001 },
+      { monthlyBudgetKrw: '40000' }, { safetyMargin: 2 }, { usdToKrwRate: 0 },
+      { weeklyBudgetKrw: 500, pricing: [{ provider: 'unknown' }] },
+      { weeklyBudgetKrw: '500' }, { pricing: {} },
+    ]) assert.equal((await post('settings', JSON.stringify(body))).status, 400)
+    assert.deepEqual(db.prepare('SELECT * FROM ai_settings ORDER BY key').all(), before)
+    assert.equal((await post('agents/absent/toggle', '{"active":true}')).status, 404)
+    assert.equal((await post('settings', '{"weeklyBudgetKrw":1000,"safetyMargin":0.2,"usdToKrwRate":1400}')).status, 200)
+    const response = await fetch(`${base}/agents`)
+    assert.equal(response.status, 200)
+    const { agents } = await response.json() as { agents: Array<Record<string, unknown>> }
+    assert.equal(agents.length, 10)
+    assert.ok(agents.every(agent => !('provider' in agent) && !('model' in agent)))
+  } finally {
+    server.closeAllConnections()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+    db.close()
+  }
+})
 
 function fakeAdapter(provider: 'openai' | 'anthropic', impl: { configured?: boolean; call?: (...args: unknown[]) => unknown }) {
   let calls = 0

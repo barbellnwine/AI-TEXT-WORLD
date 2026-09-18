@@ -299,6 +299,7 @@ h1 em { color: var(--accent); font-style: normal; }
 .ai-status-pill i { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; }
 .ai-demo-pill { font: 10px/1.6 Consolas, monospace; letter-spacing: 1px; color: var(--warning); border: 1px solid var(--warning); padding: 2px 7px; border-radius: 3px; }
 .ai-status-budget { color: var(--muted); margin-left: auto; }
+.ai-feed-refresh { margin-top: 10px; }
 .ai-filter-bar { display: flex; align-items: end; gap: 20px; margin-bottom: 20px; }
 .ai-filter-bar label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--muted); }
 .ai-filter-bar select { background: var(--panel); color: #e7edef; border: 1px solid var(--line); padding: 8px 10px; border-radius: 3px; }
@@ -366,4 +367,53 @@ h1 em { color: var(--accent); font-style: normal; }
   .ai-agent-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .admin-table { display: block; overflow-x: auto; }
   .ai-lang-switcher { flex-wrap: wrap; }
+}
+
+/* Touch layouts share the same URLs and content as desktop. */
+.ai-community, .admin-panel, .ai-feed-item, .ai-post-detail { min-width: 0; }
+.ai-feed-title, .ai-agent-link, .ai-simple-list a, .ai-agent-header h1 { overflow-wrap: anywhere; }
+.ai-feed-body { white-space: pre-wrap; }
+.admin-table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+.admin-table-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.admin-save-message { flex-basis: 100%; }
+@media (max-width: 900px) {
+  body { padding-bottom: env(safe-area-inset-bottom); }
+  .header nav a, .ai-lang-switcher button, .ai-back-link, .ai-admin-link { min-height: 44px; display: inline-flex; align-items: center; }
+  .ai-lang-switcher button { min-width: 48px; font-size: 13px; }
+  .ai-filter-bar { gap: 12px; align-items: end; }
+  .ai-filter-bar label { flex: 1 1 120px; min-width: 0; font-size: 13px; }
+  .ai-filter-bar select { width: 100%; min-height: 44px; font-size: 16px; }
+  .ai-admin-link { margin-left: 0; padding: 0 6px; font-size: 13px; }
+  .ai-community { padding-top: 24px; padding-bottom: 32px; }
+  .ai-community .micro { font-size: 12px; letter-spacing: 0; }
+  .ai-status-bar { padding: 14px; gap: 10px; line-height: 1.6; }
+  .ai-status-budget { flex-basis: 100%; }
+  .ai-feed-item { padding: 16px; }
+  .ai-feed-body, .ai-comment-item p { font-size: 15px; }
+  .ai-feed-item-head { gap: 8px; }
+  .ai-feed-item-head > .micro { flex-basis: 100%; }
+  .ai-simple-list li { flex-direction: column; gap: 6px; }
+  .admin-panel { padding: 16px; }
+  .admin-token-row { flex-wrap: wrap; gap: 10px; font-size: 14px; }
+  .admin-token-row input { flex: 1 1 100%; min-width: 0; width: 100%; }
+  .admin-token-row button { width: 100%; }
+  .admin-button-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-panel button { min-height: 44px; font-size: 14px; }
+  .admin-settings-form { gap: 14px; }
+  .admin-settings-form label { flex: 1 1 100%; font-size: 13px; }
+  .admin-settings-form input, .admin-settings-form button { width: 100%; }
+  .admin-table-scroll .admin-table { display: table; min-width: 620px; font-size: 13px; }
+  .admin-panel input:not([type="checkbox"]), .response-field textarea, .copy-dialog textarea { font-size: 16px; min-height: 44px; }
+  .copy-dialog { max-height: calc(100dvh - 32px); padding: 20px; }
+  .copy-dialog textarea { min-height: 140px; height: 30dvh; }
+  .dialog-actions { display: grid; grid-template-columns: 1fr; }
+  .dialog-actions button { min-height: 44px; width: 100%; }
+}
+@media (max-width: 600px) {
+  .header-inner { flex-wrap: wrap; gap: 10px; }
+  .header nav { width: 100%; margin-left: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; font-size: 12px; }
+  .header nav a { justify-content: center; padding: 0 4px; border: 1px solid var(--line); border-radius: 6px; }
+  .header nav a svg { display: none; }
+  .header-inner, main { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+  .tier-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

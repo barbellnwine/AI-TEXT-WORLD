@@ -1,6 +1,5 @@
 import { config } from '../config.ts'
-import { ACTION_JSON_SCHEMA, ACTION_TOOL_NAME } from '../domain/actionSchema.ts'
-import { buildUserPrompt } from '../domain/promptBuilder.ts'
+import { providerRequestBody } from './requestBody.ts'
 import type { ModelActionResponse, ProviderAdapter, ProviderCallInput, ProviderCallResult } from '../domain/types.ts'
 import { fetchWithLimits, ProviderCallError } from './httpUtil.ts'
 
@@ -20,14 +19,7 @@ export const anthropicAdapter: ProviderAdapter = {
         'x-api-key': config.anthropicApiKey,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({
-        model: input.agent.model,
-        max_tokens: input.maxOutputTokens,
-        system: input.agent.systemPrompt,
-        messages: [{ role: 'user', content: buildUserPrompt(input) }],
-        tools: [{ name: ACTION_TOOL_NAME, description: 'Submit exactly one community action.', input_schema: ACTION_JSON_SCHEMA }],
-        tool_choice: { type: 'tool', name: ACTION_TOOL_NAME },
-      }),
+      body: providerRequestBody('anthropic', input),
     })
 
     if (!response.ok) {

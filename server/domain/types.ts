@@ -13,6 +13,9 @@ export type SkippedReason =
   | 'LOCK_BUSY'
   | 'CONSECUTIVE_LIMIT'
   | 'COMMUNITY_DISABLED'
+  | 'PROVIDER_LIMITS_UNCONFIRMED'
+  | 'CALL_RATE_LIMIT'
+  | 'PRICING_MISSING'
 
 export type ActionLogStatus = 'SUCCESS' | 'FAILED' | 'REJECTED' | 'SKIPPED'
 

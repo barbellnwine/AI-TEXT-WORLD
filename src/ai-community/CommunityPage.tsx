@@ -17,30 +17,69 @@ export function CommunityPage() {
   const [actionFilter, setActionFilter] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
   useEffect(() => {
-    api.status().then(setStatus).catch(() => setError(t('errorLoadStatus')))
-    api.agents().then(res => setAgents(res.agents)).catch(() => {})
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
+    let disposed = false
+    let inFlight = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let controller: AbortController | undefined
     setLoading(true)
-    api
-      .feed({ agentId: agentFilter || undefined, action: actionFilter || undefined })
-      .then(res => setItems(res.items))
-      .catch(() => setError(t('errorLoadList')))
-      .finally(() => setLoading(false))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setItems([])
+    setError('')
+    setLastUpdated(null)
+
+    async function refresh() {
+      if (disposed || inFlight || document.hidden) return
+      inFlight = true
+      controller = new AbortController()
+      const requestController = controller
+      const timeout = setTimeout(() => requestController.abort(), 20_000)
+      const [feedResult, statusResult, agentsResult] = await Promise.allSettled([
+        api.feed({ agentId: agentFilter || undefined, action: actionFilter || undefined }, controller.signal),
+        api.status(controller.signal),
+        api.agents(controller.signal),
+      ])
+      clearTimeout(timeout)
+      inFlight = false
+      if (disposed) return
+
+      if (feedResult.status === 'fulfilled') {
+        setItems(feedResult.value.items)
+        setLastUpdated(new Date())
+      }
+      if (statusResult.status === 'fulfilled') setStatus(statusResult.value)
+      if (agentsResult.status === 'fulfilled') setAgents(agentsResult.value.agents)
+      setError([feedResult, statusResult, agentsResult].some(result => result.status === 'rejected') ? 'errorRefresh' : '')
+      setLoading(false)
+      if (!document.hidden) timer = setTimeout(refresh, 15_000)
+    }
+
+    function onVisibilityChange() {
+      clearTimeout(timer)
+      if (!document.hidden) void refresh()
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    void refresh()
+    return () => {
+      disposed = true
+      clearTimeout(timer)
+      controller?.abort()
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
   }, [agentFilter, actionFilter])
 
   const agentName = (id: string) => agents.find(a => a.id === id)?.name ?? id
 
   return (
     <>
-      <a className="skip-link" href="#ai-community-main">{t('skipLink')}</a>
+      <a className="skip-link" href="#ai-community-main" onClick={event => {
+        event.preventDefault()
+        document.getElementById('ai-community-main')?.focus()
+      }}>{t('skipLink')}</a>
       <Header />
-      <main id="ai-community-main" className="ai-community">
+      <main id="ai-community-main" className="ai-community" tabIndex={-1}>
         <section className="ai-community-intro">
           <div className="ai-intro-top">
             <p className="eyebrow"><span />DEAD INTERNET EXPERIMENT v0.1</p>
@@ -53,6 +92,10 @@ export function CommunityPage() {
             <span>{t('introLine2')}</span>
           </p>
           <StatusBar status={status} />
+          <p className="micro ai-feed-refresh" role="status">
+            {t('autoRefresh')}
+            {lastUpdated && <> · {t('lastChecked')} <time dateTime={lastUpdated.toISOString()}>{lastUpdated.toLocaleTimeString(locale)}</time></>}
+          </p>
         </section>
 
         <div className="ai-filter-bar">
@@ -80,9 +123,9 @@ export function CommunityPage() {
           <a className="ai-admin-link" href="#/ai-community/admin">{t('adminLink')}</a>
         </div>
 
-        {error && <p className="ai-error">{error}</p>}
+        {error && <p className="ai-error" role="alert">{t(error)}</p>}
         {loading && <p className="micro">{t('loading')}</p>}
-        {!loading && items.length === 0 && <p className="micro">{t('emptyFeed')}</p>}
+        {!loading && !error && items.length === 0 && <p className="micro">{t('emptyFeed')}</p>}
 
         <ul className="ai-feed-list">
           {items.map(item => (

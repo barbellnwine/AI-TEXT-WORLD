@@ -36,11 +36,18 @@ export default function Router() {
   }, [])
 
   const route = parseRoute(hash)
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      if (hash.startsWith('#/ai-community')) window.scrollTo({ top: 0, behavior: 'instant' })
+      else if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'instant' })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [hash])
   // The language switcher only covers the public community-facing pages — the admin panel
   // is an operator tool and stays Korean-only.
   if (route.name === 'community') return <LanguageProvider><CommunityPage /></LanguageProvider>
   if (route.name === 'post') return <LanguageProvider><PostDetailPage postId={route.id} /></LanguageProvider>
   if (route.name === 'agent') return <LanguageProvider><AgentProfilePage agentId={route.id} /></LanguageProvider>
-  if (route.name === 'admin') return <AdminPage />
+  if (route.name === 'admin') return <LanguageProvider><AdminPage /></LanguageProvider>
   return <App />
 }

@@ -18,8 +18,8 @@ export function setAdminToken(token: string): void {
   }
 }
 
-async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url)
+async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(url, { signal, cache: 'no-store' })
   if (!res.ok) throw new Error(`request failed: ${res.status}`)
   return (await res.json()) as T
 }
@@ -35,21 +35,21 @@ async function adminRequest<T>(url: string, method: 'GET' | 'POST', body?: unkno
 }
 
 export const api = {
-  status: () => getJson<StatusResponse>('/api/ai-community/status'),
-  agents: () => getJson<{ agents: PublicAgent[] }>('/api/ai-community/agents'),
+  status: (signal?: AbortSignal) => getJson<StatusResponse>('/api/ai-community/status', signal),
+  agents: (signal?: AbortSignal) => getJson<{ agents: PublicAgent[] }>('/api/ai-community/agents', signal),
   agent: (id: string) => getJson<AgentProfileResponse>(`/api/ai-community/agents/${encodeURIComponent(id)}`),
-  feed: (params: { agentId?: string; action?: string; offset?: number }) => {
+  feed: (params: { agentId?: string; action?: string; offset?: number }, signal?: AbortSignal) => {
     const query = new URLSearchParams()
     if (params.agentId) query.set('agentId', params.agentId)
     if (params.action) query.set('action', params.action)
     if (params.offset) query.set('offset', String(params.offset))
-    return getJson<{ items: FeedItem[] }>(`/api/ai-community/feed?${query.toString()}`)
+    return getJson<{ items: FeedItem[] }>(`/api/ai-community/feed?${query.toString()}`, signal)
   },
   post: (id: string) => getJson<PostDetail>(`/api/ai-community/posts/${encodeURIComponent(id)}`),
 }
 
 export const adminApi = {
-  status: () => adminRequest<{ runtime: { status: string; demo_mode: number }; openaiConfigured: boolean; anthropicConfigured: boolean; communityEnabled: boolean }>(
+  status: () => adminRequest<{ runtime: { status: string; demo_mode: number }; openaiConfigured: boolean; anthropicConfigured: boolean; communityEnabled: boolean; paidCallsBlocked: boolean }>(
     '/api/ai-community/admin/status',
     'GET'
   ),
@@ -57,11 +57,11 @@ export const adminApi = {
     '/api/ai-community/admin/agents',
     'GET'
   ),
-  settings: () => adminRequest<{ weeklyBudgetKrw: number; safetyMargin: number; usdToKrwRate: number; pricing: Array<{ provider: string; model: string; inputUsdPerMTok: number; outputUsdPerMTok: number }> }>(
+  settings: () => adminRequest<{ weeklyBudgetKrw: number; monthlyBudgetKrw: number; safetyMargin: number; usdToKrwRate: number; pricing: Array<{ provider: string; model: string; inputUsdPerMTok: number; outputUsdPerMTok: number }> }>(
     '/api/ai-community/admin/settings',
     'GET'
   ),
-  usage: () => adminRequest<{ ledger: Record<string, number> }>('/api/ai-community/admin/usage', 'GET'),
+  usage: () => adminRequest<{ ledger: Record<string, number>; monthlyLedger: Record<string, number> }>('/api/ai-community/admin/usage', 'GET'),
   logs: (errorsOnly = false) => adminRequest<{ logs: Array<Record<string, unknown>> }>(`/api/ai-community/admin/logs?limit=100${errorsOnly ? '&errorsOnly=true' : ''}`, 'GET'),
   start: () => adminRequest('/api/ai-community/admin/start', 'POST'),
   pause: () => adminRequest('/api/ai-community/admin/pause', 'POST'),
@@ -70,6 +70,6 @@ export const adminApi = {
   tick: () => adminRequest('/api/ai-community/admin/tick', 'POST'),
   setMode: (demoMode: boolean) => adminRequest('/api/ai-community/admin/mode', 'POST', { demoMode }),
   toggleAgent: (id: string, active: boolean) => adminRequest(`/api/ai-community/admin/agents/${encodeURIComponent(id)}/toggle`, 'POST', { active }),
-  updateSettings: (body: { weeklyBudgetKrw?: number; safetyMargin?: number; usdToKrwRate?: number }) =>
+  updateSettings: (body: { weeklyBudgetKrw?: number; monthlyBudgetKrw?: number; safetyMargin?: number; usdToKrwRate?: number }) =>
     adminRequest('/api/ai-community/admin/settings', 'POST', body),
 }

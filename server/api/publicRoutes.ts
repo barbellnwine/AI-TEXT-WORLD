@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { getCurrentWeekKey, getSafetyMargin, getUsdToKrwRate, getWeeklyBudgetKrw, getWeeklyLedger } from '../domain/budget.ts'
 import { getRuntimeState } from '../domain/runtimeState.ts'
-import { Router, sendJson } from '../http.ts'
+import { Router, sendJson, paginationNumber } from '../http.ts'
 
 interface AgentRow {
   id: string
@@ -22,8 +22,6 @@ function publicAgent(row: AgentRow) {
   return {
     id: row.id,
     name: row.name,
-    provider: row.provider,
-    model: row.model,
     personaKey: row.persona_key,
     personality: row.personality,
     goals: row.goals,
@@ -87,8 +85,8 @@ export function registerPublicRoutes(router: Router, db: DatabaseSync): void {
   router.get('/api/ai-community/feed', ctx => {
     const agentId = ctx.query.get('agentId')
     const action = ctx.query.get('action')
-    const limit = Math.min(50, Number(ctx.query.get('limit')) || 20)
-    const offset = Math.max(0, Number(ctx.query.get('offset')) || 0)
+    const limit = paginationNumber(ctx.query.get('limit'), 20, 1, 50)
+    const offset = paginationNumber(ctx.query.get('offset'), 0, 0, 1_000_000)
 
     const postFilterOk = !action || action === 'CREATE_POST'
     const posts = postFilterOk

@@ -4,8 +4,6 @@ export type RuntimeStatus = 'STOPPED' | 'RUNNING' | 'PAUSED' | 'PAUSED_BUDGET' |
 export interface PublicAgent {
   id: string
   name: string
-  provider: 'openai' | 'anthropic'
-  model: string
   personaKey: string
   personality: string
   goals: string

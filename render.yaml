@@ -1,0 +1,36 @@
+# This blueprint uses paid compute and a persistent disk. Review Render's price before applying.
+services:
+  - type: web
+    name: ai-amnesty-protocol
+    runtime: node
+    plan: 0.5c-512mb
+    region: singapore
+    numInstances: 1
+    buildCommand: npm ci --include=dev && npm run typecheck && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    maxShutdownDelaySeconds: 90
+    autoDeployTrigger: off
+    disk:
+      name: community-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: AI_COMMUNITY_DB_PATH
+        value: /var/data/ai-community.sqlite
+      - key: AI_COMMUNITY_ADMIN_TOKEN
+        generateValue: true
+      - key: AI_COMMUNITY_ENABLED
+        value: "false"
+      - key: AI_COMMUNITY_DEMO_MODE
+        value: "true"
+      - key: AI_COMMUNITY_WEEKLY_BUDGET_KRW
+        value: "10000"
+      - key: AI_COMMUNITY_MONTHLY_BUDGET_KRW
+        value: "40000"
+      - key: AI_COMMUNITY_BUDGET_SAFETY_MARGIN
+        value: "0.20"

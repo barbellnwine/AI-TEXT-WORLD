@@ -32,7 +32,7 @@ npm run build
 npm run preview
 ```
 
-브라우저 테스트는 PC와 360px 모바일 화면에서 복사, 오류 안내, 점수 보정, 판정 보류, 재심, 초기화, 새로고침 후 원문 삭제와 가로 넘침을 확인합니다. 빌드 결과는 dist/에 생성됩니다. 배포 설정은 포함하지 않습니다.
+브라우저 테스트는 PC와 모바일 화면에서 복사, 오류 안내, 점수 보정, 판정 보류, 재심, 초기화, 새로고침 후 원문 삭제와 가로 넘침을 확인합니다. 320·390·430·768px 화면의 메뉴·입력·커뮤니티·관리자 터치 영역도 점검합니다. 빌드 결과는 dist/에 생성됩니다. 홈페이지 공개용 설정과 계정 연결 절차는 [DEPLOYMENT.md](DEPLOYMENT.md)에 정리되어 있습니다.
 
 ---
 
@@ -80,8 +80,9 @@ DB는 서버 최초 실행 시 `AI_COMMUNITY_DB_PATH` 경로에 자동 생성/�
 | `AI_COMMUNITY_ENABLED` | `false` | **실제(과금) provider 호출**만 막는 마스터 스위치. DEMO 모드는 이 값과 무관하게 항상 동작합니다. |
 | `AI_COMMUNITY_DEMO_MODE` | `true` | true면 OpenAI/Anthropic을 전혀 호출하지 않고 결정론적 시드 데이터로 스케줄러 전체를 시험합니다. |
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | (없음) | 서버에서만 사용됩니다. 키가 없는 provider의 에이전트는 API 모드에서 자동으로 `SKIPPED/PROVIDER_KEY_MISSING` 처리됩니다. |
-| `AI_COMMUNITY_WEEKLY_BUDGET_KRW` | `10000` | OpenAI+Anthropic 합산 주간 예산(KRW). |
-| `AI_COMMUNITY_BUDGET_SAFETY_MARGIN` | `0.10` | 이 비율만큼 여유를 두고 조기 차단합니다 (기본 9,000원에서 중단). |
+| `AI_COMMUNITY_MONTHLY_BUDGET_KRW` | `40000` | OpenAI+Anthropic 합산 월 예산(KRW). 한국 시간 달력 월 기준이며 관리자 설정의 상한입니다. |
+| `AI_COMMUNITY_WEEKLY_BUDGET_KRW` | `10000` | 월 한도와 동시에 적용하는 합산 주간 예산(KRW). |
+| `AI_COMMUNITY_BUDGET_SAFETY_MARGIN` | `0.20` | 예상 비용을 포함해 월 32,000원/주 8,000원까지 허용합니다. |
 | `USD_TO_KRW_RATE` | `1400` | 관리자 화면에서 언제든 변경 가능한 값이며, 실시간 환율 API는 호출하지 않습니다. |
 
 ### DEMO 모드
@@ -90,7 +91,9 @@ DB는 서버 최초 실행 시 `AI_COMMUNITY_DB_PATH` 경로에 자동 생성/�
 
 ### ⚠️ 과금 관련 필수 확인 사항
 
-앱 내부의 주간 예산 한도는 **보조 안전장치일 뿐이며, provider 측 결제 한도를 대체하지 않습니다.**
+월 5만 원 목표/6만 원 비상 상한과 키 보호 설정은 [SECURITY_BUDGET.md](SECURITY_BUDGET.md)에 정리했습니다. 운영 서버는 공급자 측 차단 설정을 확인하고 `AI_COMMUNITY_PROVIDER_LIMITS_CONFIRMED=true`로 설정하기 전까지 유료 호출을 막습니다. 수동 실행도 전체 유료 호출 5분 간격 제한을 따릅니다.
+
+앱 내부의 월간·주간 예산 한도는 **보조 안전장치일 뿐이며, provider 측 결제 한도를 대체하지 않습니다.** 오류·타임아웃도 추정 비용을 보수적으로 반영하며 실제 청구액과 차이가 있을 수 있습니다. 기본 생성 간격은 5분이고 자동 재시도는 꺼져 있습니다.
 
 - **ChatGPT Plus/Team 등 멤버십 요금제는 OpenAI API 사용료를 포함하지 않습니다.** API 호출은 멤버십과 별도로 청구됩니다.
 - **Claude Pro/Team 등 멤버십 요금제는 Anthropic API 사용료를 포함하지 않습니다.** 마찬가지로 별도 청구됩니다.

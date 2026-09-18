@@ -1,14 +1,15 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { randomUUID } from 'node:crypto'
 import { config } from '../config.ts'
+import { boundCallInput, reservedInputTokens } from '../providers/requestBody.ts'
 import {
   checkBudget,
   ensurePricingSeeded,
   estimateCostUsd,
   getCurrentWeekKey,
+  getCurrentMonthKey,
   getPricing,
   getUsdToKrwRate,
-  releaseReservation,
   reserveBudget,
   settleReservation,
 } from './budget.ts'
@@ -67,14 +68,16 @@ function toAgentRecord(row: AgentRow): AgentRecord {
 }
 
 // Exported for tests: proves fairness selection (used by runTick below) never keys off provider.
-export function pickCandidate(db: DatabaseSync): AgentRow | null {
+export function pickCandidate(db: DatabaseSync, eligible: (agent: AgentRow) => boolean = () => true): AgentRow | null {
   const runtime = getRuntimeState(db)
   const excludeId = runtime.consecutive_count >= config.maxConsecutivePicks ? runtime.consecutive_agent_id : null
 
   const all = db.prepare('SELECT * FROM ai_agents WHERE active = 1').all() as unknown as AgentRow[]
   if (all.length === 0) return null
-  const pool = excludeId ? all.filter(a => a.id !== excludeId) : all
-  const candidates = pool.length > 0 ? pool : all
+  const ready = all.filter(a => eligible(a) && (!a.cooldown_until || Date.parse(a.cooldown_until) <= Date.now()))
+  const available = ready.length > 0 ? ready : all
+  const pool = excludeId ? available.filter(a => a.id !== excludeId) : available
+  const candidates = pool.length > 0 ? pool : available
 
   candidates.sort((a, b) => {
     const aTime = a.last_acted_at ? Date.parse(a.last_acted_at) : -Infinity
@@ -217,7 +220,7 @@ export async function runTick(db: DatabaseSync, options: RunTickOptions): Promis
     return { ticked: false, agentId: null, action: null, status: null, skipReason: null }
   }
 
-  const candidate = pickCandidate(db)
+  const candidate = pickCandidate(db, agent => Boolean(runtime.demo_mode) || options.adapters.real[agent.provider].isConfigured())
   if (!candidate) return { ticked: false, agentId: null, action: null, status: null, skipReason: null }
 
   if (runtime.status !== 'RUNNING') {
@@ -247,35 +250,50 @@ export async function runTick(db: DatabaseSync, options: RunTickOptions): Promis
       return skip(db, candidate, 'PROVIDER_KEY_MISSING', `${candidate.provider} API key missing`)
     }
 
-    const pricing = getPricing(db, candidate.provider, candidate.model) ?? { provider: candidate.provider, model: candidate.model, inputUsdPerMTok: 1, outputUsdPerMTok: 3 }
-    const rate = getUsdToKrwRate(db)
-    const estUsd = demoMode ? 0 : estimateCostUsd(pricing, config.maxInputContextTokens, config.maxOutputTokens)
-    const estKrw = demoMode ? 0 : estUsd * rate
-    const weekKey = getCurrentWeekKey()
+    if (!demoMode && config.production && !config.providerLimitsConfirmed) {
+      return skip(db, candidate, 'PROVIDER_LIMITS_UNCONFIRMED')
+    }
 
     if (!demoMode) {
-      const budget = checkBudget(db, estKrw)
+      const gate = db.prepare('SELECT next_allowed_at FROM ai_paid_call_gate WHERE id = 1').get() as { next_allowed_at: number }
+      if (gate.next_allowed_at > Date.now()) return skip(db, candidate, 'CALL_RATE_LIMIT')
+    }
+
+    const pricing = getPricing(db, candidate.provider, candidate.model)
+    if (!pricing) return skip(db, candidate, 'PRICING_MISSING')
+    const rate = getUsdToKrwRate(db)
+    const callInput = boundCallInput(candidate.provider, {
+      agent: toAgentRecord(candidate),
+      privateMemories: getPrivateMemories(db, candidate.id),
+      recentPublicPosts: recentPublicPosts(db),
+      maxOutputTokens: Math.min(400, config.maxOutputTokens),
+    })
+    const perAttemptUsd = demoMode ? 0 : estimateCostUsd(pricing,
+      Math.max(config.maxInputContextTokens, reservedInputTokens(candidate.provider, callInput)), callInput.maxOutputTokens)
+    const estUsd = perAttemptUsd * (1 + config.maxRetries)
+    const estKrw = demoMode ? 0 : estUsd * rate
+    const startedAt = new Date()
+    const weekKey = getCurrentWeekKey(startedAt)
+    const monthKey = getCurrentMonthKey(startedAt)
+
+    if (!demoMode) {
+      const budget = checkBudget(db, estKrw, startedAt)
       if (!budget.allowed) {
         setStatus(db, 'PAUSED_BUDGET')
         return skip(db, candidate, 'BUDGET_LIMIT')
       }
-      reserveBudget(db, weekKey, estKrw, estUsd)
+      reserveBudget(db, weekKey, estKrw, estUsd, monthKey)
+      db.prepare('UPDATE ai_paid_call_gate SET next_allowed_at = ? WHERE id = 1')
+        .run(Date.now() + config.paidMinIntervalMs)
     }
-
-    const agentRecord = toAgentRecord(candidate)
-    const privateMemories = getPrivateMemories(db, candidate.id)
-    const posts = recentPublicPosts(db)
 
     let callResult
     try {
-      callResult = await adapter.generateAction({
-        agent: agentRecord,
-        privateMemories,
-        recentPublicPosts: posts,
-        maxOutputTokens: config.maxOutputTokens,
-      })
+      callResult = await adapter.generateAction(callInput)
     } catch (error) {
-      if (!demoMode) releaseReservation(db, weekKey, estKrw, estUsd)
+      // A timeout or invalid response may still have been billed upstream.
+      // Conservatively retain the estimated charge instead of granting free retries.
+      if (!demoMode) settleReservation(db, weekKey, estKrw, estUsd, estKrw, estUsd, candidate.provider, monthKey)
       const code = error instanceof Error && 'code' in error ? String((error as { code: unknown }).code) : 'UNKNOWN'
       logAction(db, {
         agentId: candidate.id,
@@ -290,19 +308,23 @@ export async function runTick(db: DatabaseSync, options: RunTickOptions): Promis
         skipReason: null,
         inputTokens: 0,
         outputTokens: 0,
-        estUsd: 0,
-        estKrw: 0,
+        estUsd,
+        estKrw,
         latencyMs: null,
         errorCode: code,
         errorMessage: 'provider call failed',
       })
-      applyCooldown(db, candidate.id)
+      finalizeAgentAfterAction(db, candidate.id, runtime)
       return { ticked: true, agentId: candidate.id, action: null, status: 'FAILED', skipReason: null }
     }
 
-    const actualUsd = demoMode ? 0 : estimateCostUsd(pricing, callResult.usage.inputTokens, callResult.usage.outputTokens)
+    const usageUsd = callResult.usage.inputTokens > 0
+      ? estimateCostUsd(pricing, callResult.usage.inputTokens, callResult.usage.outputTokens)
+      : perAttemptUsd
+    // Adapters do not report retry usage, so budget for every configured retry.
+    const actualUsd = demoMode ? 0 : usageUsd + perAttemptUsd * config.maxRetries
     const actualKrw = demoMode ? 0 : actualUsd * rate
-    if (!demoMode) settleReservation(db, weekKey, estKrw, estUsd, actualKrw, actualUsd, candidate.provider)
+    if (!demoMode) settleReservation(db, weekKey, estKrw, estUsd, actualKrw, actualUsd, candidate.provider, monthKey)
 
     const shapeCheck = validateShape(callResult.raw)
     if (!shapeCheck.ok) {
@@ -378,11 +400,6 @@ export async function runTick(db: DatabaseSync, options: RunTickOptions): Promis
   } finally {
     releaseLock(db, lockHolder)
   }
-}
-
-function applyCooldown(db: DatabaseSync, agentId: string): void {
-  const cooldownUntil = new Date(Date.now() + config.cooldownMs).toISOString()
-  db.prepare('UPDATE ai_agents SET cooldown_until = ? WHERE id = ?').run(cooldownUntil, agentId)
 }
 
 function finalizeAgentAfterAction(db: DatabaseSync, agentId: string, runtime: { consecutive_agent_id: string | null }): void {

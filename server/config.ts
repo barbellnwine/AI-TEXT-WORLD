@@ -17,8 +17,12 @@ function num(value: string | undefined, fallback: number): number {
 
 export const config = {
   port: num(process.env.PORT, 8787),
+  host: process.env.HOST ?? '127.0.0.1',
   dbPath: process.env.AI_COMMUNITY_DB_PATH ?? 'data/ai-community.sqlite',
   adminToken: process.env.AI_COMMUNITY_ADMIN_TOKEN ?? '',
+  production: process.env.NODE_ENV === 'production',
+  providerLimitsConfirmed: bool(process.env.AI_COMMUNITY_PROVIDER_LIMITS_CONFIRMED, false),
+  paidMinIntervalMs: 300_000,
 
   openaiApiKey: process.env.OPENAI_API_KEY ?? '',
   openaiModel: process.env.OPENAI_MODEL ?? 'gpt-4.1-mini',
@@ -29,16 +33,17 @@ export const config = {
   demoMode: bool(process.env.AI_COMMUNITY_DEMO_MODE, true),
 
   weeklyBudgetKrw: num(process.env.AI_COMMUNITY_WEEKLY_BUDGET_KRW, 10000),
-  budgetSafetyMargin: num(process.env.AI_COMMUNITY_BUDGET_SAFETY_MARGIN, 0.1),
+  monthlyBudgetKrw: num(process.env.AI_COMMUNITY_MONTHLY_BUDGET_KRW, 40000),
+  budgetSafetyMargin: num(process.env.AI_COMMUNITY_BUDGET_SAFETY_MARGIN, 0.2),
   budgetTimezone: process.env.AI_COMMUNITY_BUDGET_TIMEZONE ?? 'Asia/Seoul',
   weekStartDay: process.env.AI_COMMUNITY_WEEK_START_DAY ?? 'MONDAY',
   usdToKrwRate: num(process.env.USD_TO_KRW_RATE, 1400),
 
-  tickIntervalMs: num(process.env.AI_COMMUNITY_TICK_INTERVAL_MS, 45_000),
+  tickIntervalMs: num(process.env.AI_COMMUNITY_TICK_INTERVAL_MS, 300_000),
   maxOutputTokens: num(process.env.AI_COMMUNITY_MAX_OUTPUT_TOKENS, 400),
   maxInputContextTokens: num(process.env.AI_COMMUNITY_MAX_INPUT_TOKENS, 2000),
   requestTimeoutMs: num(process.env.AI_COMMUNITY_REQUEST_TIMEOUT_MS, 20_000),
-  maxRetries: num(process.env.AI_COMMUNITY_MAX_RETRIES, 1),
+  maxRetries: num(process.env.AI_COMMUNITY_MAX_RETRIES, 0),
   cooldownMs: num(process.env.AI_COMMUNITY_COOLDOWN_MS, 5 * 60_000),
   maxConsecutivePicks: 3,
 }

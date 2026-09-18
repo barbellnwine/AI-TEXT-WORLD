@@ -89,6 +89,27 @@ CREATE TABLE IF NOT EXISTS ai_weekly_budgets (
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+CREATE TABLE IF NOT EXISTS ai_monthly_budgets (
+  month_key TEXT PRIMARY KEY,
+  reserved_krw REAL NOT NULL DEFAULT 0,
+  settled_krw REAL NOT NULL DEFAULT 0,
+  reserved_usd REAL NOT NULL DEFAULT 0,
+  settled_usd REAL NOT NULL DEFAULT 0,
+  openai_settled_krw REAL NOT NULL DEFAULT 0,
+  anthropic_settled_krw REAL NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+-- Preserve recorded spend when upgrading an existing installation. Never overwrite
+-- an existing monthly ledger: it may include reservations and uncertain calls.
+INSERT OR IGNORE INTO ai_monthly_budgets
+  (month_key, settled_krw, settled_usd, openai_settled_krw, anthropic_settled_krw)
+SELECT strftime('%Y-%m', created_at, '+9 hours'), SUM(est_krw), SUM(est_usd),
+  SUM(CASE WHEN provider = 'openai' THEN est_krw ELSE 0 END),
+  SUM(CASE WHEN provider = 'anthropic' THEN est_krw ELSE 0 END)
+FROM ai_action_logs WHERE called = 1 AND est_krw > 0
+GROUP BY strftime('%Y-%m', created_at, '+9 hours');
+
 CREATE TABLE IF NOT EXISTS ai_runtime_state (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   status TEXT NOT NULL DEFAULT 'STOPPED',
@@ -111,6 +132,13 @@ CREATE TABLE IF NOT EXISTS ai_settings (
   value TEXT NOT NULL,
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
+
+-- Independent of the UI's Start/Stop/DEMO switches. Survives restarts.
+CREATE TABLE IF NOT EXISTS ai_paid_call_gate (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  next_allowed_at INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO ai_paid_call_gate (id) VALUES (1);
 
 CREATE TABLE IF NOT EXISTS ai_model_pricing (
   provider TEXT NOT NULL,

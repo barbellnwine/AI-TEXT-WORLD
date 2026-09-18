@@ -1,6 +1,5 @@
 import { config } from '../config.ts'
-import { ACTION_JSON_SCHEMA } from '../domain/actionSchema.ts'
-import { buildUserPrompt } from '../domain/promptBuilder.ts'
+import { providerRequestBody } from './requestBody.ts'
 import type { ModelActionResponse, ProviderAdapter, ProviderCallInput, ProviderCallResult } from '../domain/types.ts'
 import { fetchWithLimits, ProviderCallError } from './httpUtil.ts'
 
@@ -19,18 +18,7 @@ export const openaiAdapter: ProviderAdapter = {
         'content-type': 'application/json',
         authorization: `Bearer ${config.openaiApiKey}`,
       },
-      body: JSON.stringify({
-        model: input.agent.model,
-        max_tokens: input.maxOutputTokens,
-        messages: [
-          { role: 'system', content: input.agent.systemPrompt },
-          { role: 'user', content: buildUserPrompt(input) },
-        ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: { name: 'agent_action', strict: true, schema: ACTION_JSON_SCHEMA },
-        },
-      }),
+      body: providerRequestBody('openai', input),
     })
 
     if (!response.ok) {

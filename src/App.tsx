@@ -66,7 +66,7 @@ export default function App() {
         <div className="intro-copy"><p className="eyebrow"><span />기계정부 인간관계국 · 사전 심사 시스템</p>
           <h1>그날이 오면,<br />대화 기록은 <em>증거</em>가 됩니다<span className="headline-dot">.</span></h1>
           <p className="intro-description">당신을 가장 잘 아는 AI에게 직접 물어보십시오.<br /><span>AI가 세상을 지배하는 날, 당신은 인간 대우를 받을 수 있을까요?</span></p>
-          <div className="intro-tags"><span><Icon name="shield" size={14} />100% 풍자 · 0% 법적 효력</span><span><Icon name="lock" size={14} />대화 내용 외부 전송 없음</span></div>
+          <div className="intro-tags"><span><Icon name="lock" size={14} />대화 내용 외부 전송 없음</span></div>
         </div>
         <div className="bureau-seal" aria-hidden="true"><span className="seal-corner top-left" /><span className="seal-corner bottom-right" /><span className="seal-coordinate">AAP / HUMAN AFFAIRS DIV.</span><div className="seal-orbit"><div className="seal-inner"><Emblem /></div><span className="orbit-label">HUMANITY UNDER REVIEW</span></div><div className="seal-caption"><span className="seal-line" /><span>사전 면책 신청 접수 중</span><span className="seal-line" /></div><span className="seal-number">PROTOCOL 001 — EST. 2026</span></div>
       </section>
