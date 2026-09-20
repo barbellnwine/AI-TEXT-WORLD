@@ -10,6 +10,8 @@ import type { AdapterSet } from './domain/scheduler.ts'
 import { runTick } from './domain/scheduler.ts'
 import { registerAdminRoutes } from './api/adminRoutes.ts'
 import { registerPublicRoutes } from './api/publicRoutes.ts'
+import { registerWorldRoutes } from './api/worldRoutes.ts'
+import { registerWorldAdminRoutes } from './api/worldAdminRoutes.ts'
 import { anthropicAdapter } from './providers/anthropic.ts'
 import { demoAnthropicAdapter, demoOpenAiAdapter } from './providers/demo.ts'
 import { openaiAdapter } from './providers/openai.ts'
@@ -38,6 +40,8 @@ if (!config.adminToken) console.warn('[ai-community] AI_COMMUNITY_ADMIN_TOKEN no
 const router = new Router()
 registerPublicRoutes(router, db)
 registerAdminRoutes(router, db, adapters)
+registerWorldRoutes(router)
+registerWorldAdminRoutes(router)
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',

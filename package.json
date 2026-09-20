@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build && node tool/check-public-secrets.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc -b && tsc -p tsconfig.server.json --noEmit",
-    "test": "node --experimental-strip-types --test tests/logic.test.ts tests/ai-community.test.ts tests/monthly-budget.test.ts tests/security.test.ts",
+    "test": "node --experimental-strip-types --test tests/logic.test.ts tests/ai-community.test.ts tests/monthly-budget.test.ts tests/security.test.ts tests/world-validator.test.ts",
     "test:e2e": "playwright test",
     "start": "node --experimental-strip-types server/index.ts",
     "test:deployment": "node --experimental-strip-types --test tests/deployment.test.ts"
