@@ -1,0 +1,61 @@
+import { test, expect } from '@playwright/test'
+
+test('admin account opens builder and rules without an operator token', async ({ page }, info) => {
+  await page.addInitScript(() => localStorage.setItem('ai_world_locale', 'ko-KR'))
+  await page.goto('/admin/world')
+  await expect(page.getByRole('heading', { name: '관리자 전용 화면' })).toBeVisible()
+  await page.getByRole('button', { name: '로그인', exact: false }).click()
+  const dialog = page.locator('.world-auth-dialog')
+  await dialog.getByLabel('이메일 또는 관리자 아이디').fill('e2e-admin')
+  await dialog.getByLabel('비밀번호').fill('e2e-admin-password')
+  await dialog.getByRole('button', { name: '로그인', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '시즌 제어' })).toBeVisible()
+  await expect(page.getByPlaceholder('x-admin-token')).toHaveCount(0)
+  await page.getByRole('link', { name: 'WORLD RULE PRESET 관리' }).click()
+  await expect(page.getByRole('button', { name: 'REALISTIC_WORLD', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'REALISTIC_WORLD', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'PRESET 편집 — REALISTIC_WORLD' })).toBeVisible()
+  await page.getByRole('link', { name: 'WORLD 생성 Wizard로 돌아가기' }).click()
+  await expect(page.getByRole('heading', { name: 'WORLD 목록' })).toBeVisible()
+  if (info.project.name === 'mobile') return
+
+  page.once('dialog', dialog => dialog.accept('E2E simulation'))
+  await page.getByRole('button', { name: '+ 새 WORLD 만들기' }).click()
+  await expect(page.getByLabel('WORLD 이름', { exact: true })).toHaveValue('E2E simulation')
+  await page.getByLabel('시뮬레이션 속도').fill('3600')
+  await page.getByLabel('초기 참가 인원').fill('1')
+  await page.getByRole('button', { name: '저장하고 다음' }).click()
+  await page.getByRole('combobox', { name: 'WORLD RULE PRESET', exact: true }).selectOption('preset-realistic-world')
+  await page.getByRole('button', { name: '저장하고 다음' }).click()
+  await expect(page.getByRole('heading', { name: '03 · 시작 환경 (DAY 1)' })).toBeVisible()
+  const id = page.url().split('/').at(-1)!
+  const prefix = `/api/admin/world/drafts/${id}`
+  const headers = { 'x-world-admin': '1' }
+  const saved = await page.request.put(`${prefix}/places`, { headers, data: {
+    places: ['A', 'B'].map(name => ({ tempId: name, name, isPublic: true, isDiscovered: true })),
+    connections: [{ fromPlaceRef: 'A', toPlaceRef: 'B', travelTime: 15 }],
+  } })
+  expect(saved.ok()).toBeTruthy()
+  const { draft } = await saved.json()
+  const character = await page.request.post(`${prefix}/characters`, { headers, data: { name: 'Explorer', provider: 'openai', initialPlaceId: draft.places[0].id } })
+  expect(character.ok()).toBeTruthy()
+  await page.reload()
+  await page.getByRole('button', { name: '07 START' }).click()
+  page.once('dialog', dialog => dialog.accept())
+  await page.getByRole('button', { name: 'START WORLD', exact: true }).click()
+  await expect(page).toHaveURL(/\/admin\/world$/)
+  await expect(page.getByText('데모 실행 ·', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: '지금 1회 실행' }).click()
+  await expect(page.getByText('1회 실행 완료', { exact: true })).toBeVisible()
+  await expect(page.locator('.admin-table').getByText('Explorer', { exact: false }).first()).toBeVisible()
+  const started = await (await page.request.get('/api/world/current')).json()
+  expect(started.worldState.agents[0].publicState.locationId).toBe(draft.places[0].id)
+  expect(started.worldState.engine.ongoingActions).toHaveLength(1)
+  for (let minute = 0; minute < 15; minute++) expect((await page.request.post('/api/admin/world/tick', { headers })).ok()).toBeTruthy()
+  const world = await (await page.request.get('/api/world/current')).json()
+  expect(world.worldState.agents[0].publicState.locationId).toBe(draft.places[1].id)
+  await page.getByRole('button', { name: '일시정지', exact: true }).click()
+  await expect(page.getByRole('button', { name: '지금 1회 실행' })).toBeDisabled()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: '시즌 제어' })).toBeVisible()
+})

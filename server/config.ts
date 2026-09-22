@@ -21,6 +21,11 @@ export const config = {
   dbPath: process.env.AI_COMMUNITY_DB_PATH ?? 'data/ai-community.sqlite',
   adminToken: process.env.AI_COMMUNITY_ADMIN_TOKEN ?? '',
   production: process.env.NODE_ENV === 'production',
+
+  // One-time boot seed for the first real ADMIN-role user account (users/sessions tables).
+  // Leave unset after the account exists — this only ever creates, never resets, a password.
+  adminSeedUsername: process.env.ADMIN_SEED_USERNAME ?? '',
+  adminSeedPassword: process.env.ADMIN_SEED_PASSWORD ?? '',
   providerLimitsConfirmed: bool(process.env.AI_COMMUNITY_PROVIDER_LIMITS_CONFIRMED, false),
   paidMinIntervalMs: 300_000,
 
@@ -31,6 +36,15 @@ export const config = {
 
   communityEnabled: bool(process.env.AI_COMMUNITY_ENABLED, false),
   demoMode: bool(process.env.AI_COMMUNITY_DEMO_MODE, true),
+
+  // WORLD character generation + new simulation seasons. The mode is independent of Community;
+  // live simulation calls share its weekly/monthly money ledgers. Defaults to demo.
+  worldDemoMode: bool(process.env.AI_WORLD_DEMO_MODE, true),
+  maxActiveCharacters: Math.max(1, Math.floor(num(process.env.MAX_ACTIVE_CHARACTERS, 10))),
+  worldMinutesPerTick: Math.min(15, Math.max(1, Math.floor(num(process.env.WORLD_MINUTES_PER_TICK, 1)))),
+  worldDecisionsPerCycle: Math.max(1, Math.floor(num(process.env.WORLD_DECISIONS_PER_CYCLE, 2))),
+  worldDecisionCooldownMs: Math.max(1000, num(process.env.WORLD_DECISION_COOLDOWN_MS, 30_000)),
+  worldChapterMinutes: Math.max(10, num(process.env.WORLD_CHAPTER_MINUTES, 60)),
 
   weeklyBudgetKrw: num(process.env.AI_COMMUNITY_WEEKLY_BUDGET_KRW, 10000),
   monthlyBudgetKrw: num(process.env.AI_COMMUNITY_MONTHLY_BUDGET_KRW, 40000),

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getWorldAdminToken, setWorldAdminToken, worldAdminApi, worldApi } from '../api'
+import { worldAdminApi, worldApi } from '../api'
 import { EventDetailPanel } from '../components/EventDetailPanel'
 import { EventFeed } from '../components/EventFeed'
 import { WorldFooter } from '../components/WorldFooter'
 import { formatDateTime } from '../format'
 import type { AdminWorldRuntime, Agent, OperatorLogEntry, Place, Season, WorldEvent } from '../types'
+import { Link } from '../../router/Link'
 
 export function AdminWorldPage() {
-  const [tokenInput, setTokenInput] = useState(getWorldAdminToken())
   const [runtime, setRuntime] = useState<AdminWorldRuntime | null>(null)
   const [season, setSeason] = useState<Season | null>(null)
   const [operatorLog, setOperatorLog] = useState<OperatorLogEntry[]>([])
@@ -15,6 +15,8 @@ export function AdminWorldPage() {
   const [agents, setAgents] = useState<Agent[]>([])
   const [authError, setAuthError] = useState(false)
   const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [actionAudit, setActionAudit] = useState<Awaited<ReturnType<typeof worldAdminApi.runtime>>['actionAudit']>([])
   const [detailEventId, setDetailEventId] = useState<string | null>(null)
   const [detailEvent, setDetailEvent] = useState<WorldEvent | null>(null)
   const placesById = useMemo(() => new Map(places.map(p => [p.id, p])), [places])
@@ -44,6 +46,7 @@ export function AdminWorldPage() {
       setRuntime(res.runtime)
       setSeason(res.season)
       setOperatorLog(res.operatorLog)
+      setActionAudit(res.actionAudit)
       setAuthError(false)
     } catch {
       setAuthError(true)
@@ -51,22 +54,21 @@ export function AdminWorldPage() {
   }
 
   useEffect(() => {
-    if (getWorldAdminToken()) refresh()
+    refresh()
+    const timer = window.setInterval(refresh, 5000)
+    return () => window.clearInterval(timer)
   }, [])
 
-  function connect() {
-    setWorldAdminToken(tokenInput)
-    refresh()
-  }
 
   async function run(action: () => Promise<unknown>, label: string) {
+    setBusy(true)
     try {
       await action()
       setMessage(label)
       await refresh()
     } catch (err) {
       setMessage(`${label} 실패 — ${err instanceof Error ? err.message : ''}`)
-    }
+    } finally { setBusy(false) }
   }
 
   return (
@@ -75,19 +77,16 @@ export function AdminWorldPage() {
         <header className="world-page-header">
           <p className="world-eyebrow">ADMIN</p>
           <h1>시뮬레이션 운영자 화면</h1>
-          <p className="world-dev-banner">
-            ⚠ 개발 환경 전용 화면입니다. 별도의 운영자 계정/로그인 시스템은 아직 없으며, AI 커뮤니티 관리자 화면과 동일한 x-admin-token 공유 비밀값(AI_COMMUNITY_ADMIN_TOKEN)으로 보호됩니다.
-            실제 서비스 전에는 반드시 정식 인증으로 교체해야 합니다.
+          <p className="world-dev-banner">관리자 계정으로 세계를 설정하고 시뮬레이션을 제어합니다.</p>
+          <p className="world-micro" style={{ marginTop: 10, display: 'flex', gap: 14 }}>
+            <Link to="/admin/world/builder">WORLD 생성 Wizard →</Link>
+            <Link to="/admin/world/rule-presets">WORLD RULE PRESET 관리 →</Link>
           </p>
         </header>
 
         <section className="admin-panel">
-          <label className="admin-token-row">
-            운영자 토큰
-            <input type="password" value={tokenInput} onChange={e => setTokenInput(e.target.value)} placeholder="x-admin-token" />
-            <button onClick={connect}>연결</button>
-          </label>
-          {authError && <p className="ai-error">인증 실패 — 토큰을 확인하세요.</p>}
+          <p className="world-micro">관리자 계정으로 연결되었습니다.</p>
+          {authError && <p className="ai-error">설정을 불러오지 못했습니다. 로그인 상태와 연결을 확인하세요.</p>}
         </section>
 
         {runtime && season && (
@@ -99,6 +98,7 @@ export function AdminWorldPage() {
               </p>
               {message && <p className="micro">{message}</p>}
               <div className="admin-button-row">
+                <button disabled={busy || runtime.status !== 'RUNNING' || Boolean(runtime.lockHolder)} onClick={() => run(worldAdminApi.tick, '1회 실행 완료')}>{busy ? '실행 중…' : '지금 1회 실행'}</button>
                 <button onClick={() => run(worldAdminApi.start, '시즌 시작')}>시즌 시작</button>
                 <button onClick={() => run(worldAdminApi.pause, '일시정지')}>일시정지</button>
                 <button onClick={() => run(worldAdminApi.resume, '재개')}>재개</button>
@@ -113,6 +113,9 @@ export function AdminWorldPage() {
 
             <section className="admin-panel">
               <h2>런타임 현황</h2>
+              <p className="world-micro">세계 갱신 1회 = {runtime.worldMinutesPerTick}분 · WORLD 인원 한도 {runtime.maxActiveCharacters}명 · 진행 중 행동 {runtime.queuedEvents}개</p>
+              {runtime.decisionsPaused && <p role="status">새 AI 판단이 중지되었습니다 ({runtime.decisionStatus}). 세계 시간과 이미 진행 중인 행동은 계속됩니다. 예산·연결을 확인한 뒤 재개하세요.</p>}
+              <p className="world-micro">{runtime.mode === 'live' ? '실제 AI 실행 · 행동 제안과 규칙 판정은 각각 호출 예산을 사용합니다.' : runtime.mode === 'demo' ? '데모 실행 · AI 호출 없이 이동과 대기를 검증합니다. 서술형 규칙과 종료 조건 판정은 실제 AI 모드에서 적용됩니다.' : '샘플 세계 미리보기 · WORLD 생성에서 새 세계를 시작하세요.'}</p>
               <dl className="world-kv world-kv--inline">
                 <div><dt>tick 간격</dt><dd>{Math.round(runtime.tickIntervalMs / 1000)}초</dd></div>
                 <div><dt>최대 활성 에이전트</dt><dd>{runtime.maxActiveAgents}</dd></div>
@@ -150,6 +153,14 @@ export function AdminWorldPage() {
                   </ul>
                 </>
               )}
+            </section>
+
+            <section className="admin-panel">
+              <h2>최근 행동 판정</h2>
+              {actionAudit.length === 0 ? <p className="micro">아직 판정한 행동이 없습니다.</p> : <table className="admin-table">
+                <thead><tr><th>행동</th><th>결과</th><th>판정 사유 (관리자 전용)</th></tr></thead>
+                <tbody>{actionAudit.map(event => <tr key={event.id}><td>{event.title}</td><td>{event.outcome === 'REJECTED' ? '거절' : '승인'}</td><td>{event.provenance?.validation?.reasons.join(', ') || '검증 통과'}</td></tr>)}</tbody>
+              </table>}
             </section>
 
             <section className="admin-panel">

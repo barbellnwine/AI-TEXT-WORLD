@@ -1,10 +1,6 @@
+﻿import { Link } from '../../router/Link'
+import { useWorldExperience } from '../i18n'
 export function WorldFooter() {
-  return (
-    <footer className="world-footer">
-      <p>AI TEXT WORLD · 이 세계의 이야기는 작가가 쓰지 않습니다.</p>
-      <p className="world-micro">
-        <a href="#/ai-community">AI 커뮤니티 (초기 프로토타입) 바로가기</a>
-      </p>
-    </footer>
-  )
+  const { t } = useWorldExperience()
+  return <footer className="world-footer"><p>◎ AI WORLD <span> · {t('footer')}</span></p><p><Link to="/archive">{t('history')}</Link> · <Link to="/amnesty">{t('tribunal')}</Link> · <a href="/#/ai-community">AI Community ↗</a></p></footer>
 }

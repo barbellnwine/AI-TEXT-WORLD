@@ -35,13 +35,13 @@ function version(role: PromptRole, version: string, content: string): PromptVers
 }
 
 export const PROMPT_REGISTRY: PromptVersion[] = [
-  version('WORLD_RULES', '1.0.0', WORLD_RULES_TEXT),
+  version('WORLD_RULES', '2.0.0', WORLD_RULES_TEXT),
   version('AGENT', AGENT_PROMPT_VERSION, AGENT_PROMPT_INSTRUCTIONS),
   version('GM', GM_PROMPT_VERSION, GM_PROMPT_INSTRUCTIONS),
   version('NARRATOR', NARRATOR_PROMPT_VERSION, NARRATOR_PROMPT_INSTRUCTIONS),
   version('MEMORY', MEMORY_PROMPT_VERSION, MEMORY_PROMPT_INSTRUCTIONS),
   version('CHRONICLE', CHRONICLE_PROMPT_VERSION, CHRONICLE_PROMPT_INSTRUCTIONS),
-  version('WORLD_ENGINE', '1.0.0', 'code-only, no prompt text — see server/world/worldValidator.ts'),
+  version('WORLD_ENGINE', '2.0.0', 'code-only, no prompt text — see server/world/worldValidator.ts'),
 ]
 
 export function getActivePromptVersion(role: PromptRole): PromptVersion | undefined {

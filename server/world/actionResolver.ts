@@ -15,6 +15,7 @@ const ACTION_TO_EVENT_TYPE: Record<ProposedAction['actionType'], WorldEvent['typ
   WAIT: 'OBSERVATION',
   COOPERATE: 'COOPERATION',
   ATTACK: 'CONFLICT',
+  REST: 'OBSERVATION', SLEEP: 'OBSERVATION', TAKE_ITEM: 'RESOURCE_CHANGE', EAT: 'RESOURCE_CHANGE', DRINK: 'RESOURCE_CHANGE', EXPLORE: 'DISCOVERY', SHARE_INFO: 'DIALOGUE',
 }
 
 // Derives the StateChange list for an approved action. Deliberately covers only the action types
@@ -56,7 +57,7 @@ export function resolveAction(action: ProposedAction, validation: ActionValidati
     stateChanges: validation.approved ? deriveStateChanges(action, worldState) : [],
     importance: 'normal',
     relatedEventIds: [],
-    publicQuote: action.spokenText,
+    publicQuote: action.actionType === 'SPEAK' ? action.spokenText : undefined,
     outcome: validation.approved ? 'CONFIRMED' : 'REJECTED',
   }
 }

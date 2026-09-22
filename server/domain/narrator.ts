@@ -17,20 +17,20 @@ export interface NarratorAdapter {
   narrateFallbackScene(events: WorldEvent[], placesById: Map<string, Place>, agentsById: Map<string, Agent>): ChronicleEntry
 }
 
-function agentNames(ids: string[], agentsById: Map<string, Agent>): string {
-  const names = ids.map(id => agentsById.get(id)?.name ?? id)
-  return names.length > 0 ? names.join(', ') : '관측되지 않은 인물'
-}
-
 export const mockNarrator: NarratorAdapter = {
-  narrateFallbackScene(events, placesById, agentsById) {
+  narrateFallbackScene(events, placesById, _agentsById) {
     const first = events[0]
     const agentIds = [...new Set(events.flatMap(e => e.agentIds))]
-    const paragraphs = events.map(event => {
-      const who = agentNames(event.agentIds, agentsById)
-      const quote = event.publicQuote ? `\n${event.publicQuote}` : ''
-      return `${event.summary}${event.agentIds.length > 0 ? ` (관련 인물: ${who})` : ''}${quote}`
-    })
+    const groups: Array<{ placeId: string; sentences: string[] }> = []
+    for (const event of events) {
+      if (event.outcome === 'REJECTED' || event.visibility === 'private' || event.phase === 'STARTED') continue
+      const quote = event.publicQuote ? ` “${event.publicQuote}”라는 말이 오갔다.` : ''
+      const previous = groups.at(-1)
+      const sentence = `${event.summary}${quote}`
+      if (previous?.placeId === event.placeId) previous.sentences.push(sentence)
+      else groups.push({ placeId: event.placeId, sentences: [sentence] })
+    }
+    const paragraphs = groups.map(group => `${placesById.get(group.placeId)?.name ?? '기록된 장소'}에서의 기록이다. ${group.sentences.join(' ')}`)
     const isOperator = events.some(e => e.type === 'OPERATOR_EVENT')
     const placeName = placesById.get(first.placeId)?.name ?? first.placeId
     const heading = isOperator ? `[${placeName} · 운영자가 기록한 사건]\n` : `[${placeName}]\n`
@@ -41,12 +41,12 @@ export const mockNarrator: NarratorAdapter = {
       worldDay: first.day,
       timeStart: hhmm(first.occurredAt),
       timeEnd: hhmm(events[events.length - 1].occurredAt),
-      title: first.title,
+      title: (events.find(e => e.importance === 'high' || e.importance === 'critical') ?? events.at(-1) ?? first).title,
       body: heading + paragraphs.join('\n\n'),
       locationIds: [...new Set(events.map(e => e.placeId))],
       agentIds,
       sourceEventIds: events.map(e => e.id),
-      stateChanges: events.flatMap(e => e.stateChanges),
+      stateChanges: events.flatMap(e => e.stateChanges.filter(c => !c.field.startsWith('knowledge:'))),
       importance: events.some(e => e.importance === 'critical' || e.importance === 'high') ? 'notable' : 'ordinary',
       createdAt: new Date().toISOString(),
       operator: first.operator,

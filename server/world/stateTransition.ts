@@ -11,8 +11,8 @@ export function applyStateChange(worldState: WorldState, change: StateChange): v
     const place = worldState.places.find(p => p.id === placeId)
     const resource = place?.resources.find(r => r.key === resourceKey)
     if (resource) {
-      const numeric = Number.parseFloat(change.to)
-      if (Number.isFinite(numeric)) {
+      const numeric = Number(change.to)
+      if (Number.isFinite(numeric) && numeric >= 0 && numeric <= resource.max) {
         resource.trend = numeric < resource.level ? 'down' : numeric > resource.level ? 'up' : 'stable'
         resource.level = numeric
       }
@@ -25,8 +25,28 @@ export function applyStateChange(worldState: WorldState, change: StateChange): v
     const [agentId, prop] = rest
     const agentRecord = worldState.agents.find(a => a.id === agentId)
     if (!agentRecord) return
-    if (prop === 'status') agentRecord.publicState.status = change.to as Agent['publicState']['status']
-    if (prop === 'location') agentRecord.publicState.locationId = change.to
+    if (prop === 'status' && agentRecord.publicState.status !== 'deceased' && ['alive', 'injured', 'missing', 'deceased'].includes(change.to)) agentRecord.publicState.status = change.to as Agent['publicState']['status']
+    if (prop === 'location') {
+      if (agentRecord.publicState.status === 'deceased' || !worldState.places.some(p => p.id === change.to)) return
+      agentRecord.publicState.locationId = change.to
+      for (const place of worldState.places) {
+        place.currentAgentIds = place.currentAgentIds.filter(id => id !== agentId)
+        if (place.id === change.to) place.currentAgentIds.push(agentId)
+      }
+      agentRecord.movementLog.push({ placeId: change.to, arrivedAt: new Date().toISOString() })
+      agentRecord.movementLog = agentRecord.movementLog.slice(-100)
+    }
+    return
+  }
+
+  if (kind === 'object' && rest.at(-1) === 'holder') {
+    const item = rest.slice(0, -1).join(':')
+    const from = worldState.agents.find(a => a.id === change.from)
+    const to = worldState.agents.find(a => a.id === change.to)
+    if (from?.inventory.includes(item) && to && !to.inventory.includes(item)) {
+      from.inventory = from.inventory.filter(id => id !== item)
+      to.inventory.push(item)
+    }
     return
   }
 

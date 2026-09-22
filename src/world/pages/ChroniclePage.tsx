@@ -57,8 +57,8 @@ export function ChroniclePage() {
               <li key={entry.id} className="world-chronicle-entry">
                 <span className="world-chronicle-day world-mono">DAY {entry.day}</span>
                 <div>
-                  <h2>{entry.title}</h2>
-                  <p>{entry.summary}</p>
+                  <h2>{entry.title}{entry.status === 'IN_PROGRESS' ? ' · 진행 중' : ''}</h2>
+                  <p style={{ whiteSpace: 'pre-line' }}>{entry.status === 'IN_PROGRESS' ? '세계에서 사건이 진행되고 있습니다. 완료되면 이야기로 기록됩니다.' : entry.summary}</p>
                   {entry.agentIds.length > 0 && (
                     <p className="world-micro">
                       참여:{' '}

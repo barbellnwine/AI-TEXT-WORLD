@@ -3,6 +3,7 @@
 // Server and client intentionally keep separate copies (same convention as ai-community's
 // server/domain/types.ts vs src/ai-community/types.ts) since they build under different tsconfigs.
 
+import type { HumanState, EmotionState, AgentMemory, EngineState } from '../world/engineTypes.ts'
 export type WorldTimeOfDay = 'dawn' | 'morning' | 'afternoon' | 'evening' | 'night' | 'lateNight'
 export type Weather = 'clear' | 'cloudy' | 'rain' | 'storm' | 'fog' | 'snow'
 export type DangerLevel = 'stable' | 'tense' | 'unstable' | 'critical'
@@ -43,6 +44,12 @@ export interface Resource {
 }
 
 export interface Place {
+  x?: number
+  y?: number
+  isPublic?: boolean
+  isDiscovered?: boolean
+  capacity?: number | null
+  facilityStatus?: string
   id: string
   name: string
   description: string
@@ -63,6 +70,9 @@ export interface Faction {
 }
 
 export interface Relationship {
+  trust?: number
+  affection?: number
+  attraction?: number
   agentId: string
   otherAgentId: string
   stance: RelationshipStance
@@ -80,6 +90,11 @@ export interface AgentPublicState {
 }
 
 export interface AgentKnowledgeEntry {
+  acquisition?: 'initial' | 'witness' | 'experience' | 'report' | 'discovery' | 'inference'
+  sourceAgentId?: string
+  truthId?: string
+  placeId?: string
+  verified?: boolean
   id: string
   summary: string
   sourceEventId?: string
@@ -92,6 +107,13 @@ export interface MovementLogEntry {
 }
 
 export interface Agent {
+  humanState?: HumanState
+  emotion?: EmotionState
+  body?: { health: number; injury: number }
+  nextDecisionAt?: number
+  wakeReason?: string
+  knownPlaceIds?: string[]
+  memories?: AgentMemory[]
   id: string
   name: string
   codeNumber: string
@@ -115,6 +137,15 @@ export interface StateChange {
 }
 
 export interface WorldEvent {
+  sequence?: number
+  worldMinute?: number
+  worldTime?: string
+  actionId?: string
+  actionType?: string
+  phase?: 'STARTED' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'STATE_UPDATE'
+  witnessIds?: string[]
+  visibility?: 'public' | 'private'
+  cause?: string
   id: string
   type: EventType
   occurredAt: string
@@ -153,6 +184,11 @@ export interface ModelCallProvenance {
 
 // A day/story-level grouping of ChronicleEntry scenes — the coarsest reading unit.
 export interface Chapter {
+  status?: 'IN_PROGRESS' | 'COMPLETED'
+  number?: number
+  sceneId?: string
+  startedMinute?: number
+  endedMinute?: number
   id: string
   day: number
   title: string
@@ -185,6 +221,7 @@ export interface ChronicleEntry {
 }
 
 export interface WorldState {
+  engine?: EngineState
   seasonId: string
   clock: WorldClock
   dangerLevel: DangerLevel
@@ -233,6 +270,11 @@ export interface OperatorLogEntry {
 }
 
 export interface WorldRuntime {
+  maxActiveCharacters?: number
+  worldMinutesPerTick?: number
+  decisionsPaused?: boolean
+  decisionStatus?: string
+  mode?: 'preview' | 'demo' | 'live'
   connected: boolean
   status: SeasonStatus
   paused: boolean

@@ -42,6 +42,9 @@ export interface Resource {
 }
 
 export interface Place {
+  x?: number
+  y?: number
+  isDiscovered?: boolean
   id: string
   name: string
   description: string
@@ -91,6 +94,10 @@ export interface MovementLogEntry {
 }
 
 export interface Agent {
+  humanState?: { survival_need: number; fatigue: number; stress: number; sexual_desire: number; greed: number; ambition: number }
+  emotion?: { mood: number; anger: number; fear: number }
+  body?: { health: number; injury: number }
+  nextDecisionAt?: number
   id: string
   name: string
   codeNumber: string
@@ -112,6 +119,11 @@ export interface StateChange {
 }
 
 export interface WorldEvent {
+  sequence?: number
+  worldMinute?: number
+  worldTime?: string
+  actionType?: string
+  phase?: 'STARTED' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'STATE_UPDATE'
   id: string
   type: EventType
   occurredAt: string
@@ -133,6 +145,9 @@ export interface WorldEvent {
 
 // A day/story-level grouping of ChronicleEntry scenes — the coarsest reading unit ("지난 이야기").
 export interface Chapter {
+  status?: 'IN_PROGRESS' | 'COMPLETED'
+  number?: number
+  sceneId?: string
   id: string
   day: number
   title: string
@@ -164,6 +179,11 @@ export interface ChronicleEntry {
 }
 
 export interface WorldState {
+  engine?: {
+    minute: number
+    connections: Array<{ fromPlaceId: string; toPlaceId: string; travelMinutes: number; blocked: boolean }>
+    ongoingActions: Array<{ id: string; startedMinute: number; completesMinute: number; proposal: { actorId: string; actionType: string; locationId: string; destinationId?: string } }>
+  }
   seasonId: string
   clock: WorldClock
   dangerLevel: DangerLevel
@@ -220,6 +240,11 @@ export interface PublicWorldRuntime {
 }
 
 export interface AdminWorldRuntime extends PublicWorldRuntime {
+  decisionsPaused?: boolean
+  decisionStatus?: string
+  maxActiveCharacters?: number
+  worldMinutesPerTick?: number
+  mode?: 'preview' | 'demo' | 'live'
   tickIntervalMs: number
   maxActiveAgents: number
   callBudget: number

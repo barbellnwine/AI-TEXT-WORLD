@@ -4,6 +4,7 @@ import { worldApi } from '../api'
 import { EventCard } from './EventCard'
 import { formatDateTime, formatKoreanClock } from '../format'
 import type { Agent, ChronicleEntry, Place, WorldEvent } from '../types'
+import { useWorldExperience } from '../i18n'
 
 interface Props {
   scene: ChronicleEntry
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function SceneEntry({ scene, placesById, agentsById, onOpenDetail, registerRef }: Props) {
+  const { t, locale } = useWorldExperience()
   const [evidence, setEvidence] = useState<WorldEvent[] | null>(null)
   const [loadingEvidence, setLoadingEvidence] = useState(false)
 
@@ -33,7 +35,7 @@ export function SceneEntry({ scene, placesById, agentsById, onOpenDetail, regist
 
   return (
     <article className="reader-scene" data-scene-id={scene.id} ref={el => registerRef(scene.id, el)}>
-      <p className="reader-scene-meta world-mono">DAY {scene.worldDay} · {formatKoreanClock(scene.timeEnd)}</p>
+      <p className="reader-scene-meta world-mono">DAY {scene.worldDay} · {locale === 'ko-KR' ? formatKoreanClock(scene.timeEnd) : scene.timeEnd}</p>
       <h2 className="reader-scene-title">{scene.title}</h2>
       <div className="reader-scene-body">
         {scene.body.split('\n\n').map((paragraph, i) => (
@@ -54,14 +56,13 @@ export function SceneEntry({ scene, placesById, agentsById, onOpenDetail, regist
           </span>
         )}
         <span className="world-mono">{formatDateTime(scene.createdAt)}</span>
-        <span>관련 사건 {scene.sourceEventIds.length}건</span>
-        <span>세계 상태 변경 {scene.stateChanges.length}건</span>
+        <span>{t('events')} {scene.sourceEventIds.length}</span>
       </p>
 
       <div className="reader-scene-details">
         {scene.stateChanges.length > 0 && (
           <details className="reader-details">
-            <summary>이 장면에서 달라진 것</summary>
+            <summary>{t('changes')}</summary>
             <ul className="world-simple-list">
               {scene.stateChanges.map((change, i) => (
                 <li key={i}>
@@ -73,8 +74,8 @@ export function SceneEntry({ scene, placesById, agentsById, onOpenDetail, regist
         )}
 
         <details className="reader-details" onToggle={event => { if ((event.target as HTMLDetailsElement).open) loadEvidence() }}>
-          <summary>기록 근거 보기</summary>
-          {loadingEvidence && <p className="world-micro">불러오는 중…</p>}
+          <summary>{t('evidence')}</summary>
+          {loadingEvidence && <p className="world-micro">{t('reading')}</p>}
           {evidence && (
             <ul className="world-event-list">
               {evidence.map(event => (

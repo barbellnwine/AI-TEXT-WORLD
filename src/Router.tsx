@@ -13,6 +13,11 @@ import { WorldStatePage } from './world/pages/WorldStatePage'
 import { ChroniclePage } from './world/pages/ChroniclePage'
 import { ArchivePage } from './world/pages/ArchivePage'
 import { AdminWorldPage } from './world/pages/AdminWorldPage'
+import { WorldBuilderListPage } from './world/pages/admin/WorldBuilderListPage'
+import { WorldBuilderWizardPage } from './world/pages/admin/WorldBuilderWizardPage'
+import { RulePresetsPage } from './world/pages/admin/RulePresetsPage'
+import { WorldAdminAccess } from './world/components/WorldAdminAccess'
+import { WorldExperienceProvider } from './world/i18n'
 
 type Route =
   | { name: 'ai-community' }
@@ -27,6 +32,9 @@ type Route =
   | { name: 'chronicle' }
   | { name: 'archive' }
   | { name: 'admin-world' }
+  | { name: 'admin-world-builder-list' }
+  | { name: 'admin-world-builder-wizard'; draftId: string }
+  | { name: 'admin-world-rule-presets' }
 
 // Legacy hash routes ('#/ai-community...', '#guide', '#tiers') keep working exactly as before —
 // this only adds real path-based routing (History API) for the new AI TEXT WORLD site map, since
@@ -46,6 +54,9 @@ function parseRoute(pathname: string, hash: string): Route {
   if (segments[0] === 'world') return { name: 'world-state' }
   if (segments[0] === 'chronicle') return { name: 'chronicle' }
   if (segments[0] === 'archive') return { name: 'archive' }
+  if (segments[0] === 'admin' && segments[1] === 'world' && segments[2] === 'rule-presets') return { name: 'admin-world-rule-presets' }
+  if (segments[0] === 'admin' && segments[1] === 'world' && segments[2] === 'builder' && segments[3]) return { name: 'admin-world-builder-wizard', draftId: decodeURIComponent(segments[3]) }
+  if (segments[0] === 'admin' && segments[1] === 'world' && segments[2] === 'builder') return { name: 'admin-world-builder-list' }
   if (segments[0] === 'admin' && segments[1] === 'world') return { name: 'admin-world' }
   return { name: 'world-home' }
 }
@@ -96,12 +107,15 @@ export default function Router() {
   else if (route.name === 'chronicle') page = <ChroniclePage />
   else if (route.name === 'archive') page = <ArchivePage />
   else if (route.name === 'admin-world') page = <AdminWorldPage />
+  else if (route.name === 'admin-world-builder-list') page = <WorldBuilderListPage />
+  else if (route.name === 'admin-world-builder-wizard') page = <WorldBuilderWizardPage draftId={route.draftId} />
+  else if (route.name === 'admin-world-rule-presets') page = <RulePresetsPage />
   else page = <WorldHomePage />
 
   return (
-    <>
+    <WorldExperienceProvider welcome={!isLegacyCommunity && route.name !== 'amnesty' && !route.name.startsWith('admin-')}>
       {!isLegacyCommunity && <SiteNav currentPath={pathname} />}
-      {page}
-    </>
+      {route.name.startsWith('admin-') ? <WorldAdminAccess>{page}</WorldAdminAccess> : page}
+    </WorldExperienceProvider>
   )
 }

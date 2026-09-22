@@ -6,6 +6,7 @@ export default defineConfig({
     {
       command: 'npm run server', url: 'http://127.0.0.1:18787/api/ai-community/status',
       env: { PORT: '18787', AI_COMMUNITY_DB_PATH: ':memory:', AI_COMMUNITY_ADMIN_TOKEN: 'e2e-demo-token',
+        ADMIN_SEED_USERNAME: 'e2e-admin', ADMIN_SEED_PASSWORD: 'e2e-admin-password', AI_WORLD_DEMO_MODE: 'true',
         AI_COMMUNITY_ENABLED: 'false', AI_COMMUNITY_DEMO_MODE: 'true', AI_COMMUNITY_COOLDOWN_MS: '0',
         AI_COMMUNITY_TICK_INTERVAL_MS: '3600000', OPENAI_API_KEY: '', ANTHROPIC_API_KEY: '' },
     },

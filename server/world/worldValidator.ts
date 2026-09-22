@@ -14,7 +14,7 @@ export interface ValidationContext {
   recentActionsByActor?: ProposedAction[]
 }
 
-const NON_ACTIONABLE_STATUSES = new Set(['deceased'])
+  const NON_ACTIONABLE_STATUSES = new Set(['deceased', 'missing'])
 
 export function validateAction(action: ProposedAction, ctx: ValidationContext, allEvents: Parameters<typeof agentKnowsFact>[3] = []): ActionValidationResult {
   const reasons: RejectionReason[] = []
@@ -45,7 +45,7 @@ export function validateAction(action: ProposedAction, ctx: ValidationContext, a
       notes.push(`target '${targetId}' does not exist`)
       continue
     }
-    if (targetAgent && targetAgent.publicState.locationId !== action.locationId && action.actionType !== 'SPEAK') {
+    if (targetAgent && targetAgent.publicState.locationId !== action.locationId) {
       reasons.push('TARGET_UNREACHABLE')
       notes.push(`target '${targetId}' is not at the actor's location`)
     }
@@ -60,6 +60,7 @@ export function validateAction(action: ProposedAction, ctx: ValidationContext, a
       notes.push(`'${action.destinationId}' is not connected to '${action.locationId}'`)
     } else {
       const destination = worldState.places.find(p => p.id === action.destinationId)
+      if (!destination) { reasons.push('NO_PATH'); notes.push('destination does not exist') }
       if (destination?.locked) {
         reasons.push('RULE_VIOLATION')
         notes.push(`'${action.destinationId}' is locked (${destination.accessCondition ?? 'no access condition recorded'})`)
@@ -67,7 +68,16 @@ export function validateAction(action: ProposedAction, ctx: ValidationContext, a
     }
   }
 
-  for (const itemId of action.usedItemIds ?? []) {
+  if (action.actionType === 'GIVE_ITEM') {
+    const recipient = worldState.agents.find(a => a.id === action.targetIds[0])
+    if (action.usedItemIds?.length !== 1 || action.targetIds.length !== 1 || !recipient || recipient.id === actor.id || recipient.publicState.status === 'deceased') {
+      reasons.push('RULE_VIOLATION'); notes.push('GIVE_ITEM requires one owned item and one living recipient')
+    }
+  }
+
+  if (action.actionType === 'SPEAK' && !action.spokenText?.trim()) { reasons.push('RULE_VIOLATION'); notes.push('SPEAK requires spokenText') }
+
+  for (const itemId of action.actionType === 'TAKE_ITEM' ? [] : action.usedItemIds ?? []) {
     if (!actor.inventory.includes(itemId)) {
       reasons.push('ITEM_NOT_OWNED')
       notes.push(`actor does not have '${itemId}'`)
@@ -77,7 +87,7 @@ export function validateAction(action: ProposedAction, ctx: ValidationContext, a
   if (action.requiredResource) {
     const place = worldState.places.find(p => p.id === action.requiredResource!.placeId)
     const resource = place?.resources.find(r => r.key === action.requiredResource!.key)
-    if (!resource || resource.level < action.requiredResource.minLevel) {
+    if (!resource || action.requiredResource.placeId !== action.locationId || !Number.isFinite(action.requiredResource.minLevel) || action.requiredResource.minLevel <= 0 || resource.level < action.requiredResource.minLevel) {
       reasons.push('RESOURCE_UNAVAILABLE')
       notes.push(`resource '${action.requiredResource.key}' at '${action.requiredResource.placeId}' is insufficient`)
     }

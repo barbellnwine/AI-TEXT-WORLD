@@ -4,6 +4,7 @@
 // never by reading WorldState/Agent objects directly. This is also where "hiddenNotes" (HIDDEN
 // WORLD TRUTH) gets structurally excluded: the return type doesn't have a field for it.
 import type { Agent, AgentKnowledgeEntry, Place, Relationship, WorldEvent, WorldState } from '../domain/worldTypes.ts'
+import { toPublicEvent } from './publicView.ts'
 
 export interface ObservableAgent {
   id: string
@@ -14,6 +15,11 @@ export interface ObservableAgent {
 
 export interface AgentKnowledgeView {
   self: {
+    humanState?: Agent['humanState']
+    emotion?: Agent['emotion']
+    body?: Agent['body']
+    memories?: Agent['memories']
+    wakeReason?: string
     id: string
     name: string
     status: Agent['publicState']['status']
@@ -28,6 +34,7 @@ export interface AgentKnowledgeView {
   // Public events this agent was directly involved in or physically present for — never another
   // agent's private memory, and never HIDDEN WORLD TRUTH.
   observedEvents: WorldEvent[]
+  visibleObjects?: Array<{ id: string; name: string; quantity: number; condition: string }>
 }
 
 export function buildAgentKnowledgeView(agentId: string, worldState: WorldState, allEvents: WorldEvent[]): AgentKnowledgeView | null {
@@ -37,15 +44,16 @@ export function buildAgentKnowledgeView(agentId: string, worldState: WorldState,
   if (!currentPlace) return null
 
   const othersPresent: ObservableAgent[] = worldState.agents
-    .filter(a => a.id !== agentId && a.publicState.locationId === currentPlace.id)
+    .filter(a => a.id !== agentId && a.publicState.locationId === currentPlace.id && !worldState.engine?.ongoingActions.some(task => task.proposal.actorId === a.id && task.proposal.actionType === 'MOVE'))
     .map(a => ({ id: a.id, name: a.name, status: a.publicState.status }))
 
   const observedEvents = allEvents.filter(
-    event => event.agentIds.includes(agentId) || (event.placeId === currentPlace.id && event.agentIds.length === 0)
+    event => event.outcome !== 'REJECTED' && (event.visibility !== 'private' || event.agentIds.includes(agentId)) && (event.agentIds.includes(agentId) || event.witnessIds?.includes(agentId) || self.knowledge.some(k => k.sourceEventId === event.id))
   )
 
   return {
     self: {
+      humanState: self.humanState, emotion: self.emotion, body: self.body, memories: self.memories?.slice(-8), wakeReason: self.wakeReason,
       id: self.id,
       name: self.name,
       status: self.publicState.status,
@@ -57,7 +65,7 @@ export function buildAgentKnowledgeView(agentId: string, worldState: WorldState,
       id: currentPlace.id,
       name: currentPlace.name,
       description: currentPlace.description,
-      connectedPlaceIds: currentPlace.connectedPlaceIds,
+      connectedPlaceIds: currentPlace.connectedPlaceIds.filter(id => !self.knownPlaceIds || self.knownPlaceIds.includes(id)),
       resources: currentPlace.resources,
       locked: currentPlace.locked,
       accessCondition: currentPlace.accessCondition,
@@ -65,7 +73,8 @@ export function buildAgentKnowledgeView(agentId: string, worldState: WorldState,
     othersPresent,
     relationships: self.relationships,
     knownFacts: self.knowledge,
-    observedEvents,
+    observedEvents: observedEvents.map(e => ({ ...toPublicEvent(e), stateChanges: e.stateChanges.filter(c => c.field.startsWith('place:') || c.field.startsWith('object:') || c.field.startsWith(`agent:${agentId}:`) || c.field.endsWith(':location') || c.field.endsWith(':status')) })),
+    visibleObjects: worldState.engine?.objects.filter(o => o.location.kind === 'place' && o.location.id === currentPlace.id && o.condition !== 'destroyed').map(o => ({ id: o.id, name: o.name, quantity: o.quantity, condition: o.condition })),
   }
 }
 

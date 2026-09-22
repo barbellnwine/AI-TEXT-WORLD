@@ -11,7 +11,7 @@ export class ProviderCallError extends Error {
 
 // Bounded timeout + bounded retries. Never retries indefinitely: at most `config.maxRetries`
 // extra attempts, only for network/5xx failures (not for 4xx / malformed-content errors).
-export async function fetchWithLimits(url: string, init: RequestInit): Promise<Response> {
+export async function fetchWithLimits(url: string, init: RequestInit, maxRetries = config.maxRetries): Promise<Response> {
   if (!['https://api.openai.com/v1/chat/completions', 'https://api.anthropic.com/v1/messages'].includes(url)) {
     throw new ProviderCallError('INVALID_ENDPOINT', 'unapproved provider endpoint')
   }
@@ -19,7 +19,7 @@ export async function fetchWithLimits(url: string, init: RequestInit): Promise<R
     throw new ProviderCallError('REQUEST_TOO_LARGE', 'provider request exceeds limit')
   }
   let lastError: unknown
-  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), config.requestTimeoutMs)
     try {
@@ -36,7 +36,7 @@ export async function fetchWithLimits(url: string, init: RequestInit): Promise<R
           chunks.push(chunk)
         }
       }
-      if (response.status >= 500 && attempt < config.maxRetries) {
+      if (response.status >= 500 && attempt < maxRetries) {
         lastError = new ProviderCallError('UPSTREAM_5XX', `upstream ${response.status}`)
         continue
       }
@@ -47,7 +47,7 @@ export async function fetchWithLimits(url: string, init: RequestInit): Promise<R
       if (error instanceof ProviderCallError) throw error
       lastError = error
       const isAbort = error instanceof Error && error.name === 'AbortError'
-      if (attempt >= config.maxRetries) {
+      if (attempt >= maxRetries) {
         throw new ProviderCallError(isAbort ? 'TIMEOUT' : 'NETWORK_ERROR', isAbort ? 'request timed out' : 'network error')
       }
     } finally { clearTimeout(timer) }

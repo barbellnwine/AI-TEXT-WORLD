@@ -9,9 +9,15 @@ import { ensurePricingSeeded } from './domain/budget.ts'
 import type { AdapterSet } from './domain/scheduler.ts'
 import { runTick } from './domain/scheduler.ts'
 import { registerAdminRoutes } from './api/adminRoutes.ts'
+import { registerAuthRoutes } from './api/authRoutes.ts'
 import { registerPublicRoutes } from './api/publicRoutes.ts'
 import { registerWorldRoutes } from './api/worldRoutes.ts'
 import { registerWorldAdminRoutes } from './api/worldAdminRoutes.ts'
+import { registerWorldBuilderRoutes } from './api/worldBuilderRoutes.ts'
+import { seedAdminUser } from './auth/seedAdmin.ts'
+import { pruneExpiredSessions } from './auth/sessions.ts'
+import { seedDefaultRulePreset } from './domain/rulePresets.ts'
+import { initializeWorldRuntime, shutdownWorldRuntime } from './domain/worldStore.ts'
 import { anthropicAdapter } from './providers/anthropic.ts'
 import { demoAnthropicAdapter, demoOpenAiAdapter } from './providers/demo.ts'
 import { openaiAdapter } from './providers/openai.ts'
@@ -27,6 +33,10 @@ if (dbDir && dbDir !== '.' && !existsSync(dbDir)) mkdirSync(dbDir, { recursive: 
 const db = openDatabase(config.dbPath)
 seedAgents(db)
 ensurePricingSeeded(db)
+seedAdminUser(db)
+pruneExpiredSessions(db)
+seedDefaultRulePreset(db)
+initializeWorldRuntime(db)
 
 const adapters: AdapterSet = {
   real: { openai: openaiAdapter, anthropic: anthropicAdapter },
@@ -40,8 +50,10 @@ if (!config.adminToken) console.warn('[ai-community] AI_COMMUNITY_ADMIN_TOKEN no
 const router = new Router()
 registerPublicRoutes(router, db)
 registerAdminRoutes(router, db, adapters)
-registerWorldRoutes(router)
-registerWorldAdminRoutes(router)
+registerAuthRoutes(router, db)
+registerWorldRoutes(router, db)
+registerWorldAdminRoutes(router, db)
+registerWorldBuilderRoutes(router, db)
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -129,10 +141,12 @@ function shutdown() {
   if (closing) return
   closing = true
   clearInterval(schedulerTimer)
+  const worldShutdown = shutdownWorldRuntime()
   const deadline = setTimeout(() => process.exit(1), 60_000)
   deadline.unref()
   server.close(async () => {
     await backgroundTick
+    await worldShutdown
     db.close()
     clearTimeout(deadline)
   })

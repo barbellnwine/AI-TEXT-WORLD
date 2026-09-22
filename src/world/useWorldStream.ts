@@ -7,6 +7,7 @@ interface StreamMessage {
 }
 
 interface Handlers {
+  onReconnect?: () => void
   onEvent?: (event: WorldEvent) => void
   onWorldState?: (worldState: WorldState) => void
   onRuntime?: (runtime: PublicWorldRuntime) => void
@@ -27,7 +28,7 @@ export function useWorldStream(enabled: boolean, handlers: Handlers): { connecte
       return
     }
     const source = new EventSource('/api/world/stream')
-    source.onopen = () => setConnected(true)
+    source.onopen = () => { setConnected(true); handlersRef.current.onReconnect?.() }
     source.onerror = () => setConnected(false)
     source.onmessage = event => {
       try {

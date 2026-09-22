@@ -12,6 +12,13 @@ export type ProposedActionType =
   | 'WAIT'
   | 'COOPERATE'
   | 'ATTACK'
+  | 'REST'
+  | 'SLEEP'
+  | 'TAKE_ITEM'
+  | 'EAT'
+  | 'DRINK'
+  | 'EXPLORE'
+  | 'SHARE_INFO'
 
 // What an AGENT PROMPT (or GM PROMPT) is allowed to return. This is a proposal only — the actor
 // itself never gets to decide whether it succeeds.
@@ -31,6 +38,9 @@ export interface ProposedAction {
   // Only relevant when the action would draw down a place resource.
   requiredResource?: { placeId: string; key: string; minLevel: number }
   reasoningSummary?: string
+  resourceKey?: string
+  factId?: string
+  durationMinutes?: number
 }
 
 export type RejectionReason =

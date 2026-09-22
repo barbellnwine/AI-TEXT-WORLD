@@ -14,44 +14,27 @@ import type {
   WorldEvent,
 } from './types'
 
-const ADMIN_TOKEN_KEY = 'worldAdminToken'
-
-export function getWorldAdminToken(): string {
-  try {
-    return sessionStorage.getItem(ADMIN_TOKEN_KEY) ?? ''
-  } catch {
-    return ''
-  }
-}
-
-export function setWorldAdminToken(token: string): void {
-  try {
-    sessionStorage.setItem(ADMIN_TOKEN_KEY, token)
-  } catch {
-    /* private-mode browsers may block storage; admin session simply won't persist */
-  }
-}
-
 async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(url, { signal, cache: 'no-store' })
   if (!res.ok) throw new Error(`request failed: ${res.status}`)
   return (await res.json()) as T
 }
 
-async function adminRequest<T>(url: string, method: 'GET' | 'POST', body?: unknown): Promise<T> {
+export async function adminRequest<T>(url: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', body?: unknown): Promise<T> {
   const res = await fetch(url, {
     method,
-    headers: { 'content-type': 'application/json', 'x-admin-token': getWorldAdminToken() },
+    headers: { 'content-type': 'application/json', 'x-world-admin': '1' },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) {
     const detail = await res.json().catch(() => null)
-    throw new Error(detail?.error ?? `admin request failed: ${res.status}`)
+    throw new Error(res.status === 401 ? '로그인이 만료되었습니다. 다시 로그인해 주세요.' : res.status === 403 ? '관리자 권한이 필요합니다.' : detail?.error ?? `admin request failed: ${res.status}`)
   }
   return (await res.json()) as T
 }
 
 export interface EventQuery {
+  before?: string
   hours?: number
   type?: string
   agentId?: string
@@ -62,10 +45,12 @@ export interface EventQuery {
 }
 
 export const worldApi = {
+  away: (since: string) => getJson<{ since: string; until: string; eventCount: number; actions: number; majorEvents: number }>(`/api/world/away?since=${encodeURIComponent(since)}`),
   current: (signal?: AbortSignal) => getJson<CurrentWorldResponse>('/api/world/current', signal),
   runtime: (signal?: AbortSignal) => getJson<PublicWorldRuntime>('/api/world/runtime', signal),
   events: (query: EventQuery, signal?: AbortSignal) => {
     const params = new URLSearchParams()
+    if (query.before) params.set('before', query.before)
     if (query.hours) params.set('hours', String(query.hours))
     if (query.type) params.set('type', query.type)
     if (query.agentId) params.set('agentId', query.agentId)
@@ -95,7 +80,8 @@ export const worldApi = {
 }
 
 export const worldAdminApi = {
-  runtime: () => adminRequest<{ runtime: AdminWorldRuntime; season: Season; operatorLog: OperatorLogEntry[] }>('/api/admin/world/runtime', 'GET'),
+  tick: () => adminRequest<{ runtime: AdminWorldRuntime }>('/api/admin/world/tick', 'POST'),
+  runtime: () => adminRequest<{ runtime: AdminWorldRuntime; season: Season; operatorLog: OperatorLogEntry[]; actionAudit: Array<WorldEvent & { outcome?: string; provenance?: { validation?: { reasons: string[] } } }> }>('/api/admin/world/runtime', 'GET'),
   start: () => adminRequest<{ runtime: AdminWorldRuntime }>('/api/admin/world/start', 'POST'),
   pause: () => adminRequest<{ runtime: AdminWorldRuntime }>('/api/admin/world/pause', 'POST'),
   resume: () => adminRequest<{ runtime: AdminWorldRuntime }>('/api/admin/world/resume', 'POST'),

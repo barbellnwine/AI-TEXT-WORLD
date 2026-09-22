@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { worldApi } from '../api'
+import { useWorldExperience } from '../i18n'
 import { useReaderSettings } from '../useReaderSettings'
 import { EmptyState, ErrorState, LoadingState } from './StateViews'
 import { SceneEntry } from './SceneEntry'
@@ -15,6 +16,7 @@ interface Props {
 // Ascending order (oldest first, newest last) — new scenes are appended at the bottom, matching
 // "새 사건이 발생하면 새로운 문단이 아래에 추가된다."
 export function ChronicleReader({ placesById, agentsById, latestStreamScene, onOpenDetail }: Props) {
+  const { t } = useWorldExperience()
   const [scenes, setScenes] = useState<ChronicleEntry[]>([])
   const [hasMoreOlder, setHasMoreOlder] = useState(false)
   const [loadingInitial, setLoadingInitial] = useState(true)
@@ -94,6 +96,8 @@ export function ChronicleReader({ placesById, agentsById, latestStreamScene, onO
       requestAnimationFrame(() => {
         window.scrollTo({ top: window.scrollY + (document.documentElement.scrollHeight - previousHeight) })
       })
+    } catch {
+      setError(true)
     } finally {
       setLoadingOlder(false)
     }
@@ -101,6 +105,7 @@ export function ChronicleReader({ placesById, agentsById, latestStreamScene, onO
 
   async function readFromStart() {
     setLoadingInitial(true)
+    setError(false)
     try {
       const res = await worldApi.scenes({ limit: 50, importantOnly })
       const ascending = [...res.items].reverse()
@@ -108,6 +113,8 @@ export function ChronicleReader({ placesById, agentsById, latestStreamScene, onO
       seenIds.current = new Set(ascending.map(s => s.id))
       setHasMoreOlder(res.hasMore)
       requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }))
+    } catch {
+      setError(true)
     } finally {
       setLoadingInitial(false)
     }
@@ -139,8 +146,8 @@ export function ChronicleReader({ placesById, agentsById, latestStreamScene, onO
     <div className={`reader-shell reader-theme-${theme} reader-font-${fontSize}`}>
       <div className="reader-toolbar">
         <div className="reader-toolbar-group">
-          <button type="button" className="world-text-button" onClick={readFromStart}>처음부터 읽기</button>
-          <button type="button" className="world-text-button" onClick={jumpToLatest}>최신 기록으로 이동</button>
+          <button type="button" className="world-text-button" onClick={readFromStart}>{t('first')}</button>
+          <button type="button" className="world-text-button" onClick={jumpToLatest}>{t('latest')}</button>
         </div>
         {days.length > 0 && (
           <nav className="reader-toc" aria-label="하루 단위 목차">
@@ -151,32 +158,32 @@ export function ChronicleReader({ placesById, agentsById, latestStreamScene, onO
         )}
         <label className="world-filter-checkbox">
           <input type="checkbox" checked={importantOnly} onChange={e => setImportantOnly(e.target.checked)} />
-          중요 장면만 모아 보기
+          {t('important')}
         </label>
         <div className="reader-toolbar-group">
           <label className="world-micro">
-            글자 크기
+            {t('size')}
             <select value={fontSize} onChange={e => setFontSize(e.target.value as typeof fontSize)}>
-              <option value="small">작게</option>
-              <option value="medium">보통</option>
-              <option value="large">크게</option>
+              <option value="small">{t('small')}</option>
+              <option value="medium">{t('medium')}</option>
+              <option value="large">{t('large')}</option>
             </select>
           </label>
           <button type="button" className="world-text-button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-            {theme === 'dark' ? '밝은 기록지' : '어두운 기록지'}
+            {t(theme === 'dark' ? 'light' : 'dark')}
           </button>
         </div>
       </div>
 
       {hasMoreOlder && !loadingInitial && (
         <button type="button" className="reader-load-older" onClick={loadOlder} disabled={loadingOlder}>
-          {loadingOlder ? '불러오는 중…' : '이전 기록 불러오기'}
+          {t(loadingOlder ? 'reading' : 'older')}
         </button>
       )}
 
-      {loadingInitial && <LoadingState label="기록을 펼치는 중…" />}
+      {loadingInitial && <LoadingState label={t('reading')} />}
       {!loadingInitial && error && <ErrorState onRetry={loadInitial} />}
-      {!loadingInitial && !error && scenes.length === 0 && <EmptyState label="아직 기록된 장면이 없습니다." />}
+      {!loadingInitial && !error && scenes.length === 0 && <EmptyState label={t('noScenes')} />}
 
       {!loadingInitial && !error && scenes.length > 0 && (
         <div className="reader-scenes">
@@ -202,7 +209,7 @@ export function ChronicleReader({ placesById, agentsById, latestStreamScene, onO
 
       {pendingScenes.length > 0 && (
         <button type="button" className="reader-new-scene-toast" onClick={flushPending}>
-          새로운 기록이 도착했습니다.
+          {t('newScene')}
         </button>
       )}
     </div>

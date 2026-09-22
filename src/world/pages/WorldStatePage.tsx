@@ -6,8 +6,13 @@ import { ErrorState, LoadingState } from '../components/StateViews'
 import { WorldFooter } from '../components/WorldFooter'
 import { DANGER_LABEL, WEATHER_LABEL, dangerClass, formatDateTime } from '../format'
 import type { CurrentWorldResponse, WorldEvent } from '../types'
+import { WorldMiniMap } from '../components/WorldMiniMap'
+import { useWorldExperience } from '../i18n'
+import { useWorldStream } from '../useWorldStream'
 
 export function WorldStatePage() {
+  const { t } = useWorldExperience()
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [current, setCurrent] = useState<CurrentWorldResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -15,7 +20,7 @@ export function WorldStatePage() {
   const [recentEvents, setRecentEvents] = useState<WorldEvent[]>([])
 
   useEffect(() => {
-    document.title = '세계 — AI TEXT WORLD'
+    document.title = 'Minimap — AI WORLD'
     const controller = new AbortController()
     async function load() {
       setLoading(true)
@@ -33,6 +38,8 @@ export function WorldStatePage() {
     load()
     return () => controller.abort()
   }, [])
+
+  useWorldStream(true, { onWorldState: worldState => setCurrent(value => value ? { ...value, worldState } : value) })
 
   const agentsById = useMemo(() => new Map((current?.worldState.agents ?? []).map(a => [a.id, a])), [current])
 
@@ -59,8 +66,8 @@ export function WorldStatePage() {
     <>
       <main className="world-shell">
         <header className="world-page-header">
-          <p className="world-eyebrow">WORLD STATE</p>
-          <h1>지금의 세계</h1>
+          <p className="world-eyebrow">MINIMAP</p>
+          <h1>{t('map')}</h1>
           <dl className="world-kv world-kv--inline">
             <div><dt>시간</dt><dd className="world-mono">DAY {worldState.clock.day} · {worldState.clock.time}</dd></div>
             <div><dt>날씨</dt><dd>{WEATHER_LABEL[worldState.clock.weather]} · {worldState.clock.temperatureC}°C</dd></div>
@@ -68,6 +75,11 @@ export function WorldStatePage() {
             <div><dt>최근 변경</dt><dd className="world-mono">{formatDateTime(worldState.updatedAt)}</dd></div>
           </dl>
         </header>
+
+        <section className="world-island-overview" aria-label={t('map')}>
+          <WorldMiniMap state={worldState} selectedAgentId={selectedAgentId} onSelectAgent={setSelectedAgentId} />
+          <div className="minimap-character-picker">{worldState.agents.map(agent => <button key={agent.id} aria-pressed={selectedAgentId === agent.id} onClick={() => setSelectedAgentId(selectedAgentId === agent.id ? null : agent.id)}>{agent.name}</button>)}</div>
+        </section>
 
         <div className="world-place-grid">
           <ul className="world-place-nodes">
