@@ -68,9 +68,28 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
         return from && to ? <line key={i} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={edge.blocked ? '#9a6262' : '#7c9b8a'} strokeWidth="1.5" strokeDasharray={edge.blocked ? '4 5' : undefined}><title>{edge.travelMinutes} min{edge.blocked ? ' · blocked' : ''}</title></line> : null
       })}
       {designed && places.map(place => { const p = anchors.get(place.id)!; return <g key={place.id} aria-label={place.name}><circle cx={p.x} cy={p.y} r="17" fill="#243b35" stroke="#7c9b8a" /><text x={p.x} y={p.y + 34} textAnchor="middle" fill="currentColor" fontSize="11">{place.name}</text></g> })}
-      {markers.map(({ agent, x, y }) => <g key={agent.id} transform={`translate(${x} ${y})`} className={`map-character${agent.id === selectedAgentId ? ' is-selected' : ''}`} role="button" tabIndex={0} aria-label={agent.name} aria-pressed={agent.id === selectedAgentId} onClick={() => onSelectAgent(agent.id === selectedAgentId ? null : agent.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectAgent(agent.id === selectedAgentId ? null : agent.id) } }}>
-        <title>{agent.name}</title><circle r="11" className="map-character-target" /><circle r="4.5" className="map-character-dot" />
-      </g>)}
+      {[...new Set(markers.map(m => m.agent.publicState.locationId))].flatMap(locationId => {
+        const group = markers.filter(m => m.agent.publicState.locationId === locationId && m.agent.publicState.status !== 'deceased')
+        const lines = []
+        for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
+          lines.push(<line key={`${group[i].agent.id}-${group[j].agent.id}`} x1={group[i].x} y1={group[i].y} x2={group[j].x} y2={group[j].y} className="map-meeting-line" />)
+        }
+        return lines
+      })}
+      {selected && selected.agent.movementLog.length > 1 && (() => {
+        const points = selected.agent.movementLog.map(m => anchors.get(m.placeId)).filter((p): p is { x: number; y: number } => Boolean(p))
+        return points.length > 1 ? <polyline points={points.map(p => `${p.x},${p.y}`).join(' ')} className="map-trail" /> : null
+      })()}
+      {markers.map(({ agent, x, y }) => {
+        const wandering = agent.publicState.status !== 'deceased'
+        const seed = [...agent.id].reduce((n, c) => n + c.charCodeAt(0), 0)
+        return <g key={agent.id} transform={`translate(${x} ${y})`} className={`map-character${agent.id === selectedAgentId ? ' is-selected' : ''}`} role="button" tabIndex={0} aria-label={agent.name} aria-pressed={agent.id === selectedAgentId} onClick={() => onSelectAgent(agent.id === selectedAgentId ? null : agent.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectAgent(agent.id === selectedAgentId ? null : agent.id) } }}>
+          <title>{agent.name}</title>
+          <g className={wandering ? 'map-character-wander' : undefined} style={wandering ? { animationDuration: `${6 + (seed % 5)}s`, animationDelay: `-${(seed % 61) / 10}s` } : undefined}>
+            <circle r="11" className="map-character-target" /><circle r="4.5" className="map-character-dot" />
+          </g>
+        </g>
+      })}
       {selected && <g className="map-character-label" pointerEvents="none" aria-hidden="true"><rect x={selected.x - 49} y={selected.y - 36} width="98" height="22" rx="5" /><text x={selected.x} y={selected.y - 21} textAnchor="middle">{selected.agent.name}</text></g>}
     </svg>
   )

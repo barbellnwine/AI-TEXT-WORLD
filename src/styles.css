@@ -948,6 +948,8 @@ body:has(.observatory), body:has(.world-welcome), body:has(.world-shell) { backg
 .island-contours { fill: none; stroke: #a1b38d; stroke-opacity: .18; stroke-width: 1; }
 .map-character { cursor: pointer; outline: none; transition: transform 900ms ease; }
 @media (prefers-reduced-motion: reduce) { .map-character { transition: none; } }
+.map-meeting-line { stroke: #ffffff4a; stroke-width: 1; stroke-dasharray: 2 3; }
+.map-trail { fill: none; stroke: #e0b464; stroke-width: 1.5; stroke-dasharray: 3 3; stroke-linejoin: round; opacity: 0.8; }
 .map-character-target { fill: transparent; stroke: transparent; }
 .map-character-dot { fill: #ffffff; stroke: #132923; stroke-width: 1.3; }
 .map-character.is-selected .map-character-dot { fill: #ef5350; stroke: #ffaba3; stroke-width: 1.5; }
