@@ -25,7 +25,7 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
   const hasCoordinates = maxX !== minX || maxY !== minY
   const anchors = new Map(places.map((place, index) => {
     const angle = index * 2.399963229728653
-    const radius = places.length <= 1 ? 0 : 78 * Math.sqrt((index + .5) / places.length)
+    const radius = places.length <= 1 ? 0 : 110 * Math.sqrt((index + .5) / places.length)
     return [place.id, designed && hasCoordinates ? {
       x: maxX === minX ? 205 : 55 + ((place.x ?? 0) - minX) / (maxX - minX) * 300,
       y: maxY === minY ? 165 : 55 + ((place.y ?? 0) - minY) / (maxY - minY) * 220,
@@ -36,7 +36,7 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
     const occupants = agents.filter(other => other.publicState.locationId === agent.publicState.locationId)
     const index = occupants.findIndex(other => other.id === agent.id)
     const angle = index * 2.399963229728653
-    const radius = occupants.length === 1 ? 0 : Math.min(27, 10 * Math.sqrt(index + .5))
+    const radius = occupants.length === 1 ? 0 : Math.min(90, 26 * Math.sqrt(index + .5))
     const anchor = anchors.get(agent.publicState.locationId)!
     const move = state.engine?.ongoingActions.find(a => a.proposal.actorId === agent.id && a.proposal.actionType === 'MOVE')
     const destination = move?.proposal.destinationId ? anchors.get(move.proposal.destinationId) : null
