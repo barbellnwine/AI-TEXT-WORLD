@@ -108,13 +108,15 @@ export function agentRequest(execution: WorldExecution, actorId: string, world: 
       if (view.observedEvents.length) view.observedEvents.pop()
       else if (view.knownFacts.length) view.knownFacts.shift()
       else if (view.self.memories?.length) view.self.memories.shift()
-      // Last resort: compact (never erase) the character's own free-text narrative fields —
-      // an overly verbose AI-generated bio must not permanently stall every future decision.
-      else if (profile.background.length > 80) profile.background = profile.background.slice(0, Math.ceil(profile.background.length / 2))
-      else if (profile.personality.length > 80) profile.personality = profile.personality.slice(0, Math.ceil(profile.personality.length / 2))
-      else if (profile.goal.length > 60) profile.goal = profile.goal.slice(0, Math.ceil(profile.goal.length / 2))
-      else if (profile.privateInfo && profile.privateInfo.length > 40) profile.privateInfo = profile.privateInfo.slice(0, Math.ceil(profile.privateInfo.length / 2))
-      else throw error
+      else {
+        // Last resort: repeatedly halve whichever of the character's own free-text fields is
+        // currently longest, all the way toward empty if needed. An overly verbose AI-generated
+        // bio must shrink, never permanently stall every future decision for that character.
+        const fields = ['background', 'personality', 'goal', 'privateInfo'] as const
+        const longest = fields.reduce((a, b) => (profile[a]?.length ?? 0) >= (profile[b]?.length ?? 0) ? a : b)
+        if (profile[longest]?.length) profile[longest] = profile[longest]!.slice(0, Math.floor(profile[longest]!.length / 2))
+        else throw error
+      }
     }
   }
 }
