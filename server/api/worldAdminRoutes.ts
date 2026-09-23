@@ -96,6 +96,13 @@ export function registerWorldAdminRoutes(router: Router, db: DatabaseSync): void
     sendJson(ctx.res, 200, { event: result.event })
   })
 
+  router.delete('/api/admin/world/seasons/:id', ctx => {
+    if (!requireAdminRole(ctx, db)) return
+    const result = store.deleteArchivedSeason(db, ctx.params.id)
+    if (!result.ok) throw new HttpError(result.error === 'season_not_found' ? 404 : 409, result.error)
+    sendJson(ctx.res, 200, { ok: true })
+  })
+
   router.get('/api/admin/world/operator-log', ctx => {
     if (!requireAdminRole(ctx, db)) return
     const limit = paginationNumber(ctx.query.get('limit'), 50, 1, 100)

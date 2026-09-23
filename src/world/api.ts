@@ -92,4 +92,5 @@ export const worldAdminApi = {
   addEvent: (body: { placeId: string; agentIds: string[]; title: string; summary: string; importance?: string }) =>
     adminRequest<{ event: WorldEvent } | { error: string; details: string[] }>('/api/admin/world/events', 'POST', body),
   operatorLog: () => adminRequest<{ entries: OperatorLogEntry[] }>('/api/admin/world/operator-log', 'GET'),
+  deleteSeason: (id: string) => adminRequest<{ ok: true }>(`/api/admin/world/seasons/${encodeURIComponent(id)}`, 'DELETE'),
 }

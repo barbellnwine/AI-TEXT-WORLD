@@ -334,6 +334,18 @@ export function getSeasonById(id: string): Season | undefined {
   return [state.season, ...state.archivedSeasons].find(s => s.id === id)
 }
 
+// Permanently wipes a past season's record: its archive-list entry and its raw event journal
+// rows. The currently live season can never be deleted this way — end it first.
+export function deleteArchivedSeason(db: DatabaseSync, seasonId: string): { ok: true } | { ok: false; error: string } {
+  if (state.season.id === seasonId) return { ok: false, error: 'cannot_delete_active_season' }
+  const index = state.archivedSeasons.findIndex(s => s.id === seasonId)
+  if (index === -1) return { ok: false, error: 'season_not_found' }
+  state.archivedSeasons.splice(index, 1)
+  db.prepare('DELETE FROM world_event_journal WHERE season_id=?').run(seasonId)
+  persist()
+  return { ok: true }
+}
+
 function publicRuntime(): Pick<WorldRuntime, 'connected' | 'status' | 'paused' | 'lastTickAt' | 'nextTickAt'> {
   return { connected: true, status: state.runtime.status, paused: state.runtime.paused, lastTickAt: state.runtime.lastTickAt, nextTickAt: state.runtime.nextTickAt }
 }

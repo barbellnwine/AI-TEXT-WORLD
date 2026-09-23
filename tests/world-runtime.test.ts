@@ -452,6 +452,40 @@ test('narrator enhancement rewrites a completed chapter scene without affecting 
   } finally { ctx.db.close() }
 })
 
+function launchSecondWorld(db: DatabaseSync, name: string) {
+  const draft = createDraft(db, name)
+  updateBasicInfo(db, draft.id, { name, intro: 'Second world', genre: 'survival', background: 'B', seasonName: 'Test2', maxDays: 2, simSpeedMs: 3600000, targetPopulation: 1, isPublic: true })
+  const preset = createRulePreset(db, { name: `${name} rules` })
+  setPresetRules(db, preset.id, [{ category: 'CUSTOM', title: 'RULE', description: 'No attacks.', enabled: true, priority: 1 }])
+  updateRuleSelection(db, draft.id, preset.id)
+  const places = replacePlacesAndConnections(db, draft.id, [{ tempId: 'X', name: 'X', description: '', type: 'GENERIC', x: 0, y: 0, isPublic: true, isDiscovered: true, capacity: 3, resources: [], items: [], facilityStatus: '' }], [])!.places
+  createCharacter(db, draft.id, { name: 'Carol', age: 30, gender: '', appearance: '', background: '', occupation: 'engineer', personality: 'CAROL_PERSONALITY', goal: 'Survive', strengths: [], weaknesses: [], provider: 'openai', model: '', humanState: DEFAULT_HUMAN_STATE, emotion: DEFAULT_EMOTION, knowledge: [], privateInfo: '', inventory: [], initialPlaceId: places[0].id }, 'MANUAL')
+  const design = getDraft(db, draft.id)!
+  assert.equal(startWorldFromDraft(db, design).ok, true)
+}
+
+test('deleteArchivedSeason wipes an ended season\'s archive entry and event journal, but never the live season', async () => {
+  const ctx = setup(undefined, false)
+  const seasonAId = store.getSeason().id
+  try {
+    launchSecondWorld(ctx.db, 'World B')
+    assert.notEqual(store.getSeason().id, seasonAId)
+    assert.ok(store.listSeasons().some(s => s.id === seasonAId && s.status === 'ENDED'))
+    const countRows = () => (ctx.db.prepare('SELECT COUNT(*) as c FROM world_event_journal WHERE season_id=?').get(seasonAId) as { c: number }).c
+    assert.ok(countRows() > 0)
+
+    const guarded = store.deleteArchivedSeason(ctx.db, store.getSeason().id)
+    assert.deepEqual(guarded, { ok: false, error: 'cannot_delete_active_season' })
+    assert.ok(store.listSeasons().some(s => s.id === seasonAId))
+
+    const result = store.deleteArchivedSeason(ctx.db, seasonAId)
+    assert.deepEqual(result, { ok: true })
+    assert.ok(!store.listSeasons().some(s => s.id === seasonAId))
+    assert.equal(countRows(), 0)
+
+    assert.deepEqual(store.deleteArchivedSeason(ctx.db, 'no-such-season'), { ok: false, error: 'season_not_found' })
+  } finally { await store.shutdownWorldRuntime(); ctx.db.close() }
+})
 
 test('default constitutional preset fits bounded agent and judge requests without a network call', async () => {
   const ctx = setup(undefined, false)
