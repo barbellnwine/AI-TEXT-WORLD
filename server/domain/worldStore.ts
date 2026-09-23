@@ -366,14 +366,22 @@ function recordEngineEvent(e: WorldEvent): void {
 }
 
 async function performDecisions(): Promise<void> {
-  if (shuttingDown || state.runtime.status !== 'RUNNING' || !state.execution || state.runtime.decisionsPaused) return
+  if (shuttingDown || state.runtime.status !== 'RUNNING' || !state.execution || state.runtime.decisionsPaused) {
+    // Temporary diagnostic: identify why decisions never run when the world looks RUNNING.
+    console.error(`[world] performDecisions skipped shuttingDown=${shuttingDown} status=${state.runtime.status} hasExecution=${Boolean(state.execution)} decisionsPaused=${state.runtime.decisionsPaused}`)
+    return
+  }
   const execution = state.execution
-  if (execution.mode === 'live' && (state.nextPaidDecisionAt ?? 0) > Date.now()) return
+  if (execution.mode === 'live' && (state.nextPaidDecisionAt ?? 0) > Date.now()) {
+    console.error(`[world] performDecisions skipped cooldown nextPaidDecisionAt=${state.nextPaidDecisionAt} now=${Date.now()}`)
+    return
+  }
   const ticket = revision
   const current = () => ticket === revision && state.runtime.status === 'RUNNING' && !shuttingDown
   state.runtime.lockHolder = 'agent-decision'
   try {
     const selected = selectDecisionAgents(state.worldState, Math.min(state.runtime.maxActiveAgents, config.maxActiveCharacters))
+    console.error(`[world] performDecisions selected ${selected.length} agent(s): ${selected.map(a => a.name).join(', ')}`)
     for (const actor of selected) {
       if (!current()) break
       if (!['alive', 'injured'].includes(actor.publicState.status) || state.worldState.engine!.ongoingActions.some(a => a.proposal.actorId === actor.id)) continue
