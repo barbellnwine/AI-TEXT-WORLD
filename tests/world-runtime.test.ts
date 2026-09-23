@@ -30,10 +30,10 @@ import { getMonthlyLedger, setSetting } from '../server/domain/budget.ts'
 
 after(() => store.stopSimulationTimerForTests())
 
-function setup(adapter?: WorldModelAdapter, live = true, privateWorld = false, endCondition = '') {
+function setup(adapter?: WorldModelAdapter, live = true, privateWorld = false, endCondition = '', enableNarrator = false) {
   const db = new DatabaseSync(':memory:')
   migrate(db)
-  store.initializeWorldRuntime(db, adapter)
+  store.initializeWorldRuntime(db, adapter, enableNarrator)
   config.worldDemoMode = !live
   const draft = createDraft(db, 'Runtime test')
   updateBasicInfo(db, draft.id, { name: 'Runtime test', intro: 'An island', genre: 'survival', background: 'KNOWN_BACKGROUND', seasonName: 'Test', maxDays: 2, simSpeedMs: 3600000, targetPopulation: 2, isPublic: true })
@@ -428,6 +428,28 @@ test('world chapters wait for results, span multiple events, and never narrate u
     assert.equal(scene.worldDay, ctx.design.startDay)
     assert.equal(store.getAdminRuntime().callsUsed, 0)
   } finally { await ctx.close() }
+})
+
+test('narrator enhancement rewrites a completed chapter scene without affecting decision call accounting', async () => {
+  const ctx = setup(async request => {
+    if (request.role === 'agent') return { raw: moveAction(), inputTokens: 1, outputTokens: 1 }
+    if (request.role === 'judge') return { raw: { approved: true, reason: 'ok', ended: false }, inputTokens: 1, outputTokens: 1 }
+    return { raw: { title: 'AI_TITLE', body: 'AI_BODY_TEXT', sourceEventIds: [] }, inputTokens: 1, outputTokens: 1 }
+  }, true, false, '', true)
+  try {
+    await store.runWorldTick()
+    store.advanceWorldTick(59)
+    const deterministic = store.listScenes({ limit: 10 }).items[0]
+    assert.notEqual(deterministic.body, 'AI_BODY_TEXT')
+    const callsBefore = store.getAdminRuntime().callsUsed
+    await store.shutdownWorldRuntime()
+    const enhanced = store.listScenes({ limit: 10 }).items[0]
+    assert.equal(enhanced.id, deterministic.id)
+    assert.equal(enhanced.title, 'AI_TITLE')
+    assert.equal(enhanced.body, 'AI_BODY_TEXT')
+    // A supplementary enrichment call, not a world decision — must never inflate callsUsed.
+    assert.equal(store.getAdminRuntime().callsUsed, callsBefore)
+  } finally { ctx.db.close() }
 })
 
 

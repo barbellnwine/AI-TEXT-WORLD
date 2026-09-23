@@ -27,6 +27,7 @@ import {
   type QueuedSceneDefinition,
 } from './worldMock.ts'
 import { mockNarrator } from './narrator.ts'
+import { buildNarratorPrompt, NARRATOR_SCHEMA } from '../prompts/narratorPrompt.ts'
 import { processStudio } from '../world/studioEngine.ts'
 import { validateGmEvent } from '../world/worldValidator.ts'
 import { applyStateChanges } from '../world/stateTransition.ts'
@@ -87,9 +88,15 @@ const state: State = {
 const subscribers = new Set<ServerResponse>()
 let runtimeDb: DatabaseSync | undefined
 let modelAdapter: WorldModelAdapter = worldModelAdapter
+// Off by default so no existing test that flushes a chapter in 'live' mode needs to also stub a
+// narrator call — only server/index.ts's real boot opts in explicitly.
+let narratorEnabled = false
 let revision = 0
 let activeTick: Promise<void> | null = null
 let shuttingDown = false
+// Fire-and-forget narrator enhancements (see enhanceSceneNarration). Tracked so shutdown/tests can
+// await them instead of leaving dangling promises/timers across process or test-case boundaries.
+const pendingNarrations = new Set<Promise<void>>()
 
 function persist(): void {
   if (!runtimeDb || !state.execution) return
@@ -106,11 +113,12 @@ function persist(): void {
   }
 }
 
-export function initializeWorldRuntime(db: DatabaseSync, adapter: WorldModelAdapter = worldModelAdapter): void {
+export function initializeWorldRuntime(db: DatabaseSync, adapter: WorldModelAdapter = worldModelAdapter, enableNarrator = false): void {
   stopSimulationTimerForTests()
   runtimeDb = db
   ensurePricingSeeded(db)
   modelAdapter = adapter
+  narratorEnabled = enableNarrator
   shuttingDown = false
   const row = db.prepare('SELECT payload FROM world_runtime_checkpoint WHERE id=1').get() as { payload: string } | undefined
   if (row) {
@@ -137,6 +145,7 @@ export async function shutdownWorldRuntime(): Promise<void> {
   for (const res of subscribers) res.end()
   subscribers.clear()
   await activeTick
+  await Promise.all(pendingNarrations)
   persist()
   runtimeDb = undefined
 }
@@ -516,6 +525,63 @@ function flushChapter(force: boolean): void {
   state.chapterBuffer = undefined
   persist()
   broadcast({ type: 'scene', payload: scene })
+  if (narratorEnabled) {
+    const narration = enhanceSceneNarration(scene.id, events).catch(() => {})
+    pendingNarrations.add(narration)
+    void narration.finally(() => pendingNarrations.delete(narration))
+  }
+}
+
+// Replaces a chapter's deterministic scene text with real model prose once it's ready. Never
+// blocks or affects the tick loop, and deliberately bypasses callModel()/callsUsed — this is a
+// supplementary enrichment call (like studioRecommendations.ts's recommendStudio), not a world
+// decision, so it must never change the "N ticks = N decision calls" cost invariants those track.
+// It still spends from the same shared weekly/monthly KRW budget. The deterministic scene from
+// mockNarrator (already saved and broadcast above) stands as-is on any failure, demo mode, missing
+// budget, or invalid response.
+async function enhanceSceneNarration(sceneId: string, events: WorldEvent[]): Promise<void> {
+  if (!state.execution || state.execution.mode !== 'live' || !runtimeDb) return
+  if (config.production && !config.providerLimitsConfirmed) return
+  const request: WorldModelRequest = { role: 'narrator', provider: 'openai', model: config.openaiModel, schema: NARRATOR_SCHEMA,
+    prompt: buildNarratorPrompt(events, placesById(), agentsById()) }
+  try { ensureModelConfigured(request) } catch { return }
+  ensurePricingSeeded(runtimeDb)
+  const pricing = getPricing(runtimeDb, 'openai', config.openaiModel)
+  if (!pricing) return
+  let inputBound: number
+  try { inputBound = Buffer.byteLength(worldRequestBody(request)) + 1024 } catch { return }
+  const reservedUsd = estimateCostUsd(pricing, inputBound, 1500)
+  const rate = getUsdToKrwRate(runtimeDb)
+  const reservedKrw = reservedUsd * rate
+  const budget = checkBudget(runtimeDb, reservedKrw)
+  if (!budget.allowed) return
+  reserveBudget(runtimeDb, budget.weekKey, reservedKrw, reservedUsd, budget.monthKey)
+  let actualUsd = reservedUsd
+  let raw: unknown
+  try {
+    const result = await modelAdapter(request)
+    if (Number.isFinite(result.inputTokens) && result.inputTokens > 0 && Number.isFinite(result.outputTokens) && result.outputTokens >= 0) {
+      actualUsd = estimateCostUsd(pricing, result.inputTokens, result.outputTokens)
+    }
+    raw = result.raw
+  } catch { return } finally {
+    settleReservation(runtimeDb, budget.weekKey, reservedKrw, reservedUsd, actualUsd * rate, actualUsd, 'openai', budget.monthKey)
+  }
+  if (!raw || typeof raw !== 'object') return
+  const r = raw as Record<string, unknown>
+  if (typeof r.title !== 'string' || typeof r.body !== 'string' || !Array.isArray(r.sourceEventIds)) return
+  const validIds = new Set(events.map(e => e.id))
+  if (!r.sourceEventIds.every(id => typeof id === 'string' && validIds.has(id))) return
+  const title = r.title.trim().slice(0, 200), body = r.body.trim().slice(0, 6000)
+  if (!title || !body) return
+  const scene = state.scenes.find(s => s.id === sceneId)
+  if (!scene) return
+  scene.title = title
+  scene.body = body
+  const chapter = state.chapters.find(c => c.sceneId === sceneId)
+  if (chapter) chapter.summary = body
+  persist()
+  broadcast({ type: 'sceneUpdated', payload: scene })
 }
 
 export function runWorldTick(): Promise<void> {

@@ -16,7 +16,7 @@ export interface WorldExecution {
   mode: 'demo' | 'live'
 }
 export interface WorldModelRequest {
-  role: 'agent' | 'judge'
+  role: 'agent' | 'judge' | 'narrator'
   provider: string
   model: string
   prompt: string

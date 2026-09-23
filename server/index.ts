@@ -18,6 +18,7 @@ import { seedAdminUser } from './auth/seedAdmin.ts'
 import { currentUser, pruneExpiredSessions } from './auth/sessions.ts'
 import { seedDefaultRulePreset } from './domain/rulePresets.ts'
 import { initializeWorldRuntime, shutdownWorldRuntime } from './domain/worldStore.ts'
+import { worldModelAdapter } from './domain/worldAgent.ts'
 import { anthropicAdapter } from './providers/anthropic.ts'
 import { demoAnthropicAdapter, demoOpenAiAdapter } from './providers/demo.ts'
 import { openaiAdapter } from './providers/openai.ts'
@@ -36,7 +37,7 @@ ensurePricingSeeded(db)
 seedAdminUser(db)
 pruneExpiredSessions(db)
 seedDefaultRulePreset(db)
-initializeWorldRuntime(db)
+initializeWorldRuntime(db, worldModelAdapter, true)
 
 const adapters: AdapterSet = {
   real: { openai: openaiAdapter, anthropic: anthropicAdapter },

@@ -1,14 +1,9 @@
-// NARRATOR adapter. Today this only ever assembles a plain, literal paragraph from confirmed
-// WorldEvent facts — it never invents anything. A real NARRATOR plugs in here later by
-// implementing NarratorAdapter and being passed into worldStore instead of `mockNarrator`. No
-// caller outside this file and worldStore.ts should ever construct scene prose directly.
-//
-// WHERE A REAL MODEL CALL GOES: build the request with
-// `buildNarratorPrompt(events, placesById, agentsById)` from ../prompts/narratorPrompt.ts, send it
-// to the configured provider, parse a NarratorOutput ({ title, body, sourceEventIds }) back out,
-// verify sourceEventIds matches the events passed in, and record provenance (provider/model/
-// promptVersionId from ../prompts/promptVersions.ts) on the resulting WorldEvent's `provenance`
-// field before it is ever attached to a public ChronicleEntry.
+// NARRATOR adapter. This only ever assembles a plain, literal paragraph from confirmed WorldEvent
+// facts — it never invents anything, makes no network call, and costs nothing. It is always
+// computed first for every chapter (see worldStore.ts's flushChapter), so a scene is never blocked
+// on or lost to a model call. worldStore.ts's enhanceSceneNarration() then tries to replace a
+// chapter's scene.title/body with real model prose (see ../prompts/narratorPrompt.ts) shortly
+// after; on any failure, budget exhaustion, or demo mode, this deterministic version stands as-is.
 import type { Agent, ChronicleEntry, Place, WorldEvent } from './worldTypes.ts'
 
 export interface NarratorAdapter {
