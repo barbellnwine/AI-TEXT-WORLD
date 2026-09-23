@@ -17,6 +17,7 @@ test('ten-step studio preserves edits, handles empty numbers, and reviews a runn
  await expect(page.getByRole('status')).toContainText('저장 완료')
  await page.reload();await expect(page.getByRole('spinbutton',{name:'동시 활성 캐릭터',exact:true})).toHaveValue('3')
  await page.getByRole('button',{name:'6. 캐릭터 생성',exact:true}).click()
+ await page.getByRole('button',{name:'수정',exact:true}).first().click()
  await page.getByRole('textbox',{name:'직업',exact:true}).fill('항공 정비사')
  await page.getByRole('button',{name:'논리적',exact:true}).click()
  await page.getByRole('button',{name:'3. 장소',exact:true}).click()

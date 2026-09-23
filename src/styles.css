@@ -1078,6 +1078,11 @@ body:has(.observatory), body:has(.world-welcome), body:has(.world-shell), body:h
 .studio input[type="checkbox"] { width: 20px; height: 20px; }
 .studio textarea { min-height: 90px; resize: vertical; }
 .studio-card { padding: 20px; margin: 18px 0; border: 1px solid #304055; border-radius: 9px; }
+.studio-roster { margin: 18px 0; }
+.studio-roster-card { margin: 0; cursor: pointer; }
+.studio-roster-card:hover, .studio-roster-card:focus-visible { border-color: #62c7c4; outline: none; }
+.studio-roster-card h3 { margin: 0 0 6px; }
+.studio-roster-card p { margin: 0 0 12px; }
 .studio-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 14px; align-items: start; }
 .studio-stepper { display: grid; grid-template-columns: 44px minmax(50px,1fr) 44px; gap: 5px; }
 .studio-stepper input { text-align: center; -moz-appearance: textfield; }
