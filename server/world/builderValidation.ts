@@ -91,7 +91,7 @@ export function validateDraftForStart(draft: DraftDTO): ValidationResult {
     if (!['openai', 'anthropic'].includes(c.provider)) err('INVALID_PROVIDER', `${label}의 provider 설정이 올바르지 않습니다.`)
     if (!config.worldDemoMode && c.provider === 'openai' && !config.openaiApiKey) err('OPENAI_KEY_REQUIRED', `${label}은 OpenAI를 사용하지만 서버에 OPENAI_API_KEY가 없습니다.`)
     if (!config.worldDemoMode && c.provider === 'anthropic' && !config.anthropicApiKey) err('ANTHROPIC_KEY_REQUIRED', `${label}은 Anthropic을 사용하지만 서버에 ANTHROPIC_API_KEY가 없습니다.`)
-    for (const value of [...Object.values(c.humanState), ...Object.values(c.emotion)]) if (!Number.isInteger(value) || value < 1 || value > 10) err('INVALID_CHARACTER_STATE', `${label}의 상태값은 1~10 정수여야 합니다.`)
+    for (const value of [...Object.values(c.humanState), ...Object.values(c.emotion)]) if (!Number.isInteger(value) || value < 0 || value > 10) err('INVALID_CHARACTER_STATE', `${label}의 상태값은 0~10 정수여야 합니다.`)
   })
   for (const place of draft.places) {
     const occupancy = placeOccupancy.get(place.id) ?? 0
