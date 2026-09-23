@@ -169,7 +169,7 @@ test('provider transport rejects foreign endpoints, large payloads and oversized
   }) as typeof fetch
   try {
     await assert.rejects(fetchWithLimits('https://other.invalid', { body: '{}' }), /unapproved provider endpoint/)
-    await assert.rejects(fetchWithLimits('https://api.openai.com/v1/chat/completions', { body: 'x'.repeat(12_001) }), /request exceeds limit/)
+    await assert.rejects(fetchWithLimits('https://api.openai.com/v1/chat/completions', { body: 'x'.repeat(MAX_PROVIDER_REQUEST_BYTES + 1) }), /request exceeds limit/)
     assert.equal(calls, 0)
     await assert.rejects(fetchWithLimits('https://api.openai.com/v1/chat/completions', { body: '{}' }), /response exceeds limit/)
     assert.equal(calls, 1)

@@ -17,6 +17,7 @@ import type { ProposedAction } from '../server/world/actionSchema.ts'
 import { generateCharacters } from '../server/domain/characterGen.ts'
 import { config } from '../server/config.ts'
 import { parseProposedAction, worldModelAdapter, ACTION_SCHEMA, agentRequest, judgeRequest, worldRequestBody, type WorldModelAdapter } from '../server/domain/worldAgent.ts'
+import { MAX_PROVIDER_REQUEST_BYTES } from '../server/providers/requestBody.ts'
 import { toPublicWorld } from '../server/world/publicView.ts'
 import { Router } from '../server/http.ts'
 import { registerAuthRoutes } from '../server/api/authRoutes.ts'
@@ -439,9 +440,9 @@ test('default constitutional preset fits bounded agent and judge requests withou
     const actor = world.agents[0]
     for (let i = 2; i < 10; i++) world.agents.push({ ...structuredClone(actor), id: `character-${i}`, name: `Character ${i}` })
     const request = agentRequest(execution, actor.id, world, [])
-    assert.ok(Buffer.byteLength(worldRequestBody(request)) <= 12000)
+    assert.ok(Buffer.byteLength(worldRequestBody(request)) <= MAX_PROVIDER_REQUEST_BYTES)
     const judgment = judgeRequest(execution, moveAction() as ProposedAction, world, [])
-    assert.ok(Buffer.byteLength(worldRequestBody(judgment)) <= 12000)
+    assert.ok(Buffer.byteLength(worldRequestBody(judgment)) <= MAX_PROVIDER_REQUEST_BYTES)
   } finally { await ctx.close() }
 })
 

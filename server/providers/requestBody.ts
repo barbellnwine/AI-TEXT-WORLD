@@ -2,7 +2,12 @@ import { ACTION_JSON_SCHEMA, ACTION_TOOL_NAME } from '../domain/actionSchema.ts'
 import { buildUserPrompt } from '../domain/promptBuilder.ts'
 import type { Provider, ProviderCallInput } from '../domain/types.ts'
 
-export const MAX_PROVIDER_REQUEST_BYTES = 12_000
+// A 5-character world sharing one place means every hourly environment tick is witnessed by
+// everyone, and rule presets + world rules + schema already consume several KB before any
+// character-specific content. 12KB left too little room even after trimming every character's
+// narrative fields to empty; 20KB keeps a real safety margin without materially raising cost
+// (the trim loop still shrinks each request to the smallest size that fits).
+export const MAX_PROVIDER_REQUEST_BYTES = 20_000
 
 export function providerRequestBody(provider: Provider, input: ProviderCallInput): string {
   const messages = [{ role: 'user', content: buildUserPrompt(input) }]
