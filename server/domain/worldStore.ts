@@ -533,7 +533,11 @@ function scheduleTimer(): void {
       advanceWorldTick()
       if (!activeTick) activeTick = performDecisions().finally(() => { activeTick = null })
       void activeTick.catch(() => { state.runtime.decisionsPaused = true })
-    } catch { state.runtime.status = state.season.status = 'PAUSED'; state.runtime.paused = true; stopSimulationTimerForTests() }
+    } catch (error) {
+      // This silently killed the tick timer with no trace before — log it so a crash here is diagnosable.
+      console.error('[world] tick crashed, pausing', error instanceof Error ? error.stack ?? error.message : error)
+      state.runtime.status = state.season.status = 'PAUSED'; state.runtime.paused = true; stopSimulationTimerForTests()
+    }
   }, state.runtime.tickIntervalMs)
 }
 
