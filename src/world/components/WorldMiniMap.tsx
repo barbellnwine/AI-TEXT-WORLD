@@ -1,4 +1,5 @@
 ﻿import { useEffect, useId, useRef, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { WorldState } from '../types'
 import { useWorldExperience } from '../i18n'
 
@@ -14,10 +15,24 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
   const reducedMotion = typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
   const [expanded, setExpanded] = useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
+  const panRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (expanded) dialog.current?.showModal()
     else dialog.current?.close()
   }, [expanded])
+  // Click-and-drag panning for the oversized expanded map (touch already scrolls natively).
+  function startPan(down: ReactPointerEvent<HTMLDivElement>) {
+    const el = panRef.current
+    if (!el || down.pointerType === 'touch') return
+    if (down.target instanceof Element && down.target.closest('.map-character')) return
+    down.preventDefault()
+    const startX = down.clientX, startY = down.clientY, startLeft = el.scrollLeft, startTop = el.scrollTop
+    el.setPointerCapture(down.pointerId)
+    const onMove = (move: PointerEvent) => { el.scrollLeft = startLeft - (move.clientX - startX); el.scrollTop = startTop - (move.clientY - startY) }
+    const onUp = () => { el.releasePointerCapture(down.pointerId); el.removeEventListener('pointermove', onMove); el.removeEventListener('pointerup', onUp) }
+    el.addEventListener('pointermove', onMove)
+    el.addEventListener('pointerup', onUp)
+  }
   const island = 'M68 167 Q48 140 72 116 L97 108 Q93 83 118 73 L151 78 Q167 48 193 59 L212 83 L241 73 Q272 70 280 98 L304 114 Q332 118 329 145 L351 170 Q358 196 331 208 L312 232 Q306 258 275 253 L248 276 Q224 289 204 267 L178 273 Q153 266 148 249 L115 244 Q88 244 87 221 L62 202 Q49 184 68 167Z'
   const places = [...state.places].sort((a, b) => a.id.localeCompare(b.id))
   const designed = Boolean(state.engine)
@@ -54,8 +69,11 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
   })
   const selected = markers.find(marker => marker.agent.id === selectedAgentId)
   const svgId = (suffix: string) => `${id}${suffix}`
-  const mapSvg = (svgIdSuffix: string) => (
-    <svg viewBox="0 0 410 330" role="group" aria-label={t('map')}>
+  // The expanded view deliberately does NOT try to fit everything into one glance — it renders
+  // the same map at ~2.4x the pixel size and lets the container scroll, so a busy multi-place
+  // world stays legible and pannable instead of shrinking everyone down to fit.
+  const mapSvg = (svgIdSuffix: string, large = false) => (
+    <svg viewBox="0 0 410 330" role="group" aria-label={t('map')} style={large ? { width: 410 * 2.4, height: 330 * 2.4, maxWidth: 'none' } : undefined}>
       <defs>
         <radialGradient id={svgId(`${svgIdSuffix}-land`)}><stop stopColor="#50684b" /><stop offset="1" stopColor="#263f35" /></radialGradient>
         <clipPath id={svgId(`${svgIdSuffix}-clip`)}><path d={island} /></clipPath>
@@ -122,9 +140,9 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
     <dialog ref={dialog} className="world-dialog map-dialog" aria-label={t('expandMap')} onCancel={e => { e.preventDefault(); setExpanded(false) }} onClose={() => setExpanded(false)}>
       {expanded && <>
         <button type="button" className="world-dialog-close" onClick={() => setExpanded(false)} aria-label={t('close')}>✕</button>
-        <div className="world-minimap island-minimap map-dialog-map">
+        <div className="world-minimap island-minimap map-dialog-map" ref={panRef} onPointerDown={startPan}>
           <span className="map-compass" aria-hidden="true">N ↑</span>
-          {mapSvg('-large')}
+          {mapSvg('-large', true)}
         </div>
         {legend}
         <p className="map-caption">{t('topology')}</p>

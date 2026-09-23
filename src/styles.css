@@ -830,8 +830,9 @@ body:has(.observatory), body:has(.world-welcome), body:has(.world-shell) { backg
 .map-expand-button { position: absolute; left: 6px; top: 6px; z-index: 1; width: 26px; height: 26px; border-radius: 5px; background: #0a1222b3; border: 1px solid #37465a; color: #dbe8f3; font-size: 14px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
 .map-expand-button:hover { background: #16233a; }
 .map-dialog { width: min(900px, calc(100vw - 32px)); }
-.map-dialog-map { margin: 8px 0 0; }
-.map-dialog .island-minimap svg { max-height: 78vh; }
+.island-minimap.map-dialog-map { margin: 8px 0 0; max-height: 72vh; overflow: auto; cursor: grab; }
+.map-dialog-map:active { cursor: grabbing; }
+.map-dialog-map svg { max-width: none; display: block; }
 .map-connection { stroke: #67835b70; stroke-width: 1; stroke-dasharray: 4 4; }
 .map-node-halo { fill: #b0cc9107; stroke: #91b67515; }
 .map-node { fill: #283623; stroke: #7a9864; }
