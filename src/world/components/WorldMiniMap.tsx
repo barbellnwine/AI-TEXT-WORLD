@@ -11,6 +11,7 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
 }) {
   const { t } = useWorldExperience()
   const id = useId().replaceAll(':', '')
+  const reducedMotion = typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
   const [expanded, setExpanded] = useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -31,12 +32,17 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
       y: maxY === minY ? 165 : 55 + ((place.y ?? 0) - minY) / (maxY - minY) * 220,
     } : { x: 205 + Math.cos(angle) * radius, y: 174 + Math.sin(angle) * radius * .8 }]
   }))
+  // The visible "land" for a place must be drawn big enough to actually contain where
+  // characters at that place can appear — otherwise they render floating outside it. Shrinks as
+  // more places compete for the same canvas so they don't overlap each other.
+  const placeVisualRadius = Math.max(26, Math.min(115, 260 / places.length))
+  const maxOccupantRadius = Math.max(10, placeVisualRadius * 0.62)
   const agents = [...state.agents].filter(agent => anchors.has(agent.publicState.locationId)).sort((a, b) => a.id.localeCompare(b.id))
   const markers = agents.map(agent => {
     const occupants = agents.filter(other => other.publicState.locationId === agent.publicState.locationId)
     const index = occupants.findIndex(other => other.id === agent.id)
     const angle = index * 2.399963229728653
-    const radius = occupants.length === 1 ? 0 : Math.min(90, 26 * Math.sqrt(index + .5))
+    const radius = occupants.length === 1 ? 0 : Math.min(maxOccupantRadius, (maxOccupantRadius / 2.2) * Math.sqrt(index + .5))
     const anchor = anchors.get(agent.publicState.locationId)!
     const move = state.engine?.ongoingActions.find(a => a.proposal.actorId === agent.id && a.proposal.actionType === 'MOVE')
     const destination = move?.proposal.destinationId ? anchors.get(move.proposal.destinationId) : null
@@ -67,7 +73,7 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
         const from = anchors.get(edge.fromPlaceId), to = anchors.get(edge.toPlaceId)
         return from && to ? <line key={i} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={edge.blocked ? '#9a6262' : '#7c9b8a'} strokeWidth="1.5" strokeDasharray={edge.blocked ? '4 5' : undefined}><title>{edge.travelMinutes} min{edge.blocked ? ' · blocked' : ''}</title></line> : null
       })}
-      {designed && places.map(place => { const p = anchors.get(place.id)!; return <g key={place.id} aria-label={place.name}><circle cx={p.x} cy={p.y} r="17" fill="#243b35" stroke="#7c9b8a" /><text x={p.x} y={p.y + 34} textAnchor="middle" fill="currentColor" fontSize="11">{place.name}</text></g> })}
+      {designed && places.map(place => { const p = anchors.get(place.id)!; return <g key={place.id} aria-label={place.name}><circle cx={p.x} cy={p.y} r={placeVisualRadius} fill={`url(#${svgId(`${svgIdSuffix}-land`)})`} stroke="#7c9b8a" /><text x={p.x} y={p.y + placeVisualRadius + 17} textAnchor="middle" fill="currentColor" fontSize="11">{place.name}</text></g> })}
       {[...new Set(markers.map(m => m.agent.publicState.locationId))].flatMap(locationId => {
         const group = markers.filter(m => m.agent.publicState.locationId === locationId && m.agent.publicState.status !== 'deceased')
         const lines = []
@@ -81,12 +87,23 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
         return points.length > 1 ? <polyline points={points.map(p => `${p.x},${p.y}`).join(' ')} className="map-trail" /> : null
       })()}
       {markers.map(({ agent, x, y }) => {
-        const wandering = agent.publicState.status !== 'deceased'
+        const wandering = agent.publicState.status !== 'deceased' && !reducedMotion
         const seed = [...agent.id].reduce((n, c) => n + c.charCodeAt(0), 0)
+        // Amplitude scales with this place's own drawn radius so the wander can never carry a
+        // character outside the visible land it's supposed to be standing on. Two independent
+        // axes on coprime-ish periods so the combined path only repeats after ~2 minutes.
+        const amp = Math.max(3, Math.min(16, placeVisualRadius * 0.14))
+        // The hit target stays put (so click/hover/tests stay reliable on a stable area) —
+        // only the visible dot wanders, purely decorative, with pointer-events disabled.
         return <g key={agent.id} transform={`translate(${x} ${y})`} className={`map-character${agent.id === selectedAgentId ? ' is-selected' : ''}`} role="button" tabIndex={0} aria-label={agent.name} aria-pressed={agent.id === selectedAgentId} onClick={() => onSelectAgent(agent.id === selectedAgentId ? null : agent.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectAgent(agent.id === selectedAgentId ? null : agent.id) } }}>
           <title>{agent.name}</title>
-          <g className={wandering ? 'map-character-wander' : undefined} style={wandering ? { animationDuration: `${6 + (seed % 5)}s`, animationDelay: `-${(seed % 61) / 10}s` } : undefined}>
-            <circle r="11" className="map-character-target" /><circle r="4.5" className="map-character-dot" />
+          <circle r="11" className="map-character-target" />
+          <g pointerEvents="none">
+            {wandering && <animateTransform attributeName="transform" type="translate" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1" keyTimes="0;0.22;0.48;0.74;1" dur={`${9 + (seed % 5)}s`} begin={`-${(seed % 47) / 10}s`} values={`0,0;${amp * .9},0;${-amp * .35},0;${-amp},0;0,0`} />}
+            <g pointerEvents="none">
+              {wandering && <animateTransform attributeName="transform" type="translate" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1" keyTimes="0;0.3;0.58;0.83;1" dur={`${11 + (seed % 6)}s`} begin={`-${(seed % 53) / 10}s`} values={`0,0;0,${-amp * .94};0,${amp * .53};0,${-amp * .53};0,0`} />}
+              <circle r="4.5" className="map-character-dot" />
+            </g>
           </g>
         </g>
       })}
