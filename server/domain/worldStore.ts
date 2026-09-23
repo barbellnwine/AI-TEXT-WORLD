@@ -418,6 +418,7 @@ async function performDecisions(): Promise<void> {
   } catch (error) {
     if (ticket === revision) {
       const code = error instanceof ProviderCallError ? error.code : 'WORLD_DECISION_FAILED'
+      console.error('[world] agent-decision failed', code, error instanceof Error ? error.message : error)
       recordRuntimeError('agent-decision', code)
       state.runtime.decisionsPaused = true
       state.runtime.decisionStatus = code

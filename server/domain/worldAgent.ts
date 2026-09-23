@@ -159,7 +159,11 @@ export function worldRequestBody(request: WorldModelRequest): string {
     tools: [{ name: 'submit_world_result', description: 'Submit the structured result.', input_schema: request.schema }],
     tool_choice: { type: 'tool', name: 'submit_world_result' },
   })
-  if (Buffer.byteLength(body) > MAX_PROVIDER_REQUEST_BYTES) throw new ProviderCallError('WORLD_CONTEXT_TOO_LARGE', 'shorten world rules or character context')
+  if (Buffer.byteLength(body) > MAX_PROVIDER_REQUEST_BYTES) {
+    // Temporary diagnostic: pinpoint which requests overflow and by how much (never logs prompt content).
+    console.error(`[world] WORLD_CONTEXT_TOO_LARGE role=${request.role} provider=${request.provider} bytes=${Buffer.byteLength(body)} limit=${MAX_PROVIDER_REQUEST_BYTES} promptBytes=${Buffer.byteLength(request.prompt)}`)
+    throw new ProviderCallError('WORLD_CONTEXT_TOO_LARGE', 'shorten world rules or character context')
+  }
   return body
 }
 
