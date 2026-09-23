@@ -9,11 +9,18 @@ export function SiteNav({ currentPath }: { currentPath: string }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
   useEffect(() => { dialog.current?.close() }, [currentPath])
-  const items = [{ key: 'live', to: '/' }, { key: 'characters', to: '/characters' }, { key: 'map', to: '/world' }, { key: 'history', to: '/chronicle' }, { key: 'tribunal', to: '/amnesty' }] as const
+  const items = [
+    { ko: 'LIVE', en: 'LIVE', to: '/' },
+    { ko: '캐릭터', en: 'CHARACTERS', to: '/characters' },
+    { ko: '세계', en: 'WORLD', to: '/world' },
+    { ko: '연대기', en: 'CHRONICLE', to: '/chronicle' },
+    { ko: '시즌 기록', en: 'SEASONS', to: '/archive' },
+    { ko: '인간 심사소', en: 'TRIBUNAL', to: '/amnesty' },
+  ] as const
   return <header className="world-sitenav">
     <div className="world-sitenav-inner">
-      <Link to="/" className="world-sitenav-brand"><span className="world-brand-mark" aria-hidden="true">◎</span> AI WORLD<span className="world-brand-caption">THE WORLD CONTINUES</span></Link>
-      <nav aria-label="AI WORLD" className="world-sitenav-links">{items.map(item => <Link key={item.to} to={item.to} aria-current={(item.to === '/' ? currentPath === '/' : currentPath.startsWith(item.to)) ? 'page' : undefined}>{item.key === 'live' && <i />} {t(item.key)}</Link>)}</nav>
+      <Link to="/" className="world-sitenav-brand">AI TEXT WORLD</Link>
+      <nav aria-label="AI TEXT WORLD" className="world-sitenav-links">{items.map(item => <Link key={item.to} to={item.to} aria-current={(item.to === '/' ? currentPath === '/' : currentPath.startsWith(item.to)) ? 'page' : undefined}>{locale === 'ko-KR' ? item.ko : item.en}</Link>)}</nav>
       <div className="world-account"><select disabled={busy} aria-label={t('language')} value={locale} onChange={e => { setError(false); setBusy(true); void chooseLocale(e.target.value as 'ko-KR' | 'en-US').catch(() => setError(true)).finally(() => setBusy(false)) }}><option value="ko-KR">한국어</option><option value="en-US">English</option></select>
         {user?.role === 'ADMIN' && <Link to="/admin/world">{t('admin')}</Link>}
         <button className="world-account-button" onClick={() => { setError(false); dialog.current?.showModal() }}>{user ? user.nickname : t('login')} <span>↗</span></button>

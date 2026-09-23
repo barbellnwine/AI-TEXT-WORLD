@@ -3,6 +3,7 @@ import { worldBuilderApi } from '../../builderApi'
 import type { DraftSummary } from '../../builderTypes'
 import { Link } from '../../../router/Link'
 import { navigate } from '../../../router/navigation'
+import { adminRequest } from '../../api'
 
 const STATUS_LABEL: Record<DraftSummary['status'], string> = {
   DRAFT: 'DRAFT (작성 중)', READY: 'READY (시작 가능)', RUNNING: 'RUNNING (진행 중)',
@@ -31,7 +32,7 @@ export function WorldBuilderListPage() {
 
 
   async function createDraft() {
-    const name = window.prompt('새 WORLD 이름', 'PROJECT ISLAND')?.trim()
+    const name = window.prompt('직접 만들 세계의 이름을 입력하세요', '')?.trim()
     if (!name) return
     try {
       const res = await worldBuilderApi.createDraft(name)
@@ -50,7 +51,8 @@ export function WorldBuilderListPage() {
     <main className="world-shell">
       <header className="world-page-header">
         <p className="world-eyebrow">ADMIN · WORLD BUILDER</p>
-        <h1>WORLD 생성 · 관리</h1>
+        <h1>세계 편집기 · 캐릭터와 장소 직접 설정</h1>
+        <p>선택형 10단계 제작 · 세계 설정 → 환경 → 장소 → 자원 → 사건 → 캐릭터 → 관계 → 실행 설정 → 검토 → 시작</p>
         <p className="world-dev-banner">
           여기서 만든 WORLD는 START WORLD를 누르는 순간 현재 실행 중인 시뮬레이션을 대체합니다 (엔진은 한 번에 하나의 WORLD만 운영합니다).
           시작 전까지는 몇 번이고 자유롭게 수정할 수 있는 DRAFT 상태입니다.
@@ -70,10 +72,11 @@ export function WorldBuilderListPage() {
         <div className="ai-page-top">
           <h2>WORLD 목록</h2>
           <button onClick={createDraft}>+ 새 WORLD 만들기</button>
+          <button onClick={async () => { try { const r = await adminRequest<{draft:{id:string}}>('/api/admin/world/examples/island','POST'); navigate(`/admin/world/builder/${r.draft.id}`) } catch { setMessage('테스트 초안을 만들지 못했습니다.') } }}>테스트 아일랜드 초안 만들기</button>
         </div>
         {message && <p className="micro">{message}</p>}
         {drafts.length === 0 ? (
-          <p className="micro">아직 만든 WORLD가 없습니다.</p>
+          <p>아직 직접 만든 WORLD가 없습니다. 위의 ‘+ 새 WORLD 만들기’를 누르세요. 현재 관전 화면에 보이는 예시 캐릭터와 장소를 사용할 필요 없이, 원하는 설정을 직접 작성할 수 있습니다.</p>
         ) : (
           <table className="admin-table">
             <thead><tr><th>이름</th><th>상태</th><th>시즌</th><th>장소</th><th>캐릭터</th><th>수정</th><th></th></tr></thead>

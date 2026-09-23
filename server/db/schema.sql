@@ -352,3 +352,7 @@ CREATE TABLE IF NOT EXISTS draft_discoverable_truths (
   draft_id TEXT PRIMARY KEY REFERENCES world_drafts(id) ON DELETE CASCADE,
   payload TEXT NOT NULL DEFAULT '[]'
 );
+CREATE TABLE IF NOT EXISTS world_studio_config (
+  draft_id TEXT PRIMARY KEY REFERENCES world_drafts(id) ON DELETE CASCADE,
+  payload TEXT NOT NULL
+);

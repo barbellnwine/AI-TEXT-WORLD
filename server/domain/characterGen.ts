@@ -3,6 +3,9 @@
 // so a fresh checkout never spends money; the deterministic mock keeps AI AUTO fully usable and
 // testable without any API key. Never includes HIDDEN WORLD TRUTH in the generation prompt
 // (section 10) — callers must not pass it in `worldContext`.
+import type { DatabaseSync } from 'node:sqlite'
+import { ensurePricingSeeded, getPricing, estimateCostUsd, getUsdToKrwRate, checkBudget, reserveBudget, settleReservation } from './budget.ts'
+import { ensureModelConfigured } from './worldAgent.ts'
 import { config } from '../config.ts'
 import { fetchWithLimits, ProviderCallError } from '../providers/httpUtil.ts'
 import { WORLD_RULES_TEXT } from '../prompts/worldRules.ts'
@@ -20,7 +23,7 @@ export interface CharacterGenContext {
 // (which DraftDTO has, section 10) has no field to land in here. Callers must go through this
 // instead of hand-building the object, so the exclusion can't be silently reintroduced.
 export function contextFromDraft(draft: { name: string; genre: string; background: string; intro: string }, existingNames: string[]): CharacterGenContext {
-  return { worldName: draft.name, genre: draft.genre, background: draft.background, seasonPremise: draft.intro, existingNames }
+  return { worldName: draft.name, genre: draft.genre, background: draft.background, seasonPremise: draft.background, existingNames }
 }
 
 export type GeneratedCharacter = Pick<CharacterInput,
@@ -123,7 +126,9 @@ function buildPrompt(count: number, ctx: CharacterGenContext): { system: string;
   return { system, user }
 }
 
-async function callOpenAiForCharacters(count: number, ctx: CharacterGenContext): Promise<unknown[]> {
+interface CharacterBatch { items: unknown[]; inputTokens?: number; outputTokens?: number }
+
+async function callOpenAiForCharacters(count: number, ctx: CharacterGenContext): Promise<CharacterBatch> {
   const { system, user } = buildPrompt(count, ctx)
   const response = await fetchWithLimits('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -132,20 +137,20 @@ async function callOpenAiForCharacters(count: number, ctx: CharacterGenContext):
       model: config.openaiModel,
       messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
       response_format: { type: 'json_object' },
-      max_tokens: Math.min(4000, 250 * count),
+      max_tokens: Math.min(4000, 700 * count),
       temperature: 0.9,
     }),
   })
   if (!response.ok) throw new ProviderCallError(`OPENAI_HTTP_${response.status}`, 'openai request failed')
-  const data = await response.json() as { choices: Array<{ message: { content: string } }> }
+  const data = await response.json() as { choices: Array<{ message: { content: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number } }
   const content = data.choices[0]?.message?.content
   if (!content) throw new ProviderCallError('OPENAI_EMPTY_RESPONSE', 'empty model response')
   const parsed = JSON.parse(content) as { characters?: unknown[] }
   if (!Array.isArray(parsed.characters)) throw new ProviderCallError('OPENAI_INVALID_JSON', 'missing characters array')
-  return parsed.characters
+  return { items: parsed.characters, inputTokens: data.usage?.prompt_tokens, outputTokens: data.usage?.completion_tokens }
 }
 
-async function callAnthropicForCharacters(count: number, ctx: CharacterGenContext): Promise<unknown[]> {
+async function callAnthropicForCharacters(count: number, ctx: CharacterGenContext): Promise<CharacterBatch> {
   const { system, user } = buildPrompt(count, ctx)
   const tool = {
     name: 'submit_characters',
@@ -165,14 +170,14 @@ async function callAnthropicForCharacters(count: number, ctx: CharacterGenContex
       messages: [{ role: 'user', content: user }],
       tools: [tool],
       tool_choice: { type: 'tool', name: 'submit_characters' },
-      max_tokens: Math.min(4000, 250 * count),
+      max_tokens: Math.min(4000, 700 * count),
     }),
   })
   if (!response.ok) throw new ProviderCallError(`ANTHROPIC_HTTP_${response.status}`, 'anthropic request failed')
-  const data = await response.json() as { content: Array<{ type: string; input?: { characters?: unknown[] } }> }
+  const data = await response.json() as { content: Array<{ type: string; input?: { characters?: unknown[] } }>; usage?: { input_tokens?: number; output_tokens?: number } }
   const toolUse = data.content.find(block => block.type === 'tool_use')
   if (!toolUse?.input?.characters || !Array.isArray(toolUse.input.characters)) throw new ProviderCallError('ANTHROPIC_EMPTY_RESPONSE', 'no characters in tool_use')
-  return toolUse.input.characters
+  return { items: toolUse.input.characters, inputTokens: data.usage?.input_tokens, outputTokens: data.usage?.output_tokens }
 }
 
 export interface GenerateResult {
@@ -183,10 +188,10 @@ export interface GenerateResult {
 
 // Batches the whole request into one call (section 44) — the caller decides how many to ask for;
 // regenerating a single character later is just this same function called with count=1.
-export async function generateCharacters(provider: 'openai' | 'anthropic', count: number, ctx: CharacterGenContext): Promise<GenerateResult> {
-  const boundedCount = Math.min(20, Math.max(1, Math.round(count)))
+export async function generateCharacters(provider: 'openai' | 'anthropic', count: number, ctx: CharacterGenContext, db?: DatabaseSync): Promise<GenerateResult> {
+  const boundedCount = Math.min(config.maxActiveCharacters, Math.max(1, Math.round(count)))
   const apiKey = provider === 'openai' ? config.openaiApiKey : config.anthropicApiKey
-  const useDemo = config.worldDemoMode || !apiKey
+  const useDemo = config.worldDemoMode
   const existingNames = new Set(ctx.existingNames)
 
   if (useDemo) {
@@ -195,8 +200,23 @@ export async function generateCharacters(provider: 'openai' | 'anthropic', count
     return { characters, usedDemo: true, errors: [] }
   }
 
+  if (!apiKey) throw new ProviderCallError('PROVIDER_KEY_MISSING', 'provider key missing')
+  if (!db) throw new ProviderCallError('BUDGET_STORE_MISSING', 'budget store required')
+  const model = provider === 'openai' ? config.openaiModel : config.anthropicModel
+  ensureModelConfigured({ provider, model })
+  ensurePricingSeeded(db)
+  const pricing = getPricing(db, provider, model)!
+  const prompt = buildPrompt(boundedCount, ctx)
+  const reserveUsd = estimateCostUsd(pricing, Buffer.byteLength(prompt.system + prompt.user) + 3000, Math.min(4000, 700 * boundedCount))
+  const rate = getUsdToKrwRate(db), reserveKrw = reserveUsd * rate
+  const budget = checkBudget(db, reserveKrw)
+  if (!budget.allowed) throw new ProviderCallError('BUDGET_LIMIT', 'generation budget exhausted')
+  reserveBudget(db, budget.weekKey, reserveKrw, reserveUsd, budget.monthKey)
+  let actualUsd = reserveUsd
   try {
-    const raw = provider === 'openai' ? await callOpenAiForCharacters(boundedCount, ctx) : await callAnthropicForCharacters(boundedCount, ctx)
+    const batch = provider === 'openai' ? await callOpenAiForCharacters(boundedCount, ctx) : await callAnthropicForCharacters(boundedCount, ctx)
+    if (Number.isFinite(batch.inputTokens) && Number.isFinite(batch.outputTokens) && batch.inputTokens! >= 0 && batch.outputTokens! >= 0) actualUsd = estimateCostUsd(pricing, batch.inputTokens!, batch.outputTokens!)
+    const raw = batch.items
     const characters: GeneratedCharacter[] = []
     const errors: string[] = []
     for (const item of raw.slice(0, boundedCount)) {
@@ -204,14 +224,12 @@ export async function generateCharacters(provider: 'openai' | 'anthropic', count
       if (result.ok) characters.push(result.character)
       else errors.push(...result.errors)
     }
-    // Top up with deterministic characters if the model returned fewer/invalid entries than asked —
-    // the admin still gets `count` cards to review rather than a partial, confusing batch.
-    while (characters.length < boundedCount) characters.push(mockCharacter(existingNames.size + characters.length, existingNames))
+    if (characters.length < boundedCount) errors.push('Some characters were not returned; retry only the missing count.')
     return { characters, usedDemo: false, errors }
   } catch (error) {
     const message = error instanceof ProviderCallError ? error.code : 'PROVIDER_CALL_FAILED'
-    const characters: GeneratedCharacter[] = []
-    for (let i = 0; i < boundedCount; i++) characters.push(mockCharacter(existingNames.size + i, existingNames))
-    return { characters, usedDemo: true, errors: [message] }
+    return { characters: [], usedDemo: false, errors: [message] }
+  } finally {
+    settleReservation(db, budget.weekKey, reserveKrw, reserveUsd, actualUsd * rate, actualUsd, provider, budget.monthKey)
   }
 }

@@ -1,6 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
+import { config } from '../server/config.ts'
+import { getPrepaidBudget } from '../server/domain/budget.ts'
 import { migrate } from '../server/db/connection.ts'
 import { seedAgents } from '../server/domain/agentsSeed.ts'
 import {
@@ -9,6 +11,7 @@ import {
 } from '../server/domain/budget.ts'
 
 function freshDb() {
+  config.prepaidBudgetUsd = null
   const db = new DatabaseSync(':memory:')
   migrate(db)
   setSetting(db, 'monthly_budget_krw', '40000')
@@ -85,4 +88,19 @@ test('migration imports historical paid logs by Korean month exactly once', () =
     assert.equal(getMonthlyLedger(db, '2026-10').settled_krw, 100)
     assert.equal(getMonthlyLedger(db, '2026-10').reserved_krw, 20)
   } finally { db.close() }
+})
+
+
+test('prepaid USD allowance survives month rollover and applies the existing safety margin', () => {
+  const db = freshDb()
+  const prior = config.prepaidBudgetUsd
+  try {
+    config.prepaidBudgetUsd = 20
+    db.prepare('INSERT INTO ai_monthly_budgets (month_key, settled_usd, settled_krw) VALUES (?, ?, ?)').run('2026-01', 15.99, 22386)
+    assert.equal(getPrepaidBudget(db).thresholdUsd, 16)
+    assert.equal(checkBudget(db, 28, new Date('2026-02-01T03:00:00Z')).allowed, false)
+    assert.equal(checkBudget(db, 1, new Date('2026-02-01T03:00:00Z')).allowed, true)
+    config.prepaidBudgetUsd = 0
+    assert.equal(checkBudget(db, 1).allowed, false)
+  } finally { config.prepaidBudgetUsd = prior; db.close() }
 })

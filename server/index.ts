@@ -15,7 +15,7 @@ import { registerWorldRoutes } from './api/worldRoutes.ts'
 import { registerWorldAdminRoutes } from './api/worldAdminRoutes.ts'
 import { registerWorldBuilderRoutes } from './api/worldBuilderRoutes.ts'
 import { seedAdminUser } from './auth/seedAdmin.ts'
-import { pruneExpiredSessions } from './auth/sessions.ts'
+import { currentUser, pruneExpiredSessions } from './auth/sessions.ts'
 import { seedDefaultRulePreset } from './domain/rulePresets.ts'
 import { initializeWorldRuntime, shutdownWorldRuntime } from './domain/worldStore.ts'
 import { anthropicAdapter } from './providers/anthropic.ts'
@@ -102,6 +102,15 @@ const server = createServer({ maxHeaderSize: 16_384, requestTimeout: 15_000, hea
       const handled = await router.handle(req, res)
       if (!handled) sendJson(res, 404, { error: 'not_found' })
       return
+    }
+    if ((url.pathname === '/admin' || url.pathname.startsWith('/admin/')) && ['GET', 'HEAD'].includes(req.method ?? '')) {
+      const user = currentUser(db, req)
+      if (user?.role !== 'ADMIN') {
+        const next = encodeURIComponent(url.pathname + url.search)
+        res.writeHead(302, { location: `/login?next=${next}`, 'cache-control': 'no-store' })
+        res.end()
+        return
+      }
     }
     if (!['GET', 'HEAD'].includes(req.method ?? '')) {
       req.resume()

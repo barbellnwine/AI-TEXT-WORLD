@@ -4,11 +4,12 @@ import { requireAdminRole } from './userAuth.ts'
 import * as store from '../domain/worldStore.ts'
 import { PROMPT_REGISTRY } from '../prompts/promptVersions.ts'
 import { config } from '../config.ts'
+import { getPrepaidBudget } from '../domain/budget.ts'
 
 export function registerWorldAdminRoutes(router: Router, db: DatabaseSync): void {
   router.get('/api/admin/world/runtime', ctx => {
     if (!requireAdminRole(ctx, db)) return
-    sendJson(ctx.res, 200, { runtime: store.getAdminRuntime(), season: store.getSeason(), operatorLog: store.listOperatorLog(), actionAudit: store.listActionAudit() })
+    sendJson(ctx.res, 200, { runtime: store.getAdminRuntime(), season: store.getSeason(), operatorLog: store.listOperatorLog(), actionAudit: store.listActionAudit(), prepaidBudget: getPrepaidBudget(db), providers: { openai: Boolean(config.openaiApiKey), anthropic: Boolean(config.anthropicApiKey) } })
   })
 
   router.post('/api/admin/world/tick', async ctx => {

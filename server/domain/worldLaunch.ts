@@ -143,7 +143,7 @@ export function startWorldFromDraft(db: DatabaseSync, draft: DraftDTO): LaunchRe
   const season: Season = {
     id: draft.id,
     name: draft.seasonName || draft.name,
-    premise: draft.intro,
+    premise: draft.intro || draft.background,
     status: 'RUNNING',
     startedAt: nowIso,
     endedAt: null,

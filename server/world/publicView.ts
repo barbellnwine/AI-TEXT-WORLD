@@ -15,7 +15,7 @@ export function toPublicWorld(world: WorldState): WorldState {
   const places = world.places.filter(p => p.isDiscovered !== false)
   const visible = new Set(places.map(p => p.id))
   return { ...world, places: places.map(p => ({ ...p, connectedPlaceIds: p.connectedPlaceIds.filter(id => visible.has(id)) })), agents: world.agents.map(toPublicAgent),
-    engine: world.engine ? { ...world.engine, truths: [],
+    engine: world.engine ? { ...world.engine, studio: undefined, truths: [],
       connections: world.engine.connections.filter(c => visible.has(c.fromPlaceId) && visible.has(c.toPlaceId)).map(c => ({ ...c, requirements: '' })),
       objects: world.engine.objects.filter(o => o.location.kind === 'place' && visible.has(o.location.id)),
       ongoingActions: world.engine.ongoingActions.map(a => ({ ...a, proposal: { actorId: a.proposal.actorId, actionType: a.proposal.actionType,

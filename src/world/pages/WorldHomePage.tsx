@@ -119,17 +119,39 @@ export function WorldHomePage() {
   const selectedAgent = worldState.agents.find(a => a.id === selectedAgentId)
   const recentEvents = [...eventCache.values()].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).slice(0, 8)
   const resources = worldState.places.flatMap(place => place.resources.map(resource => ({ ...resource, placeName: place.name, id: `${place.id}-${resource.key}` })))
+  const activeAgents = worldState.agents.filter(agent => agent.publicState.status === 'alive' || agent.publicState.status === 'injured')
+  const activeLocations = new Set(activeAgents.map(agent => agent.publicState.locationId).filter(Boolean)).size
+  const activeEventIds = new Set(worldState.activeEventIds)
+  const majorEventIds = new Set(recentEvents.filter(event => activeEventIds.has(event.id) && (event.importance === 'high' || event.importance === 'critical')).map(event => event.id))
+  if (current.spotlightEvent && (current.spotlightEvent.importance === 'high' || current.spotlightEvent.importance === 'critical')) majorEventIds.add(current.spotlightEvent.id)
+  const modeTabs = [{ id: 'live', label: 'LIVE' }, { id: 'text', label: 'TEXT' }] as const
 
   return (
     <>
       <main className="observatory">
-        <section className="observatory-intro"><div><p className="observatory-kicker"><span /> AN ONGOING WORLD, UNWRITTEN STORIES</p><h1>{t('intro')}</h1><p className="observatory-intro-description">{t('subtitle')}</p><p className="observatory-intro-invitation"><strong>{t('introInvitation')}</strong></p></div><div className="observatory-seal" aria-hidden="true"><span>◎</span><small>INDEPENDENT LIVES<br />ONE SHARED WORLD</small></div></section>
-        <section className="observatory-worldbar" aria-label={season.name}><div className="observatory-world-name"><span className="world-symbol"><Icon name="map" size={23} /></span><div><small>CURRENT WORLD</small><h2>{season.name}</h2></div></div><div className="observatory-clock"><span>DAY <strong>{String(worldState.clock.day).padStart(2, '0')}</strong></span><span>{worldState.clock.time}</span><span>{t(worldState.clock.weather)} · {worldState.clock.temperatureC}°C</span></div><span className={`observatory-live${connected && season.status === 'RUNNING' ? ' is-live' : ''}`}><i />{connected && season.status === 'RUNNING' ? 'LIVE' : t(season.status)}<small>{t(connected ? 'connected' : 'reconnecting')}</small></span><button className="observatory-expand" aria-label={t('map')} onClick={() => setDrawerOpen(true)}>↗</button></section>
+        <header className="world-vitals" aria-labelledby="world-vitals-title">
+          <div className="world-vitals-identity">
+            <p className="world-vitals-brand">AI TEXT WORLD</p>
+            <h1 id="world-vitals-title">{season.name}</h1>
+            <p>{season.premise}</p>
+          </div>
+          <div className="world-vitals-now" aria-live="polite">
+            <p className="world-vitals-clock">DAY {worldState.clock.day} <span>·</span> {worldState.clock.time}</p>
+            <p className={`world-vitals-status status-${season.status.toLowerCase()}`}><i aria-hidden="true" /> WORLD {season.status}</p>
+            <p className="world-vitals-weather">{t(worldState.clock.weather)} · {worldState.clock.temperatureC}°C · {connected ? t('connected') : t('reconnecting')}</p>
+          </div>
+          <dl className="world-vitals-counts">
+            <div><dt>Characters</dt><dd>{activeAgents.length}</dd></div>
+            <div><dt>Active Locations</dt><dd>{activeLocations}</dd></div>
+            <div><dt>Major Events</dt><dd>{majorEventIds.size}</dd></div>
+          </dl>
+          <button className="world-vitals-expand" aria-label="세계 현황 자세히 보기" onClick={() => setDrawerOpen(true)}><Icon name="map" size={17} /> 세계 현황</button>
+        </header>
         <nav className="observatory-mobile-tabs" aria-label={t('live')}>{(['story', 'characters', 'map', 'events'] as const).map(key => <button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{t(key)}</button>)}</nav>
         {away && <aside className="world-away" role="status"><p>자리를 비운 동안 {away.actions}개의 행동과 {away.majorEvents}개의 주요 사건이 기록되었습니다.</p><button onClick={() => { setMode('text'); setTab('story'); setAway(null) }}>지난 이야기 보기</button><button onClick={() => { setMode('live'); setTab('story'); setAway(null) }}>현재 LIVE로 이동</button></aside>}
-        <div className="world-mode-tabs" role="group" aria-label="관전 모드"><button aria-pressed={mode === 'live'} onClick={() => { setMode('live'); setTab('story') }}>LIVE</button><button aria-pressed={mode === 'text'} onClick={() => { setMode('text'); setTab('story') }}>TEXT</button></div>
+        <div className="world-mode-tabs" role="tablist" aria-label="WORLD 보기 모드">{modeTabs.map(item => <button key={item.id} id={`world-mode-${item.id}`} role="tab" aria-selected={mode === item.id} aria-controls="world-mode-panel" tabIndex={mode === item.id ? 0 : -1} onClick={() => { setMode(item.id); setTab('story') }}>{item.label}</button>)}</div>
         <div className="observatory-grid" data-tab={tab}>
-        <section className="observatory-story"><header className="observatory-section-head"><div><p className="observatory-kicker">{mode === 'live' ? 'WORLD LIVE' : 'THE CHRONICLE'}</p><h2>{mode === 'live' ? 'LIVE' : t('story')}</h2></div><Link to="/chronicle">{t('history')} <span>↗</span></Link></header><p className="observatory-story-note"><i />{t('storyNote')}</p>{locale === 'en-US' && <p className="map-caption">{t('original')}</p>}
+        <section id="world-mode-panel" className="observatory-story" role="tabpanel" aria-labelledby={`world-mode-${mode}`}><header className="observatory-section-head"><div><p className="observatory-kicker">{mode === 'live' ? 'WORLD LIVE' : 'THE CHRONICLE'}</p><h2>{mode === 'live' ? 'LIVE' : t('story')}</h2></div><Link to="/chronicle">{t('history')} <span>↗</span></Link></header><p className="observatory-story-note"><i />{t('storyNote')}</p>{locale === 'en-US' && <p className="map-caption">{t('original')}</p>}
         {mode === 'live' ? <WorldLiveFeed key={`live-${season.id}`} world={worldState} onOpenDetail={setDetailEventId} /> : <><p className="world-micro">완료된 사건을 챕터로 묶습니다. 진행 중인 기록은 LIVE에서 확인할 수 있습니다.</p><ChronicleReader key={`text-${season.id}`}
           placesById={placesById}
           agentsById={agentsById}

@@ -81,7 +81,7 @@ export const worldApi = {
 
 export const worldAdminApi = {
   tick: () => adminRequest<{ runtime: AdminWorldRuntime }>('/api/admin/world/tick', 'POST'),
-  runtime: () => adminRequest<{ runtime: AdminWorldRuntime; season: Season; operatorLog: OperatorLogEntry[]; actionAudit: Array<WorldEvent & { outcome?: string; provenance?: { validation?: { reasons: string[] } } }> }>('/api/admin/world/runtime', 'GET'),
+  runtime: () => adminRequest<{ runtime: AdminWorldRuntime; season: Season; operatorLog: OperatorLogEntry[]; prepaidBudget: { limitUsd: number | null; thresholdUsd: number | null; committedUsd: number; remainingUsd: number | null }; providers: { openai: boolean; anthropic: boolean }; actionAudit: Array<WorldEvent & { outcome?: string; provenance?: { validation?: { reasons: string[] } } }> }>('/api/admin/world/runtime', 'GET'),
   start: () => adminRequest<{ runtime: AdminWorldRuntime }>('/api/admin/world/start', 'POST'),
   pause: () => adminRequest<{ runtime: AdminWorldRuntime }>('/api/admin/world/pause', 'POST'),
   resume: () => adminRequest<{ runtime: AdminWorldRuntime }>('/api/admin/world/resume', 'POST'),

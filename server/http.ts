@@ -102,8 +102,7 @@ export function sendJson(res: ServerResponse, status: number, body: unknown): vo
   res.end(payload)
 }
 
-export async function readJsonBody<T>(req: IncomingMessage): Promise<T> {
-  const maxBytes = 16_384
+export async function readJsonBody<T>(req: IncomingMessage, maxBytes = 16_384): Promise<T> {
   if (Number(req.headers['content-length']) > maxBytes) {
     req.resume()
     throw new HttpError(413, 'request_body_too_large')

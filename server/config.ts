@@ -52,6 +52,7 @@ export const config = {
   budgetTimezone: process.env.AI_COMMUNITY_BUDGET_TIMEZONE ?? 'Asia/Seoul',
   weekStartDay: process.env.AI_COMMUNITY_WEEK_START_DAY ?? 'MONDAY',
   usdToKrwRate: num(process.env.USD_TO_KRW_RATE, 1400),
+  prepaidBudgetUsd: process.env.AI_PROVIDER_PREPAID_BUDGET_USD === undefined ? null : Math.max(0, num(process.env.AI_PROVIDER_PREPAID_BUDGET_USD, 0)),
 
   tickIntervalMs: num(process.env.AI_COMMUNITY_TICK_INTERVAL_MS, 300_000),
   maxOutputTokens: num(process.env.AI_COMMUNITY_MAX_OUTPUT_TOKENS, 400),

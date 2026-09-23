@@ -64,6 +64,7 @@ export interface RelationshipDTO {
 }
 
 export interface DraftDTO {
+  studio?: import('../../server/domain/studioConfig').StudioConfig
   maxActiveCharacters?: number
   discoverableTruths?: Array<{ id: string; summary: string; placeId: string; revealedPlaceId?: string }>
   id: string; status: DraftStatus; wizardStep: number

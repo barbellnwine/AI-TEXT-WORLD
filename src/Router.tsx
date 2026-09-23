@@ -14,10 +14,11 @@ import { ChroniclePage } from './world/pages/ChroniclePage'
 import { ArchivePage } from './world/pages/ArchivePage'
 import { AdminWorldPage } from './world/pages/AdminWorldPage'
 import { WorldBuilderListPage } from './world/pages/admin/WorldBuilderListPage'
-import { WorldBuilderWizardPage } from './world/pages/admin/WorldBuilderWizardPage'
+import { WorldStudioPage as WorldBuilderWizardPage } from './world/pages/admin/WorldStudioPage'
 import { RulePresetsPage } from './world/pages/admin/RulePresetsPage'
 import { WorldAdminAccess } from './world/components/WorldAdminAccess'
 import { WorldExperienceProvider } from './world/i18n'
+import { AdminLoginPage } from './world/pages/AdminLoginPage'
 
 type Route =
   | { name: 'ai-community' }
@@ -31,6 +32,7 @@ type Route =
   | { name: 'world-state' }
   | { name: 'chronicle' }
   | { name: 'archive' }
+  | { name: 'admin-login' }
   | { name: 'admin-world' }
   | { name: 'admin-world-builder-list' }
   | { name: 'admin-world-builder-wizard'; draftId: string }
@@ -54,10 +56,12 @@ function parseRoute(pathname: string, hash: string): Route {
   if (segments[0] === 'world') return { name: 'world-state' }
   if (segments[0] === 'chronicle') return { name: 'chronicle' }
   if (segments[0] === 'archive') return { name: 'archive' }
+  if (segments[0] === 'login') return { name: 'admin-login' }
   if (segments[0] === 'admin' && segments[1] === 'world' && segments[2] === 'rule-presets') return { name: 'admin-world-rule-presets' }
   if (segments[0] === 'admin' && segments[1] === 'world' && segments[2] === 'builder' && segments[3]) return { name: 'admin-world-builder-wizard', draftId: decodeURIComponent(segments[3]) }
   if (segments[0] === 'admin' && segments[1] === 'world' && segments[2] === 'builder') return { name: 'admin-world-builder-list' }
   if (segments[0] === 'admin' && segments[1] === 'world') return { name: 'admin-world' }
+  if (segments[0] === 'admin') return { name: 'admin-world' }
   return { name: 'world-home' }
 }
 
@@ -106,6 +110,7 @@ export default function Router() {
   else if (route.name === 'world-state') page = <WorldStatePage />
   else if (route.name === 'chronicle') page = <ChroniclePage />
   else if (route.name === 'archive') page = <ArchivePage />
+  else if (route.name === 'admin-login') page = <AdminLoginPage />
   else if (route.name === 'admin-world') page = <AdminWorldPage />
   else if (route.name === 'admin-world-builder-list') page = <WorldBuilderListPage />
   else if (route.name === 'admin-world-builder-wizard') page = <WorldBuilderWizardPage draftId={route.draftId} />
@@ -114,8 +119,8 @@ export default function Router() {
 
   return (
     <WorldExperienceProvider welcome={!isLegacyCommunity && route.name !== 'amnesty' && !route.name.startsWith('admin-')}>
-      {!isLegacyCommunity && <SiteNav currentPath={pathname} />}
-      {route.name.startsWith('admin-') ? <WorldAdminAccess>{page}</WorldAdminAccess> : page}
+      {!isLegacyCommunity && route.name !== 'admin-login' && <SiteNav currentPath={pathname} />}
+      {route.name !== 'admin-login' && route.name.startsWith('admin-') ? <WorldAdminAccess>{page}</WorldAdminAccess> : page}
     </WorldExperienceProvider>
   )
 }

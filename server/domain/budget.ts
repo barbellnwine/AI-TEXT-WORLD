@@ -83,6 +83,14 @@ export function getUsdToKrwRate(db: DatabaseSync): number {
   return Math.max(config.usdToKrwRate, Number(getSetting(db, 'usd_to_krw_rate', String(config.usdToKrwRate))))
 }
 
+// A prepaid allowance never resets with the week/month. Counts all locally recorded paid calls.
+export function getPrepaidBudget(db: DatabaseSync) {
+  const row = db.prepare('SELECT COALESCE(SUM(reserved_usd + settled_usd), 0) AS committed FROM ai_monthly_budgets').get() as { committed: number }
+  const limitUsd = config.prepaidBudgetUsd
+  const thresholdUsd = limitUsd === null ? null : limitUsd * (1 - getSafetyMargin(db))
+  return { limitUsd, thresholdUsd, committedUsd: row.committed, remainingUsd: thresholdUsd === null ? null : Math.max(0, thresholdUsd - row.committed) }
+}
+
 interface WeeklyLedgerRow {
   week_key: string
   reserved_krw: number
@@ -137,9 +145,11 @@ export function checkBudget(db: DatabaseSync, estimatedMaxKrw: number, now = new
   const monthlyBudgetKrw = getMonthlyBudgetKrw(db)
   const monthlyThresholdKrw = monthlyBudgetKrw * (1 - margin)
   const monthlyCommittedKrw = monthly.reserved_krw + monthly.settled_krw
+  const prepaid = getPrepaidBudget(db)
   return {
     allowed: Number.isFinite(estimatedMaxKrw) && estimatedMaxKrw >= 0 &&
       committedKrw + estimatedMaxKrw <= thresholdKrw &&
+      (prepaid.thresholdUsd === null || prepaid.committedUsd + estimatedMaxKrw / getUsdToKrwRate(db) <= prepaid.thresholdUsd) &&
       monthlyCommittedKrw + estimatedMaxKrw <= monthlyThresholdKrw,
     weekKey,
     budgetKrw,

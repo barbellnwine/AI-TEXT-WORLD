@@ -14,11 +14,11 @@ import type { Agent, ChronicleEntry, Place, WorldEvent } from './worldTypes.ts'
 export interface NarratorAdapter {
   // Used for events that don't belong to any hand-authored scene (e.g. an operator-injected
   // event). Must only describe what the given events actually record.
-  narrateFallbackScene(events: WorldEvent[], placesById: Map<string, Place>, agentsById: Map<string, Agent>): ChronicleEntry
+  narrateFallbackScene(events: WorldEvent[], placesById: Map<string, Place>, agentsById: Map<string, Agent>, context?: { genre: string; background: string }): ChronicleEntry
 }
 
 export const mockNarrator: NarratorAdapter = {
-  narrateFallbackScene(events, placesById, _agentsById) {
+  narrateFallbackScene(events, placesById, _agentsById, context) {
     const first = events[0]
     const agentIds = [...new Set(events.flatMap(e => e.agentIds))]
     const groups: Array<{ placeId: string; sentences: string[] }> = []
@@ -33,7 +33,8 @@ export const mockNarrator: NarratorAdapter = {
     const paragraphs = groups.map(group => `${placesById.get(group.placeId)?.name ?? '기록된 장소'}에서의 기록이다. ${group.sentences.join(' ')}`)
     const isOperator = events.some(e => e.type === 'OPERATOR_EVENT')
     const placeName = placesById.get(first.placeId)?.name ?? first.placeId
-    const heading = isOperator ? `[${placeName} · 운영자가 기록한 사건]\n` : `[${placeName}]\n`
+    const genre = context?.genre.includes('미스터리') ? '관찰 기록' : context?.genre.includes('생존') ? '생존 기록' : '세계 기록'
+    const heading = isOperator ? `[${placeName} · 운영자가 기록한 사건]\n` : `[${placeName}${context ? ` · ${genre}` : ''}]\n`
     const hhmm = (iso: string) => new Date(iso).toISOString().slice(11, 16)
     return {
       id: `scene-auto-${first.id}`,

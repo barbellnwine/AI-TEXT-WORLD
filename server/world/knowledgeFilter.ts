@@ -15,6 +15,7 @@ export interface ObservableAgent {
 
 export interface AgentKnowledgeView {
   self: {
+    exposure?: Agent['exposure']; vitals?: Agent['vitals']
     humanState?: Agent['humanState']
     emotion?: Agent['emotion']
     body?: Agent['body']
@@ -53,6 +54,7 @@ export function buildAgentKnowledgeView(agentId: string, worldState: WorldState,
 
   return {
     self: {
+      exposure: self.exposure, vitals: self.vitals,
       humanState: self.humanState, emotion: self.emotion, body: self.body, memories: self.memories?.slice(-8), wakeReason: self.wakeReason,
       id: self.id,
       name: self.name,

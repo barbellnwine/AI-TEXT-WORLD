@@ -6,6 +6,7 @@ export type ProposedActionType =
   | 'MOVE'
   | 'SPEAK'
   | 'USE_ITEM'
+  | 'DROP_ITEM'
   | 'GIVE_ITEM'
   | 'OBSERVE'
   | 'INTERACT'

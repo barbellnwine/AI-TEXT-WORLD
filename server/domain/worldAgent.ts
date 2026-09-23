@@ -30,7 +30,7 @@ const nullableString = { type: ['string', 'null'] }
 export const ACTION_SCHEMA = {
   type: 'object', additionalProperties: false,
   properties: {
-    actorId: string, actionType: { type: 'string', enum: ['MOVE', 'SPEAK', 'GIVE_ITEM', 'OBSERVE', 'WAIT', 'COOPERATE', 'INTERACT', 'REST', 'SLEEP', 'TAKE_ITEM', 'EAT', 'DRINK', 'EXPLORE', 'SHARE_INFO'] },
+    actorId: string, actionType: { type: 'string', enum: ['MOVE', 'SPEAK', 'GIVE_ITEM', 'OBSERVE', 'WAIT', 'COOPERATE', 'INTERACT', 'REST', 'SLEEP', 'TAKE_ITEM', 'EAT', 'DRINK', 'EXPLORE', 'SHARE_INFO', 'USE_ITEM', 'DROP_ITEM'] },
     locationId: string, targetIds: { type: 'array', items: string }, intendedAction: string,
     destinationId: nullableString, spokenText: nullableString, usedItemIds: { type: 'array', items: string },
     claimedKnowledgeId: nullableString,
@@ -92,8 +92,11 @@ export function agentRequest(execution: WorldExecution, actorId: string, world: 
     goal: c.goal, strengths: c.strengths, weaknesses: c.weaknesses, privateInfo: c.privateInfo }
   const build = (): WorldModelRequest => ({ role: 'agent', ...modelFor(execution, actorId), schema: ACTION_SCHEMA,
     prompt: [buildAgentPrompt(view, []), '[SEASON RULES]', rulesText(execution), '[WORLD BACKGROUND]', execution.draft.background,
-      '[PREMISE]', execution.draft.intro,
+      '[GENRES]', execution.draft.genre,
+      '[LOCAL ENVIRONMENT]', JSON.stringify({ weather: world.engine?.weather, place: { power: world.places.find(p=>p.id===view.self.locationId)?.power, flooded: world.places.find(p=>p.id===view.self.locationId)?.flooded } }),
       '[CLOCK]', JSON.stringify(world.clock), '[YOUR CHARACTER ONLY]', JSON.stringify(profile),
+      '[YOUR INVENTORY]', JSON.stringify(world.engine?.objects.filter(o=>o.location.kind==='agent'&&o.location.id===actorId).map(({id,name,kind,quantity})=>({id,name,kind,quantity}))),
+      'USE_ITEM은 소지한 food/water/medicine/fuel 1단위를 사용하거나 tool을 사용합니다. DROP_ITEM은 소지품을 현재 장소에 내려놓습니다. INTERACT에 resourceKey를 지정하면 해당 장소의 실제 자원 1단위를 작업에 소비합니다. 새 아이템을 만들거나 작업 성공을 보장하지 않습니다. 직업·장점은 가능한 시도를 판단하는 맥락이며 성공을 보장하지 않습니다.',
       'MOVE는 알고 있는 인접 장소로 이동, TAKE_ITEM은 현재 장소의 기존 물건 하나를 가져오기, GIVE_ITEM은 소지품 하나를 전달합니다. EAT/DRINK는 현재 장소의 food/water 자원을 1단위 소비합니다. SHARE_INFO는 자신의 factId를 상대에게 전달합니다. EXPLORE는 기존 장소/정보만 탐색합니다. REST/SLEEP/WAIT는 정상 선택입니다. 긴 행동은 엔진이 시간 동안 실행하며 재판단하지 않습니다. 타인의 반응·동의·행동이나 결과를 확정하지 마십시오. 성적 행동은 지원하지 않으며 욕구 수치가 행동을 강제하지 않습니다.',
       'intendedAction에는 시도만 적고 성공·발견·타인의 반응을 지어내지 마십시오. 사용하지 않는 선택 필드는 null 또는 []로 반환하십시오.',
       '[EXACT JSON SCHEMA]', JSON.stringify(ACTION_SCHEMA)].join('\n\n') })

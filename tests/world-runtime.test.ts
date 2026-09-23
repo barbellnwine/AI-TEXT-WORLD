@@ -14,6 +14,7 @@ import { buildAgentKnowledgeView } from '../server/world/knowledgeFilter.ts'
 import { validateDraftForStart } from '../server/world/builderValidation.ts'
 import { applyStateChange } from '../server/world/stateTransition.ts'
 import type { ProposedAction } from '../server/world/actionSchema.ts'
+import { generateCharacters } from '../server/domain/characterGen.ts'
 import { config } from '../server/config.ts'
 import { parseProposedAction, worldModelAdapter, ACTION_SCHEMA, agentRequest, judgeRequest, worldRequestBody, type WorldModelAdapter } from '../server/domain/worldAgent.ts'
 import { toPublicWorld } from '../server/world/publicView.ts'
@@ -442,4 +443,28 @@ test('default constitutional preset fits bounded agent and judge requests withou
     const judgment = judgeRequest(execution, moveAction() as ProposedAction, world, [])
     assert.ok(Buffer.byteLength(worldRequestBody(judgment)) <= 12000)
   } finally { await ctx.close() }
+})
+
+
+test('character generation obeys prepaid limits and charges failed requests without fake fallback', async () => {
+  const db = new DatabaseSync(':memory:'); migrate(db)
+  const original = { key: config.openaiApiKey, mode: config.worldDemoMode, prepaid: config.prepaidBudgetUsd, production: config.production, fetch: globalThis.fetch }
+  let called = 0
+  const ctx = { worldName: 'test', genre: '', background: '', seasonPremise: '', existingNames: [] }
+  config.openaiApiKey = 'test-key'; config.worldDemoMode = false; config.prepaidBudgetUsd = 0; config.production = false
+  globalThis.fetch = async () => { called++; return new Response('{}', { status: 429 }) }
+  try {
+    await assert.rejects(generateCharacters('openai', 1, ctx, db), /generation budget exhausted/)
+    assert.equal(called, 0)
+    config.prepaidBudgetUsd = 20
+    const result = await generateCharacters('openai', 1, ctx, db)
+    assert.equal(called, 1)
+    assert.equal(result.usedDemo, false)
+    assert.equal(result.characters.length, 0)
+    assert.ok(result.errors.includes('OPENAI_HTTP_429'))
+    assert.ok(getMonthlyLedger(db).settled_usd > 0)
+    assert.equal(getMonthlyLedger(db).reserved_usd, 0)
+  } finally {
+    config.openaiApiKey = original.key; config.worldDemoMode = original.mode; config.prepaidBudgetUsd = original.prepaid; config.production = original.production; globalThis.fetch = original.fetch; db.close()
+  }
 })

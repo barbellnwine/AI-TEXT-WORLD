@@ -43,6 +43,10 @@ export function findUserById(db: DatabaseSync, id: string): UserRecord | undefin
   return db.prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRecord | undefined
 }
 
+export function hasAdminUser(db: DatabaseSync): boolean {
+  return Boolean(db.prepare("SELECT 1 FROM users WHERE role = 'ADMIN' LIMIT 1").get())
+}
+
 export function findUserByProvider(db: DatabaseSync, provider: AuthProvider, providerId: string): UserRecord | undefined {
   return db.prepare('SELECT * FROM users WHERE provider = ? AND provider_id = ?').get(provider, providerId) as UserRecord | undefined
 }

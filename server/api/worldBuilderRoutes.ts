@@ -16,6 +16,10 @@ import { validateDraftForStart } from '../world/builderValidation.ts'
 import { startWorldFromDraft } from '../domain/worldLaunch.ts'
 import { config } from '../config.ts'
 import { randomUUID } from 'node:crypto'
+import { saveStudio } from '../domain/studioStore.ts'
+import { recommendStudio } from '../domain/studioRecommendations.ts'
+import { createTestIsland } from '../domain/studioExample.ts'
+import type { DraftDTO } from '../domain/worldDrafts.ts'
 
 function num(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
@@ -63,6 +67,19 @@ function requireDraft(db: DatabaseSync, id: string) {
 }
 
 export function registerWorldBuilderRoutes(router: Router, db: DatabaseSync): void {
+  router.post('/api/admin/world/examples/island', ctx => {
+    if (!requireAdminRole(ctx, db)) return
+    sendJson(ctx.res, 201, { draft: createTestIsland(db) })
+  })
+  router.post('/api/admin/world/drafts/:id/recommend', async ctx => {
+    if (!requireAdminRole(ctx, db)) return
+    sendJson(ctx.res, 200, { suggestions: await recommendStudio(db, requireDraft(db, ctx.params.id)) })
+  })
+  router.put('/api/admin/world/drafts/:id/studio', async ctx => {
+    if (!requireAdminRole(ctx, db)) return
+    const body = await readJsonBody<DraftDTO>(ctx.req, 1_048_576)
+    sendJson(ctx.res, 200, { draft: saveStudio(db, ctx.params.id, body) })
+  })
   // --- WORLD RULE PRESET ------------------------------------------------------
   router.get('/api/admin/world/rule-presets', ctx => {
     if (!requireAdminRole(ctx, db)) return
@@ -234,9 +251,9 @@ export function registerWorldBuilderRoutes(router: Router, db: DatabaseSync): vo
     const body = await readJsonBody<{ count?: number; provider?: string }>(ctx.req)
     const provider = body.provider === 'anthropic' ? 'anthropic' : 'openai'
     const count = num(body.count, draft.targetPopulation)
-    if (!Number.isInteger(count) || count < 1 || draft.characters.length + count > config.maxActiveCharacters) throw new HttpError(400, `max_active_characters_${config.maxActiveCharacters}`)
-    const result = await generateCharacters(provider, count, contextFromDraft(draft, draft.characters.map(c => c.name)))
-    if (requireDraft(db, draft.id).characters.length + result.characters.length > config.maxActiveCharacters) throw new HttpError(409, 'character_capacity_changed')
+    if (!Number.isInteger(count) || count < 1 || draft.characters.length + count > (draft.studio ? 100 : config.maxActiveCharacters)) throw new HttpError(400, 'character_count_exceeded')
+    const result = await generateCharacters(provider, count, contextFromDraft(draft, draft.characters.map(c => c.name)), db)
+    if (requireDraft(db, draft.id).characters.length + result.characters.length > (draft.studio ? 100 : config.maxActiveCharacters)) throw new HttpError(409, 'character_capacity_changed')
     if (!['DRAFT', 'READY'].includes(requireDraft(db, draft.id).status)) throw new HttpError(409, 'world_design_locked')
     const created = result.characters.map(gc => createCharacter(db, draft.id, {
       ...gc, provider, model: '', privateInfo: '', inventory: [], initialPlaceId: null, knowledge: [],
@@ -276,8 +293,10 @@ export function registerWorldBuilderRoutes(router: Router, db: DatabaseSync): vo
     if (!existing) throw new HttpError(404, 'character_not_found')
     const body = await readJsonBody<{ provider?: string }>(ctx.req)
     const provider = body.provider === 'anthropic' ? 'anthropic' : (existing.provider === 'anthropic' ? 'anthropic' : 'openai')
-    const result = await generateCharacters(provider, 1, contextFromDraft(draft, draft.characters.filter(c => c.id !== existing.id).map(c => c.name)))
+    const result = await generateCharacters(provider, 1, contextFromDraft(draft, draft.characters.filter(c => c.id !== existing.id).map(c => c.name)), db)
     const generated = result.characters[0]
+    if (!generated) throw new HttpError(502, result.errors[0] ?? 'character_generation_failed')
+    if (!['DRAFT', 'READY'].includes(requireDraft(db, draft.id).status)) throw new HttpError(409, 'world_design_locked')
     const character = updateCharacter(db, draft.id, existing.id, {
       ...generated, provider, model: existing.model, privateInfo: existing.privateInfo, inventory: existing.inventory,
       initialPlaceId: existing.initialPlaceId, knowledge: existing.knowledge,

@@ -8,12 +8,16 @@ export interface WorldObject {
   quantity: number; location: { kind: 'place' | 'agent'; id: string }; condition: 'intact' | 'damaged' | 'destroyed'
 }
 export interface WorldTruth {
+  itemId?: string; eventId?: string
   id: string; summary: string; placeId: string | null; revealedPlaceId?: string
   discoveredBy: string[]
 }
 export interface WorldConnection { fromPlaceId: string; toPlaceId: string; travelMinutes: number; blocked: boolean; requirements: string }
 export interface OngoingAction { id: string; proposal: ProposedAction; startedMinute: number; completesMinute: number; startEventId: string }
 export interface EngineState {
+  context?: { genre: string; background: string }
+  studio?: import('./studioEngine.ts').StudioRuntime
+  weather?: import('./studioEngine.ts').WeatherState
   version: 1
   minute: number
   lastVitalsMinute: number

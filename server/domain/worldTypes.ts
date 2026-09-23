@@ -5,7 +5,7 @@
 
 import type { HumanState, EmotionState, AgentMemory, EngineState } from '../world/engineTypes.ts'
 export type WorldTimeOfDay = 'dawn' | 'morning' | 'afternoon' | 'evening' | 'night' | 'lateNight'
-export type Weather = 'clear' | 'cloudy' | 'rain' | 'storm' | 'fog' | 'snow'
+export type Weather = 'clear' | 'cloudy' | 'rain' | 'storm' | 'fog' | 'snow' | 'blizzard' | 'wind'
 export type DangerLevel = 'stable' | 'tense' | 'unstable' | 'critical'
 export type AgentStatus = 'alive' | 'injured' | 'missing' | 'deceased'
 export type RelationshipStance = 'ally' | 'friendly' | 'neutral' | 'wary' | 'hostile'
@@ -44,6 +44,7 @@ export interface Resource {
 }
 
 export interface Place {
+  outdoor?: boolean; power?: boolean; temperature?: number; flooded?: boolean; accessible?: boolean
   x?: number
   y?: number
   isPublic?: boolean
@@ -70,6 +71,7 @@ export interface Faction {
 }
 
 export interface Relationship {
+  label?: import('./studioConfig.ts').RelationKind; hostility?: number; rivalry?: number; interactions?: number
   trust?: number
   affection?: number
   attraction?: number
@@ -107,6 +109,9 @@ export interface MovementLogEntry {
 }
 
 export interface Agent {
+  profile?: { gender: string; orientation: string }
+  vitals?: { health: number; energy: number; hunger: number; thirst: number; loneliness: number }
+  exposure?: import('../world/studioEngine.ts').ExposureState
   humanState?: HumanState
   emotion?: EmotionState
   body?: { health: number; injury: number }

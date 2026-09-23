@@ -141,9 +141,32 @@ test('seedAdminUser is idempotent and only runs when both env vars are set', () 
       const rows = db.prepare('SELECT role FROM users WHERE username = ?').all('admin') as { role: string }[]
       assert.equal(rows.length, 1)
       assert.equal(rows[0].role, 'ADMIN')
+
+      config.adminSeedUsername = 'second-admin'
+      config.adminSeedPassword = 'another-seed-password'
+      seedAdminUser(db)
+      assert.equal((db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'ADMIN'").get() as { n: number }).n, 1)
     } finally {
       config.adminSeedUsername = previousUser
       config.adminSeedPassword = previousPass
     }
   } finally { db.close() }
+})
+
+test('seedAdminUser rejects partial or weak bootstrap credentials before creating an admin', () => {
+  const db = freshDb()
+  const previousUser = config.adminSeedUsername
+  const previousPass = config.adminSeedPassword
+  try {
+    config.adminSeedUsername = 'admin'
+    config.adminSeedPassword = ''
+    assert.throws(() => seedAdminUser(db), /must be set together/)
+    config.adminSeedPassword = 'too-short'
+    assert.throws(() => seedAdminUser(db), /12-200 characters/)
+    assert.equal((db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'ADMIN'").get() as { n: number }).n, 0)
+  } finally {
+    config.adminSeedUsername = previousUser
+    config.adminSeedPassword = previousPass
+    db.close()
+  }
 })

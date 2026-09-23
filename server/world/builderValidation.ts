@@ -44,7 +44,32 @@ export function validateDraftForStart(draft: DraftDTO): ValidationResult {
   } else if (draft.characters.length !== draft.targetPopulation) {
     warn('POPULATION_MISMATCH', `설정된 참가 인원(${draft.targetPopulation}명)과 실제 캐릭터 수(${draft.characters.length}명)가 다릅니다.`)
   }
-  if (draft.characters.length > config.maxActiveCharacters || draft.targetPopulation > config.maxActiveCharacters) err('MAX_ACTIVE_CHARACTERS', `현재 WORLD의 활성 캐릭터는 최대 ${config.maxActiveCharacters}명입니다.`)
+  if (draft.studio ? draft.characters.length > 100 || draft.studio.activeLimit > config.maxActiveCharacters : draft.characters.length > config.maxActiveCharacters || draft.targetPopulation > config.maxActiveCharacters) err('MAX_ACTIVE_CHARACTERS', `동시 활성 캐릭터 한도를 확인하세요 (${config.maxActiveCharacters}명).`)
+  if (draft.studio) {
+    const s = draft.studio
+    if (!Number.isInteger(s.activeLimit) || s.activeLimit < 1) err('ACTIVE_LIMIT', '동시 활성 캐릭터는 1명 이상이어야 합니다.')
+    for (const e of s.events) {
+      if (!e.name.trim()) err('EVENT_NAME', '사건 이름이 비어 있습니다.')
+      if (['flood','resource'].includes(e.effect) && !placeIds.has(e.placeId)) err('EVENT_PLACE', '사건의 영향 장소를 선택하세요.')
+      if (e.effect === 'resource' && !draft.places.find(p=>p.id===e.placeId)?.resources.some(r=>r.key===e.resourceKey)) err('EVENT_RESOURCE', '사건의 대상 자원이 장소에 존재하지 않습니다.')
+      if (e.effect === 'goal' && !e.goalId.trim()) err('EVENT_GOAL', '달성할 목표 식별자를 입력하세요.')
+    }
+    for (const t of s.truths) if (!t.summary.trim() || t.discoverable && !placeIds.has(t.placeId) || t.revealedPlaceId && !placeIds.has(t.revealedPlaceId) || t.itemId && !s.items.some(i=>i.id===t.itemId) || t.eventId && !s.events.some(e=>e.id===t.eventId)) err('TRUTH_REFERENCE', '숨겨진 진실의 내용·발견 장소·연결 조건을 확인하세요.')
+    for (const e of s.endings) if (e.type==='place'&&!placeIds.has(e.ref)||e.type==='event'&&!s.events.some(v=>v.id===e.ref)||e.type==='goal'&&!s.events.some(v=>v.goalId===e.ref&&v.effect==='goal')) err('END_REFERENCE', '종료 조건이 참조하는 장소·사건·목표를 확인하세요.')
+    for (const p of draft.places) if (new Set(p.resources.map(r=>r.key)).size!==p.resources.length) err('DUPLICATE_RESOURCE', `${p.name}: 같은 종류의 자원은 하나의 수량으로 합쳐 주세요.`)
+    for (const i of s.items) if (!i.name.trim()) err('ITEM_NAME', '아이템 이름을 입력하세요.')
+    const pairs = new Set<string>()
+    for (const r of s.relationships) {
+      const key = [r.from,r.to].sort().join(':')
+      if (pairs.has(key)) err('DUPLICATE_RELATIONSHIP','같은 두 캐릭터의 초기 관계를 중복 지정하지 마세요.')
+      pairs.add(key)
+      if (r.kind==='lover') {
+        const a=draft.characters.find(c=>c.id===r.from),b=draft.characters.find(c=>c.id===r.to)
+        const aSame=s.characters[r.from]?.orientation==='동성애',bSame=s.characters[r.to]?.orientation==='동성애'
+        if(!a?.gender||!b?.gender||aSame!==(a.gender===b.gender)||bSame!==(a.gender===b.gender))err('RELATIONSHIP_ORIENTATION','연인 초기 관계가 두 사람의 성별·성적 지향과 맞지 않습니다.')
+      }
+    }
+  }
   const itemLocations = new Map<string, string>()
   for (const place of draft.places) for (const item of place.items) {
     if (itemLocations.has(item)) err('DUPLICATE_WORLD_ITEM', `고유 물건 ${item}이 여러 장소에 지정되어 있습니다.`)
@@ -64,6 +89,8 @@ export function validateDraftForStart(draft: DraftDTO): ValidationResult {
     }
     if (!c.name.trim()) err('MISSING_NAME', `이름이 비어 있는 캐릭터가 있습니다 (순번 ${index + 1}).`)
     if (!['openai', 'anthropic'].includes(c.provider)) err('INVALID_PROVIDER', `${label}의 provider 설정이 올바르지 않습니다.`)
+    if (!config.worldDemoMode && c.provider === 'openai' && !config.openaiApiKey) err('OPENAI_KEY_REQUIRED', `${label}은 OpenAI를 사용하지만 서버에 OPENAI_API_KEY가 없습니다.`)
+    if (!config.worldDemoMode && c.provider === 'anthropic' && !config.anthropicApiKey) err('ANTHROPIC_KEY_REQUIRED', `${label}은 Anthropic을 사용하지만 서버에 ANTHROPIC_API_KEY가 없습니다.`)
     for (const value of [...Object.values(c.humanState), ...Object.values(c.emotion)]) if (!Number.isInteger(value) || value < 1 || value > 10) err('INVALID_CHARACTER_STATE', `${label}의 상태값은 1~10 정수여야 합니다.`)
   })
   for (const place of draft.places) {

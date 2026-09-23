@@ -3,7 +3,7 @@
 // system here can't accidentally imply the client has access to information a character doesn't.
 
 export type WorldTimeOfDay = 'dawn' | 'morning' | 'afternoon' | 'evening' | 'night' | 'lateNight'
-export type Weather = 'clear' | 'cloudy' | 'rain' | 'storm' | 'fog' | 'snow'
+export type Weather = 'clear' | 'cloudy' | 'rain' | 'storm' | 'fog' | 'snow' | 'blizzard' | 'wind'
 export type DangerLevel = 'stable' | 'tense' | 'unstable' | 'critical'
 export type AgentStatus = 'alive' | 'injured' | 'missing' | 'deceased'
 export type RelationshipStance = 'ally' | 'friendly' | 'neutral' | 'wary' | 'hostile'

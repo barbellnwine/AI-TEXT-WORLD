@@ -16,6 +16,7 @@ export function AdminWorldPage() {
   const [authError, setAuthError] = useState(false)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [connection, setConnection] = useState<Awaited<ReturnType<typeof worldAdminApi.runtime>> | null>(null)
   const [actionAudit, setActionAudit] = useState<Awaited<ReturnType<typeof worldAdminApi.runtime>>['actionAudit']>([])
   const [detailEventId, setDetailEventId] = useState<string | null>(null)
   const [detailEvent, setDetailEvent] = useState<WorldEvent | null>(null)
@@ -43,6 +44,7 @@ export function AdminWorldPage() {
   async function refresh() {
     try {
       const res = await worldAdminApi.runtime()
+      setConnection(res)
       setRuntime(res.runtime)
       setSeason(res.season)
       setOperatorLog(res.operatorLog)
@@ -77,12 +79,16 @@ export function AdminWorldPage() {
         <header className="world-page-header">
           <p className="world-eyebrow">ADMIN</p>
           <h1>시뮬레이션 운영자 화면</h1>
-          <p className="world-dev-banner">관리자 계정으로 세계를 설정하고 시뮬레이션을 제어합니다.</p>
+          <p className="world-dev-banner">캐릭터 이름·성격·직업, 장소와 세계 배경을 직접 작성하려면 아래 세계 편집기를 여세요.</p>
           <p className="world-micro" style={{ marginTop: 10, display: 'flex', gap: 14 }}>
-            <Link to="/admin/world/builder">WORLD 생성 Wizard →</Link>
+            <Link to="/admin/world/builder" className="world-primary-button">세계 편집기 · 캐릭터 / 장소 추가·수정 →</Link>
             <Link to="/admin/world/rule-presets">WORLD RULE PRESET 관리 →</Link>
           </p>
         </header>
+        {runtime?.mode === 'preview' && <section className="admin-panel">
+          <h2>현재 화면은 예시 세계입니다</h2>
+          <p>아래 목록은 관전·운영용입니다. 세계 편집기에서 새 WORLD를 만들면 이름, 성격, 직업, 장소를 빈 입력란에 자유롭게 작성할 수 있습니다. 저장한 설정은 START WORLD를 눌렀을 때 시뮬레이션에 적용됩니다.</p>
+        </section>}
 
         <section className="admin-panel">
           <p className="world-micro">관리자 계정으로 연결되었습니다.</p>
@@ -113,6 +119,8 @@ export function AdminWorldPage() {
 
             <section className="admin-panel">
               <h2>런타임 현황</h2>
+              {connection && <p className="world-micro">API 키: OpenAI {connection.providers.openai ? '등록됨' : '미등록'} · Anthropic {connection.providers.anthropic ? '등록됨' : '미등록'}</p>}
+              {connection?.prepaidBudget.limitUsd != null && <p className="world-micro">충전 예산 ${connection.prepaidBudget.limitUsd.toFixed(2)} · 앱 누적 사용/예약 ${connection.prepaidBudget.committedUsd.toFixed(4)} · 여유분 제외 잔여 ${connection.prepaidBudget.remainingUsd?.toFixed(4)} (API 계정 전체 잔액과 별도)</p>}
               <p className="world-micro">세계 갱신 1회 = {runtime.worldMinutesPerTick}분 · WORLD 인원 한도 {runtime.maxActiveCharacters}명 · 진행 중 행동 {runtime.queuedEvents}개</p>
               {runtime.decisionsPaused && <p role="status">새 AI 판단이 중지되었습니다 ({runtime.decisionStatus}). 세계 시간과 이미 진행 중인 행동은 계속됩니다. 예산·연결을 확인한 뒤 재개하세요.</p>}
               <p className="world-micro">{runtime.mode === 'live' ? '실제 AI 실행 · 행동 제안과 규칙 판정은 각각 호출 예산을 사용합니다.' : runtime.mode === 'demo' ? '데모 실행 · AI 호출 없이 이동과 대기를 검증합니다. 서술형 규칙과 종료 조건 판정은 실제 AI 모드에서 적용됩니다.' : '샘플 세계 미리보기 · WORLD 생성에서 새 세계를 시작하세요.'}</p>

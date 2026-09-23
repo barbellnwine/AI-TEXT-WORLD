@@ -8,8 +8,9 @@ import { reject } from './actionSchema.ts'
 import { validateAction } from './worldValidator.ts'
 import { applyStateChanges } from './stateTransition.ts'
 import type { OngoingAction, WorldObject } from './engineTypes.ts'
+import { initializeStudio, processStudio, studioBoundary, evolveRelationship } from './studioEngine.ts'
 
-const clamp = (n: number) => Math.max(1, Math.min(10, Math.round(n)))
+const clamp = (n: number) => Math.max(0, Math.min(10, Math.round(n)))
 export function clockMinute(world: WorldState): number {
   const [hour, minute] = world.clock.time.split(':').map(Number)
   return (world.clock.day - 1) * 1440 + hour * 60 + minute
@@ -57,6 +58,7 @@ export function initializeEngine(world: WorldState, draft: DraftDTO): void {
       ...(draft.discoverableTruths ?? []).map(t => ({ ...t, discoveredBy: [] }))],
     environment: { powerStatus: draft.powerStatus, facilityStatus: draft.facilityStatus },
   }
+  initializeStudio(world, draft)
 }
 
 export function nextDecisionDelay(actor: Agent, type: ProposedAction['actionType']): number {
@@ -74,7 +76,7 @@ export function selectDecisionAgents(world: WorldState, limit: number): Agent[] 
   const busy = new Set(engine.ongoingActions.map(a => a.proposal.actorId))
   return world.agents.filter(a => ['alive', 'injured'].includes(a.publicState.status) && !busy.has(a.id) && (a.nextDecisionAt ?? 0) <= engine.minute)
     .sort((a, b) => {
-      const score = (c: Agent) => (c.wakeReason ? 100 : 0) + Math.max(c.humanState?.survival_need ?? 1, c.humanState?.fatigue ?? 1) * 2 + Math.min(50, engine.minute - (c.nextDecisionAt ?? 0))
+      const score = (c: Agent) => (c.wakeReason ? 100 : 0) + Math.max(c.humanState?.survival_need ?? 1, c.humanState?.fatigue ?? 1) * 2 + Math.min(50, engine.minute - (c.nextDecisionAt ?? 0)) + (world.places.find(p=>p.id===c.publicState.locationId)?.flooded?20:0) + (c.exposure?.coldExposure??0) + c.relationships.filter(r=>r.stance==='hostile'&&world.agents.some(a=>a.id===r.otherAgentId&&a.publicState.locationId===c.publicState.locationId)).length*3
       return score(b) - score(a) || (a.nextDecisionAt ?? 0) - (b.nextDecisionAt ?? 0) || a.id.localeCompare(b.id)
     }).slice(0, Math.max(1, limit))
 }
@@ -88,7 +90,12 @@ export function validateEngineAction(action: ProposedAction, world: WorldState, 
   if (!completing && engine.ongoingActions.some(a => a.proposal.actorId === actor.id)) return fail('already_performing_action')
   if (!['alive', 'injured'].includes(actor.publicState.status)) return fail('actor_not_actionable')
   if (action.targetIds.some(id => engine.ongoingActions.some(a => a.proposal.actorId === id && a.proposal.actionType === 'MOVE'))) return fail('target_in_transit')
-  if (['ATTACK', 'USE_ITEM'].includes(action.actionType)) return fail('undefined_effect_rejected')
+  if (action.actionType === 'ATTACK') return fail('undefined_effect_rejected')
+  if (action.actionType === 'USE_ITEM' || action.actionType === 'DROP_ITEM') {
+    const object = engine.objects.find(o => o.id === action.usedItemIds?.[0])
+    if (action.usedItemIds?.length !== 1 || !object || object.quantity < 1 || object.condition === 'destroyed' || object.location.kind !== 'agent' || object.location.id !== actor.id) return fail('object_not_owned')
+    if (action.actionType === 'USE_ITEM' && !['food','water','medicine','fuel','tool'].includes(object.kind)) return fail('item_has_no_defined_effect')
+  }
   if (action.actionType === 'GIVE_ITEM') {
     const object = engine.objects.find(o => o.id === action.usedItemIds?.[0])
     if (!object || object.quantity < 1 || object.condition === 'destroyed' || object.location.kind !== 'agent' || object.location.id !== actor.id) return fail('object_not_owned')
@@ -98,6 +105,7 @@ export function validateEngineAction(action: ProposedAction, world: WorldState, 
     if (!edge || edge.blocked) return fail('no_open_path')
     if (!actor.knownPlaceIds?.includes(action.destinationId!)) return fail('destination_unknown')
     const destination = world.places.find(p => p.id === action.destinationId)!
+    if (destination.accessible === false || destination.flooded) return fail('destination_blocked_by_environment')
     const reserved = engine.ongoingActions.filter(a => a.proposal.actionType === 'MOVE' && a.proposal.destinationId === destination.id && a.proposal.actorId !== actor.id).length
     if (destination.capacity != null && destination.currentAgentIds.length + reserved >= destination.capacity) return fail('destination_capacity_exceeded')
     if ((actor.body?.injury ?? 1) >= 8 || (actor.humanState?.fatigue ?? 1) >= 10) return fail('body_cannot_move')
@@ -118,10 +126,16 @@ export function validateEngineAction(action: ProposedAction, world: WorldState, 
     const reserved = engine.ongoingActions.filter(a => a.proposal.actorId !== actor.id && a.proposal.locationId === action.locationId && a.proposal.resourceKey === action.resourceKey).length
     if (!resource || resource.level - reserved < 1) return fail('resource_unavailable')
   }
+  if (action.actionType === 'INTERACT' && action.resourceKey) {
+    const resource = world.places.find(p=>p.id===action.locationId)?.resources.find(r=>r.key===action.resourceKey)
+    const reserved = engine.ongoingActions.filter(a=>a.proposal.actorId!==actor.id&&a.proposal.locationId===action.locationId&&a.proposal.resourceKey===action.resourceKey).length
+    if (!resource || resource.level-reserved<1) return fail('resource_unavailable')
+  }
   if (action.actionType === 'SHARE_INFO') {
     if (action.targetIds.length !== 1 || !world.agents.some(a => a.id === action.targetIds[0])) return fail('share_requires_one_present_character')
     if (!action.factId || !actor.knowledge.some(k => k.id === action.factId)) return fail('cannot_share_unknown_information')
   }
+  if (action.actionType === 'COOPERATE' && engine.studio && (action.targetIds.length !== 1 || !world.agents.some(a=>a.id===action.targetIds[0]&&a.id!==actor.id&&a.publicState.locationId===actor.publicState.locationId&&a.publicState.status!=='deceased'))) return fail('cooperation_requires_present_partner')
   if (action.actionType === 'SPEAK' && action.targetIds.some(id => !world.agents.some(a => a.id === id))) return fail('speech_target_must_be_character')
   return base
 }
@@ -130,7 +144,8 @@ function duration(action: ProposedAction, world: WorldState): number {
   if (action.actionType === 'MOVE') {
     const edge = world.engine!.connections.find(c => (c.fromPlaceId === action.locationId && c.toPlaceId === action.destinationId) || (c.toPlaceId === action.locationId && c.fromPlaceId === action.destinationId))!
     const actor = world.agents.find(a => a.id === action.actorId)!
-    return Math.ceil(edge.travelMinutes * ((actor.body?.injury ?? 1) >= 5 ? 2 : 1))
+    const exposed = world.places.find(p => p.id === action.locationId)?.outdoor || world.places.find(p => p.id === action.destinationId)?.outdoor
+    return Math.ceil(edge.travelMinutes * ((actor.body?.injury ?? 1) >= 5 ? 2 : 1) * (exposed && (world.engine?.weather?.rainfall ?? 0) > 0 ? 1.5 : 1))
   }
   const bounds: Partial<Record<ProposedAction['actionType'], [number, number]>> = {
     SPEAK: [1, 3], SHARE_INFO: [1, 3], GIVE_ITEM: [1, 3], TAKE_ITEM: [2, 5], EAT: [5, 15], DRINK: [2, 5],
@@ -148,7 +163,7 @@ function event(world: WorldState, action: ProposedAction | null, phase: WorldEve
     importance: 'normal', relatedEventIds: [], outcome: 'CONFIRMED', cause: action ? `action:${action.actionType}` : 'elapsed_world_time',
     witnessIds: world.agents.filter(a => a.publicState.locationId === placeId && a.publicState.status !== 'deceased' && !world.engine!.ongoingActions.some(task => task.proposal.actorId === a.id && task.proposal.actionType === 'MOVE')).map(a => a.id) }
 }
-const labels: Record<ProposedAction['actionType'], string> = { MOVE: '이동', SPEAK: '대화', GIVE_ITEM: '물건 전달', TAKE_ITEM: '물건 가져오기', EAT: '식사', DRINK: '수분 섭취', REST: '휴식', SLEEP: '수면', EXPLORE: '탐색', SHARE_INFO: '정보 전달', OBSERVE: '관찰', WAIT: '대기', INTERACT: '작업 시도', COOPERATE: '협력 시도', ATTACK: '공격 시도', USE_ITEM: '물건 사용 시도' }
+const labels: Record<ProposedAction['actionType'], string> = { MOVE: '이동', SPEAK: '대화', GIVE_ITEM: '물건 전달', TAKE_ITEM: '물건 가져오기', EAT: '식사', DRINK: '수분 섭취', REST: '휴식', SLEEP: '수면', EXPLORE: '탐색', SHARE_INFO: '정보 전달', OBSERVE: '관찰', WAIT: '대기', INTERACT: '작업 시도', COOPERATE: '협력 시도', ATTACK: '공격 시도', USE_ITEM: '물건 사용', DROP_ITEM: '물건 내려놓기' }
 
 export function beginAction(world: WorldState, action: ProposedAction): WorldEvent {
   const actor = world.agents.find(a => a.id === action.actorId)!
@@ -164,6 +179,7 @@ export function beginAction(world: WorldState, action: ProposedAction): WorldEve
 }
 
 function relationshipEffect(world: WorldState, receiver: Agent, giverId: string, changes: StateChange[]) {
+  if (world.engine?.studio) { evolveRelationship(world, receiver, world.agents.find(a => a.id === giverId)!, 1, changes); return }
   let rel = receiver.relationships.find(r => r.otherAgentId === giverId)
   if (!rel) { rel = { agentId: receiver.id, otherAgentId: giverId, stance: 'neutral', trust: 5, affection: 5, attraction: 1 }; receiver.relationships.push(rel) }
   const from = rel.trust ?? 5
@@ -186,7 +202,21 @@ function completeAction(world: WorldState, ongoing: OngoingAction, events: World
     actor.nextDecisionAt = world.engine!.minute
     return failed
   }
-  if (action.actionType === 'MOVE') {
+  if (action.actionType === 'USE_ITEM' || action.actionType === 'DROP_ITEM') {
+    const object = world.engine!.objects.find(o => o.id === action.usedItemIds![0])!
+    if (action.actionType === 'DROP_ITEM') {
+      object.location = {kind:'place',id:action.locationId};actor.inventory=actor.inventory.filter(id=>id!==object.id)
+      changes.push({field:`object:${object.id}:holder`,from:actor.id,to:`place:${action.locationId}`})
+      summary=`${actor.name}이(가) ${object.name}을(를) 내려놓았다.`
+    } else {
+      if(object.kind!=='tool'){const from=object.quantity;object.quantity--;changes.push({field:`object:${object.id}:quantity`,from:String(from),to:String(object.quantity)});if(!object.quantity){object.condition='destroyed';actor.inventory=actor.inventory.filter(id=>id!==object.id)}}
+      if(object.kind==='food'||object.kind==='water'){actor.humanState!.survival_need=clamp(actor.humanState!.survival_need-2);if(actor.vitals){const k=object.kind==='food'?'hunger':'thirst';actor.vitals[k]=clamp(actor.vitals[k]-2)}}
+      if(object.kind==='medicine'){const from=actor.body!.injury;actor.body!.injury=clamp(from-2);changes.push({field:`agent:${actor.id}:injury`,from:String(from),to:String(actor.body!.injury)})}
+      if(object.kind==='fuel'){const p=world.places.find(p=>p.id===action.locationId)!;changes.push({field:`place:${p.id}:power`,from:String(p.power),to:'true'});p.power=true}
+      summary=`${actor.name}이(가) ${object.name}을(를) 사용했다.`
+    }
+    type='RESOURCE_CHANGE'
+  } else if (action.actionType === 'MOVE') {
     changes.push({ field: `agent:${actor.id}:location`, from: actor.publicState.locationId, to: action.destinationId! })
     type = 'MOVE'; summary = `${actor.name}이(가) ${world.places.find(p => p.id === action.destinationId)!.name}에 도착했다.`
   } else if (action.actionType === 'GIVE_ITEM' || action.actionType === 'TAKE_ITEM') {
@@ -202,6 +232,9 @@ function completeAction(world: WorldState, ongoing: OngoingAction, events: World
       if (!receiver.inventory.includes(object.id)) receiver.inventory.push(object.id)
       changes.push({ field: `object:${object.id}:holder`, from: source, to: receiver.id })
       if (receiver.id !== actor.id) relationshipEffect(world, receiver, actor.id, changes)
+      if (world.engine!.studio && action.actionType === 'TAKE_ITEM' && ['food','water'].includes(object.kind) && object.quantity >= 3) {
+        for (const witness of world.agents.filter(a=>a.id!==actor.id&&a.publicState.locationId===action.locationId&&a.publicState.status!=='deceased')) evolveRelationship(world,witness,actor,-1,changes)
+      }
       summary = `${actor.name}이(가) ${object.name}을(를) ${receiver.id === actor.id ? '가져왔다' : `${receiver.name}에게 건넸다`}.`
       type = 'COOPERATION'
     }
@@ -210,17 +243,27 @@ function completeAction(world: WorldState, ongoing: OngoingAction, events: World
     changes.push({ field: `place:${action.locationId}:${resource.key}`, from: String(resource.level), to: String(resource.level - 1) })
     const from = actor.humanState!.survival_need
     actor.humanState!.survival_need = clamp(from - 2)
+    if (actor.vitals) { if (action.actionType === 'EAT') actor.vitals.hunger = clamp(actor.vitals.hunger - 2); else actor.vitals.thirst = clamp(actor.vitals.thirst - 2) }
     changes.push({ field: `agent:${actor.id}:survival_need`, from: String(from), to: String(actor.humanState!.survival_need) })
     summary = `${actor.name}이(가) ${resource.label} 1${resource.unit ?? '단위'}를 소비했다.`; type = 'RESOURCE_CHANGE'
   } else if (action.actionType === 'REST' || action.actionType === 'SLEEP') {
     const from = actor.humanState!.fatigue
     actor.humanState!.fatigue = clamp(from - Math.max(1, Math.floor((ongoing.completesMinute - ongoing.startedMinute) / (action.actionType === 'SLEEP' ? 60 : 30))))
     changes.push({ field: `agent:${actor.id}:fatigue`, from: String(from), to: String(actor.humanState!.fatigue) })
+  } else if (action.actionType === 'INTERACT' && action.resourceKey) {
+    const resource=world.places.find(p=>p.id===action.locationId)!.resources.find(r=>r.key===action.resourceKey)!
+    changes.push({field:`place:${action.locationId}:${resource.key}`,from:String(resource.level),to:String(resource.level-1)})
+    summary=`${actor.name}이(가) 작업에 ${resource.label} 1${resource.unit??'단위'}를 사용했다.`;type='RESOURCE_CHANGE'
+  } else if (action.actionType === 'COOPERATE' && world.engine!.studio) {
+    for (const partner of world.agents.filter(a=>action.targetIds.includes(a.id)&&a.publicState.locationId===action.locationId)) {
+      evolveRelationship(world,partner,actor,1,changes)
+    }
+    summary = `${actor.name}이(가) 현장 인물에게 협력했다.`;type='COOPERATION'
   } else if (action.actionType === 'SPEAK') {
     summary = `${actor.name}이(가) 말을 건넸다.`; type = 'DIALOGUE'
   } else if (action.actionType === 'EXPLORE') {
     type = 'DISCOVERY'
-    const truths = world.engine!.truths.filter(t => t.placeId === action.locationId && !t.discoveredBy.includes(actor.id))
+    const truths = world.engine!.truths.filter(t => t.placeId === action.locationId && !t.discoveredBy.includes(actor.id) && (!t.itemId || actor.inventory.includes(t.itemId) || world.engine!.objects.some(o => o.id === t.itemId && o.location.kind === 'place' && o.location.id === action.locationId && o.quantity > 0)) && (!t.eventId || world.engine!.studio?.firedEvents.includes(t.eventId)))
     for (const truth of truths) {
       truth.discoveredBy.push(actor.id)
       actor.knowledge.push({ id: randomUUID(), summary: truth.summary, truthId: truth.id, learnedAt: new Date().toISOString(), acquisition: 'discovery', verified: true, placeId: action.locationId })
@@ -272,8 +315,8 @@ function vitals(world: WorldState): WorldEvent[] {
     const hs = actor.humanState!, emotion = actor.emotion!, body = actor.body!, changes: StateChange[] = []
     const resting = engine.ongoingActions.some(a => a.proposal.actorId === actor.id && ['REST', 'SLEEP'].includes(a.proposal.actionType))
     const update = (field: string, from: number, to: number) => { if (from !== to) changes.push({ field: `agent:${actor.id}:${field}`, from: String(from), to: String(to) }) }
-    const need = hs.survival_need; hs.survival_need = clamp(need + 1); update('survival_need', need, hs.survival_need)
-    const fatigue = hs.fatigue; hs.fatigue = clamp(fatigue + (resting ? 0 : 1)); update('fatigue', fatigue, hs.fatigue)
+    const need = hs.survival_need; hs.survival_need = engine.studio ? Math.min(10, Math.max(actor.vitals!.hunger,actor.vitals!.thirst)) : clamp(need + 1); update('survival_need', need, hs.survival_need)
+    const fatigue = hs.fatigue; hs.fatigue = engine.studio ? Math.min(10,fatigue+(resting?0:0.15)) : clamp(fatigue + (resting ? 0 : 1)); update('fatigue', fatigue, hs.fatigue)
     if (hs.survival_need >= 9) { const from = hs.stress; hs.stress = clamp(from + 1); update('stress', from, hs.stress) }
     else if (resting && world.dangerLevel === 'stable') { const from = hs.stress; hs.stress = clamp(from - 1); update('stress', from, hs.stress) }
     if (world.dangerLevel === 'critical') { const from = emotion.fear; emotion.fear = clamp(from + 1); update('fear', from, emotion.fear) }
@@ -305,9 +348,11 @@ export function advanceEngine(world: WorldState, minutes: number, priorEvents: W
   if (!engine || !Number.isInteger(minutes) || minutes < 1 || minutes > 1440) return []
   const end = engine.minute + minutes, events: WorldEvent[] = []
   const emit = (e: WorldEvent) => { events.push(e); onEvent?.(e) }
+  for (const e of processStudio(world)) emit(e)
   while (engine.minute < end) {
+    if (engine.studio?.ended) break
     const nextCompletion = Math.min(...engine.ongoingActions.map(a => a.completesMinute), Infinity)
-    const next = Math.min(end, Math.max(engine.minute, nextCompletion), engine.lastVitalsMinute + 60)
+    const next = studioBoundary(world, Math.min(end, Math.max(engine.minute, nextCompletion), engine.lastVitalsMinute + 60))
     setClock(world, next)
     for (const ongoing of [...engine.ongoingActions].filter(a => a.completesMinute <= next)) {
       if (!engine.ongoingActions.some(a => a.id === ongoing.id)) continue
@@ -315,6 +360,7 @@ export function advanceEngine(world: WorldState, minutes: number, priorEvents: W
       emit(completeAction(world, ongoing, [...priorEvents, ...events]))
     }
     if (next >= engine.lastVitalsMinute + 60) { engine.lastVitalsMinute = next; for (const e of vitals(world)) emit(e) }
+    for (const e of processStudio(world)) emit(e)
   }
   world.updatedAt = new Date().toISOString()
   return events

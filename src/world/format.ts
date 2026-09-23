@@ -71,6 +71,7 @@ export const WEATHER_LABEL: Record<Weather, string> = {
   storm: '폭풍',
   fog: '안개',
   snow: '눈',
+  blizzard: '폭설', wind: '강풍',
 }
 
 export const SCENE_IMPORTANCE_LABEL: Record<SceneImportance, string> = {

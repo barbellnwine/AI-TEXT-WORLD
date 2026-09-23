@@ -27,6 +27,7 @@ import {
   type QueuedSceneDefinition,
 } from './worldMock.ts'
 import { mockNarrator } from './narrator.ts'
+import { processStudio } from '../world/studioEngine.ts'
 import { validateGmEvent } from '../world/worldValidator.ts'
 import { applyStateChanges } from '../world/stateTransition.ts'
 
@@ -333,7 +334,7 @@ export function getPublicRuntime() {
 }
 
 export function getAdminRuntime(): WorldRuntime {
-  return { ...state.runtime, mode: state.execution?.mode ?? 'preview', queuedEvents: state.worldState.engine?.ongoingActions.length ?? state.queued.length, maxActiveCharacters: config.maxActiveCharacters, worldMinutesPerTick: config.worldMinutesPerTick }
+  return { ...state.runtime, mode: state.execution?.mode ?? 'preview', queuedEvents: state.worldState.engine?.ongoingActions.length ?? state.queued.length, maxActiveCharacters: config.maxActiveCharacters, worldMinutesPerTick: state.execution?.draft.studio?.minutesPerTick ?? config.worldMinutesPerTick }
 }
 
 export function listActionAudit(): WorldEvent[] { return state.events.filter(e => e.provenance).slice(0, 50) }
@@ -343,13 +344,13 @@ export function assertWorldIdle(): void { if (activeTick) throw new HttpError(40
 
 let timer: ReturnType<typeof setInterval> | null = null
 
-export function advanceWorldTick(minutes = config.worldMinutesPerTick): void {
+export function advanceWorldTick(minutes = state.execution?.draft.studio?.minutesPerTick ?? config.worldMinutesPerTick): void {
   if (shuttingDown || state.runtime.status !== 'RUNNING' || !state.execution) return
   state.runtime.lastTickAt = new Date().toISOString()
   advanceEngine(state.worldState, minutes, state.events, recordEngineEvent)
   state.season.currentDay = state.worldState.clock.day
   state.season.survivorCount = state.worldState.agents.filter(a => a.publicState.status !== 'deceased').length
-  if (state.execution.draft.maxDays !== null && state.worldState.clock.day >= state.execution.draft.startDay + state.execution.draft.maxDays || state.season.survivorCount === 0) endSeason()
+  if (state.worldState.engine?.studio?.ended || state.execution.draft.maxDays !== null && state.worldState.clock.day >= state.execution.draft.startDay + state.execution.draft.maxDays || state.season.survivorCount === 0) endSeason()
   flushChapter(false)
   state.runtime.nextTickAt = state.runtime.status === 'RUNNING' ? new Date(Date.now() + state.runtime.tickIntervalMs).toISOString() : null
   persist()
@@ -391,7 +392,7 @@ async function performDecisions(): Promise<void> {
         const beforeMinute = state.worldState.engine!.minute
         const judgment = parseJudgment(await callModel(judgeRequest(execution, action, state.worldState, state.events), actor.id))
         if (!current()) break
-        if (judgment.ended && execution.draft.endCondition.trim() && state.worldState.engine!.minute === beforeMinute) { endSeason(); break }
+        if (!execution.draft.studio && judgment.ended && execution.draft.endCondition.trim() && state.worldState.engine!.minute === beforeMinute) { endSeason(); break }
         // Time and other actions can progress while a provider is responding. Validate again.
         validation = validateEngineAction(action, state.worldState, state.events, state.recentActions?.[actor.id])
         if (!judgment.approved) { validation.approved = false; validation.reasons.push('RULE_VIOLATION'); validation.notes.push(judgment.reason) }
@@ -492,7 +493,7 @@ function flushChapter(force: boolean): void {
   const events = buffer.eventIds.map(id => getEvent(id)).filter((e): e is WorldEvent => Boolean(e && e.outcome !== 'REJECTED' && e.visibility !== 'private'))
   if (!events.length) return
   const chapter = state.chapters.find(c => c.id === buffer.chapterId)!
-  const scene = mockNarrator.narrateFallbackScene(events, placesById(), agentsById())
+  const scene = mockNarrator.narrateFallbackScene(events, placesById(), agentsById(), state.worldState.engine?.context)
   scene.seasonId = state.season.id
   scene.worldDay = buffer.day
   scene.timeStart = events[0].worldTime ?? state.worldState.clock.time
@@ -709,6 +710,7 @@ export function loadWorldState(input: { season: Season; worldState: WorldState; 
   state.runtime.retryCount = 0
   state.runtime.lockHolder = null
   state.runtime.tickIntervalMs = input.execution?.draft.simSpeedMs ?? DEFAULT_TICK_MS
+  state.runtime.maxActiveAgents = input.execution?.draft.studio?.activeLimit ?? config.worldDecisionsPerCycle
   state.runtime.nextTickAt = new Date(Date.now() + state.runtime.tickIntervalMs).toISOString()
   state.runtime.queuedEvents = 0
   state.runtime.recentErrors = []
@@ -717,6 +719,7 @@ export function loadWorldState(input: { season: Season; worldState: WorldState; 
   scheduleTimer()
   state.chapterBuffer = undefined
   queueChapter(input.initialEvent)
+  for (const event of processStudio(state.worldState)) recordEngineEvent(event)
   persist()
   broadcast({ type: 'worldState', payload: toPublicWorld(state.worldState) })
   broadcast({ type: 'event', payload: toPublicEvent(input.initialEvent) })

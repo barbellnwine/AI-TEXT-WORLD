@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { randomUUID } from 'node:crypto'
 import { config } from '../config.ts'
+import type { StudioConfig } from './studioConfig.ts'
 import { getRulePreset, type RuleCategory } from './rulePresets.ts'
 
 export type DraftStatus = 'DRAFT' | 'READY' | 'RUNNING' | 'PAUSED' | 'ENDED' | 'ARCHIVED'
@@ -80,6 +81,7 @@ export interface RelationshipDTO {
 }
 
 export interface DraftDTO {
+  studio?: StudioConfig
   maxActiveCharacters?: number
   discoverableTruths?: Array<{ id: string; summary: string; placeId: string; revealedPlaceId?: string }>
   id: string; status: DraftStatus; wizardStep: number
@@ -160,7 +162,8 @@ export function getDraft(db: DatabaseSync, id: string): DraftDTO | undefined {
   const characters = (db.prepare('SELECT * FROM draft_characters WHERE draft_id = ? ORDER BY sort_order, created_at').all(id) as unknown as CharacterRow[]).map(characterDTO)
   const relationships = (db.prepare('SELECT * FROM draft_relationships WHERE draft_id = ?').all(id) as unknown as RelationshipRow[]).map(relationshipDTO)
   const truthRow = db.prepare('SELECT payload FROM draft_discoverable_truths WHERE draft_id=?').get(id) as { payload: string } | undefined
-  return { ...draftDTO(row), places, connections, characters, relationships, maxActiveCharacters: config.maxActiveCharacters, discoverableTruths: truthRow ? JSON.parse(truthRow.payload) : [] }
+  const studioRow = db.prepare('SELECT payload FROM world_studio_config WHERE draft_id=?').get(id) as { payload: string } | undefined
+  return { ...draftDTO(row), studio: studioRow ? JSON.parse(studioRow.payload) : undefined, places, connections, characters, relationships, maxActiveCharacters: config.maxActiveCharacters, discoverableTruths: truthRow ? JSON.parse(truthRow.payload) : [] }
 }
 
 export function draftExists(db: DatabaseSync, id: string): boolean {
