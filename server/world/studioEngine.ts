@@ -8,6 +8,20 @@ export interface ExposureState { wetness: number; coldExposure: number; heatExpo
 export interface StudioRuntime { config: StudioConfig; rng: number; firedEvents: string[]; goals: string[]; ended: boolean; lastExposureMinute: number; endMinute: number | null }
 const cap = (n: number) => Math.min(10, Math.max(0, n))
 function random(world: WorldState) { const s = world.engine!.studio!; s.rng = (Math.imul(s.rng, 1664525) + 1013904223) >>> 0; return s.rng / 4294967296 }
+// Picks the single most narratively relevant exposure change instead of the generic
+// "환경 노출이 누적되어 상태가 변했다" — viewers couldn't tell what that meant or why.
+function exposureLine(name: string, changes: StateChange[], outside: boolean): string {
+  const rose = (key: string) => { const c = changes.find(c => c.field.endsWith(`:${key}`)); return c ? Number(c.to) > Number(c.from) : false }
+  const touched = (key: string) => changes.some(c => c.field.endsWith(`:${key}`))
+  if (touched('injury')) return `${name}의 몸에 이상이 느껴지기 시작했다.`
+  if (touched('infectionRisk') && rose('infectionRisk')) return `${name}의 상처 부위가 욱신거리며 덧날 조짐을 보인다.`
+  if (touched('skinCondition') && !rose('skinCondition')) return `${name}의 피부가 젖은 채로 오래 지내 짓무르기 시작했다.`
+  if (touched('wetness') && rose('wetness')) return `${name}이(가) 비를 맞아 옷이 흠뻑 젖었다.`
+  if (touched('coldExposure') && rose('coldExposure')) return `${name}이(가) 추위에 몸을 떨었다.`
+  if (touched('heatExposure') && rose('heatExposure')) return `${name}이(가) 더위에 지쳐갔다.`
+  if (!outside) return `${name}이(가) 실내에서 몸을 추스르며 조금씩 회복했다.`
+  return `${name}의 몸 상태가 날씨의 영향으로 조금씩 변해갔다.`
+}
 export function engineEvent(world: WorldState, summary: string, changes: StateChange[], placeId = '', agentIds: string[] = []): WorldEvent {
   return { id: randomUUID(), type: 'SYSTEM', occurredAt: new Date().toISOString(), day: world.clock.day, worldTime: world.clock.time, worldMinute: world.engine!.minute, phase: 'STATE_UPDATE', outcome: 'CONFIRMED', title: summary, summary, placeId, agentIds, stateChanges: changes, importance: 'normal', relatedEventIds: [], witnessIds: world.agents.filter(a => !placeId || a.publicState.locationId === placeId).map(a => a.id) }
 }
@@ -111,7 +125,7 @@ export function processStudio(world:WorldState):WorldEvent[] {
       if(outside&&(w.rainfall||w.temperature<0||w.temperature>=35)){const from=a.humanState!.fatigue;a.humanState!.fatigue=cap(from+0.2);changes.push({field:`agent:${a.id}:fatigue`,from:String(from),to:String(a.humanState!.fatigue)})}
       if(x.coldExposure>=8||x.skinCondition<4){const from=a.body!.injury;a.body!.injury=cap(from+0.1);a.publicState.status='injured';changes.push({field:`agent:${a.id}:injury`,from:String(from),to:String(a.body!.injury)})}
       const v=a.vitals!;v.energy=cap(10-a.humanState!.fatigue);v.hunger=cap(v.hunger+0.2);v.thirst=cap(v.thirst+(outside&&w.temperature>=35?0.5:0.2));v.health=cap(10-a.body!.health);v.loneliness=cap(v.loneliness+(world.agents.some(b=>b.id!==a.id&&b.publicState.locationId===a.publicState.locationId)?-0.1:0.1));a.humanState!.survival_need=Math.max(v.hunger,v.thirst)
-      if(changes.length){const ev=engineEvent(world,`${a.name}의 환경 노출이 누적되어 상태가 변했다.`,changes,a.publicState.locationId,[a.id]);ev.cause='environment_exposure';results.push(ev)}
+      if(changes.length){const ev=engineEvent(world,exposureLine(a.name,changes,Boolean(outside)),changes,a.publicState.locationId,[a.id]);ev.cause='environment_exposure';results.push(ev)}
     }
   }
   const rules=s.config.endings
