@@ -168,7 +168,7 @@ const labels: Record<ProposedAction['actionType'], string> = { MOVE: '이동', S
 export function beginAction(world: WorldState, action: ProposedAction): WorldEvent {
   const actor = world.agents.find(a => a.id === action.actorId)!
   const ongoing: OngoingAction = { id: randomUUID(), proposal: structuredClone(action), startedMinute: world.engine!.minute, completesMinute: world.engine!.minute + duration(action, world), startEventId: '' }
-  const start = event(world, action, 'STARTED', `${actor.name}이(가) ${labels[action.actionType]}을(를) 시작했다.`)
+  const start = event(world, action, 'STARTED', `${actor.name}이(가) ${labels[action.actionType]}을(를) 시작했다: ${action.intendedAction}`)
   start.actionId = ongoing.id
   ongoing.startEventId = start.id
   world.engine!.ongoingActions.push(ongoing)
