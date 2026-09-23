@@ -104,10 +104,16 @@ export function agentRequest(execution: WorldExecution, actorId: string, world: 
     const request = build()
     if (execution.mode === 'demo') return request
     try { worldRequestBody(request); return request } catch (error) {
-      // Trim only historical context. Never silently drop the world rules or character design.
+      // Trim historical context first. World rules and the schema are never touched.
       if (view.observedEvents.length) view.observedEvents.pop()
       else if (view.knownFacts.length) view.knownFacts.shift()
       else if (view.self.memories?.length) view.self.memories.shift()
+      // Last resort: compact (never erase) the character's own free-text narrative fields —
+      // an overly verbose AI-generated bio must not permanently stall every future decision.
+      else if (profile.background.length > 80) profile.background = profile.background.slice(0, Math.ceil(profile.background.length / 2))
+      else if (profile.personality.length > 80) profile.personality = profile.personality.slice(0, Math.ceil(profile.personality.length / 2))
+      else if (profile.goal.length > 60) profile.goal = profile.goal.slice(0, Math.ceil(profile.goal.length / 2))
+      else if (profile.privateInfo && profile.privateInfo.length > 40) profile.privateInfo = profile.privateInfo.slice(0, Math.ceil(profile.privateInfo.length / 2))
       else throw error
     }
   }

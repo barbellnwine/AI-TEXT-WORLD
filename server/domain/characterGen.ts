@@ -75,7 +75,10 @@ export function validateGeneratedCharacter(raw: unknown): { ok: true; character:
   const errors: string[] = []
   if (typeof raw !== 'object' || raw === null) return { ok: false, errors: ['not_an_object'] }
   const r = raw as Record<string, unknown>
-  const str = (key: string): string => (typeof r[key] === 'string' ? (r[key] as string).slice(0, 2000) : '')
+  // Kept short: these fields go into every future decision prompt for this character, and a
+  // verbose bio alone can push a single request past the provider size cap (WORLD_CONTEXT_TOO_LARGE).
+  const NARRATIVE_MAX: Record<string, number> = { name: 40, gender: 20, appearance: 150, occupation: 40, background: 200, personality: 200, goal: 120 }
+  const str = (key: string): string => (typeof r[key] === 'string' ? (r[key] as string).slice(0, NARRATIVE_MAX[key] ?? 2000) : '')
   const arr = (key: string): string[] => (Array.isArray(r[key]) ? (r[key] as unknown[]).filter((x): x is string => typeof x === 'string').slice(0, 8) : [])
   if (!str('name').trim()) errors.push('name_required')
   const age = typeof r.age === 'number' && Number.isFinite(r.age) ? Math.min(120, Math.max(1, Math.round(r.age))) : null
@@ -112,6 +115,7 @@ function buildPrompt(count: number, ctx: CharacterGenContext): { system: string;
     '당신은 세계관 캐릭터 생성기입니다. 반드시 지정된 JSON 스키마로만 응답하십시오.',
     '나이, 이름, 성격, 목표가 서로 겹치지 않도록 다양하게 구성하십시오.',
     'DAY 1이 특별한 위기 상황이 아니라면 human_state/emotion 수치를 1이나 10 같은 극단값으로 채우지 마십시오.',
+    'appearance/background/personality는 각각 한 문장으로, goal은 한 짧은 구절로 간결하게 작성하십시오. 이 텍스트는 매 행동 판단마다 그대로 재사용됩니다.',
   ].join('\n')
   const user = [
     `세계 이름: ${ctx.worldName}`,
