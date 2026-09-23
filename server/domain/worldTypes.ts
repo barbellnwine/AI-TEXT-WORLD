@@ -89,6 +89,9 @@ export interface AgentPublicState {
   visibleGoal: string | null
   lastAction: string | null
   lastActiveAt: string
+  // Where within locationId this agent currently is, for places large enough to have sub-areas
+  // (see actionSchema.ts's LOCAL_AREAS). Sticky across actions that don't specify one.
+  localArea?: string
 }
 
 export interface AgentKnowledgeEntry {

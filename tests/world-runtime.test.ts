@@ -208,6 +208,22 @@ test('demo executes state transitions without calls; end day stops further ticks
   } finally { await ctx.close() }
 })
 
+test('areaHint moves a character within one place and clears once they change place', async () => {
+  const ctx = setup(undefined, false)
+  try {
+    const world = store.getWorldState()
+    const actor = world.agents[0]
+    assert.throws(() => parseProposedAction({ ...moveAction(), actionType: 'EXPLORE', destinationId: null, areaHint: 'VOLCANO' }, actor.id), /invalid_action_area_hint/)
+    const explore: ProposedAction = { actorId: actor.id, actionType: 'EXPLORE', targetIds: [], locationId: actor.publicState.locationId, intendedAction: '해안가를 살펴본다', areaHint: 'SHORE' }
+    beginAction(world, explore)
+    assert.equal(world.agents[0].publicState.localArea, 'SHORE')
+    const otherPlaceId = world.places.find(p => p.id !== actor.publicState.locationId)!.id
+    applyStateChange(world, { field: `agent:${actor.id}:location`, from: actor.publicState.locationId, to: otherPlaceId })
+    assert.equal(world.agents[0].publicState.locationId, otherPlaceId)
+    assert.equal(world.agents[0].publicState.localArea, undefined)
+  } finally { await ctx.close() }
+})
+
 test('GIVE_ITEM transfers ownership and schema rejects forged actors and malformed fields', async () => {
   const ctx = setup(async request => ({ raw: request.role === 'agent' ? { ...moveAction(), actionType: 'GIVE_ITEM', destinationId: null, targetIds: [store.getWorldState().agents[1].id], usedItemIds: ['key'] } : { approved: true, reason: '', ended: false }, inputTokens: 1, outputTokens: 1 }))
   try {

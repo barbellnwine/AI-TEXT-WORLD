@@ -957,6 +957,7 @@ body:has(.observatory), body:has(.world-welcome), body:has(.world-shell) { backg
 .map-character:hover .map-character-target, .map-character:focus-visible .map-character-target { fill: #ffffff15; stroke: #ffffffaa; stroke-width: 1; }
 .map-character-label rect { fill: #16211eee; stroke: #d27a7080; }
 .map-character-label text { fill: #fff1eb; font: 11px 'Malgun Gothic', sans-serif; }
+.map-area-label { fill: #cfe0c2; opacity: .55; font: 9px 'Malgun Gothic', sans-serif; pointer-events: none; }
 .minimap-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 15px; color: #a8b8aa; font-size: 10px; }
 .minimap-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .minimap-legend i { width: 6px; height: 6px; background: #fff; }

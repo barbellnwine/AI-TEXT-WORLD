@@ -29,6 +29,9 @@ export function applyStateChange(worldState: WorldState, change: StateChange): v
     if (prop === 'location') {
       if (agentRecord.publicState.status === 'deceased' || !worldState.places.some(p => p.id === change.to)) return
       agentRecord.publicState.locationId = change.to
+      // A move to a different place leaves any prior sub-area behind — the new area is
+      // unspecified until the next action names one.
+      agentRecord.publicState.localArea = undefined
       for (const place of worldState.places) {
         place.currentAgentIds = place.currentAgentIds.filter(id => id !== agentId)
         if (place.id === change.to) place.currentAgentIds.push(agentId)

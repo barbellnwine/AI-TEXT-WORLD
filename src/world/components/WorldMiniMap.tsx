@@ -51,13 +51,14 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
   // characters at that place can appear — otherwise they render floating outside it. Shrinks as
   // more places compete for the same canvas so they don't overlap each other.
   const placeVisualRadius = Math.max(26, Math.min(115, 260 / places.length))
+  // A place can be a whole 2km island — LOCAL_AREAS (server/world/actionSchema.ts) lets an
+  // agent's own last action move it to a real direction within that one place (no separate
+  // "place" needed per spot), so map movement actually tracks what the AI decided to do.
+  const AREA_ANGLES: Record<string, number> = { SHORE: 0, FOREST: (2 * Math.PI) / 6, HIGH_GROUND: (4 * Math.PI) / 6, CAVE: Math.PI, WATER: (8 * Math.PI) / 6, CAMP: (10 * Math.PI) / 6 }
+  const AREA_LABELS: Record<string, string> = { SHORE: '해안', FOREST: '숲', HIGH_GROUND: '고지대', CAVE: '동굴', WATER: '물가', CAMP: '야영지' }
   const maxOccupantRadius = Math.max(10, placeVisualRadius * 0.62)
   const agents = [...state.agents].filter(agent => anchors.has(agent.publicState.locationId)).sort((a, b) => a.id.localeCompare(b.id))
   const markers = agents.map(agent => {
-    const occupants = agents.filter(other => other.publicState.locationId === agent.publicState.locationId)
-    const index = occupants.findIndex(other => other.id === agent.id)
-    const angle = index * 2.399963229728653
-    const radius = occupants.length === 1 ? 0 : Math.min(maxOccupantRadius, (maxOccupantRadius / 2.2) * Math.sqrt(index + .5))
     const anchor = anchors.get(agent.publicState.locationId)!
     const move = state.engine?.ongoingActions.find(a => a.proposal.actorId === agent.id && a.proposal.actionType === 'MOVE')
     const destination = move?.proposal.destinationId ? anchors.get(move.proposal.destinationId) : null
@@ -65,7 +66,27 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
       const progress = Math.max(0, Math.min(1, (state.engine.minute - move.startedMinute) / (move.completesMinute - move.startedMinute)))
       return { agent, x: anchor.x + (destination.x - anchor.x) * progress, y: anchor.y + (destination.y - anchor.y) * progress }
     }
-    return { agent, x: anchor.x + Math.cos(angle) * radius, y: anchor.y + Math.sin(angle) * radius }
+    const area = agent.publicState.localArea
+    const areaAngle = area ? AREA_ANGLES[area] : undefined
+    if (areaAngle === undefined) {
+      // Unchanged from before areaHint existed: no known sub-area, so cluster around the place
+      // anchor itself by sorted occupant index.
+      const occupants = agents.filter(other => other.publicState.locationId === agent.publicState.locationId)
+      const index = occupants.findIndex(other => other.id === agent.id)
+      const angle = index * 2.399963229728653
+      const radius = occupants.length === 1 ? 0 : Math.min(maxOccupantRadius, (maxOccupantRadius / 2.2) * Math.sqrt(index + .5))
+      return { agent, x: anchor.x + Math.cos(angle) * radius, y: anchor.y + Math.sin(angle) * radius }
+    }
+    // A place can be a whole 2km island — a known sub-area moves the marker toward that real
+    // direction, and others sharing the same sub-area still spread out a little among themselves.
+    const baseRadius = placeVisualRadius * 0.55
+    const base = { x: anchor.x + Math.cos(areaAngle) * baseRadius, y: anchor.y + Math.sin(areaAngle) * baseRadius * .8 }
+    const sameSpot = agents.filter(other => other.publicState.locationId === agent.publicState.locationId && other.publicState.localArea === area)
+    const index = sameSpot.findIndex(other => other.id === agent.id)
+    const clusterMax = placeVisualRadius * 0.2
+    const clusterAngle = index * 2.399963229728653
+    const clusterRadius = sameSpot.length === 1 ? 0 : Math.min(clusterMax, (clusterMax / 2.2) * Math.sqrt(index + .5))
+    return { agent, x: base.x + Math.cos(clusterAngle) * clusterRadius, y: base.y + Math.sin(clusterAngle) * clusterRadius }
   })
   const selected = markers.find(marker => marker.agent.id === selectedAgentId)
   const svgId = (suffix: string) => `${id}${suffix}`
@@ -91,7 +112,17 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
         const from = anchors.get(edge.fromPlaceId), to = anchors.get(edge.toPlaceId)
         return from && to ? <line key={i} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={edge.blocked ? '#9a6262' : '#7c9b8a'} strokeWidth="1.5" strokeDasharray={edge.blocked ? '4 5' : undefined}><title>{edge.travelMinutes} min{edge.blocked ? ' · blocked' : ''}</title></line> : null
       })}
-      {designed && places.map(place => { const p = anchors.get(place.id)!; return <g key={place.id} aria-label={place.name}><circle cx={p.x} cy={p.y} r={placeVisualRadius} fill={`url(#${svgId(`${svgIdSuffix}-land`)})`} stroke="#7c9b8a" /><text x={p.x} y={p.y + placeVisualRadius + 17} textAnchor="middle" fill="currentColor" fontSize="11">{place.name}</text></g> })}
+      {designed && places.map(place => {
+        const p = anchors.get(place.id)!
+        return <g key={place.id} aria-label={place.name}>
+          <circle cx={p.x} cy={p.y} r={placeVisualRadius} fill={`url(#${svgId(`${svgIdSuffix}-land`)})`} stroke="#7c9b8a" />
+          {placeVisualRadius >= 60 && Object.entries(AREA_LABELS).map(([area, label]) => {
+            const a = AREA_ANGLES[area], r = placeVisualRadius * 0.85
+            return <text key={area} x={p.x + Math.cos(a) * r} y={p.y + Math.sin(a) * r * .8} textAnchor="middle" className="map-area-label">{label}</text>
+          })}
+          <text x={p.x} y={p.y + placeVisualRadius + 17} textAnchor="middle" fill="currentColor" fontSize="11">{place.name}</text>
+        </g>
+      })}
       {[...new Set(markers.map(m => m.agent.publicState.locationId))].flatMap(locationId => {
         const group = markers.filter(m => m.agent.publicState.locationId === locationId && m.agent.publicState.status !== 'deceased')
         const lines = []

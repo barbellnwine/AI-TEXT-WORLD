@@ -175,6 +175,9 @@ export function beginAction(world: WorldState, action: ProposedAction): WorldEve
   actor.nextDecisionAt = ongoing.completesMinute
   actor.wakeReason = undefined
   actor.publicState.lastAction = start.summary
+  // Sticky: an action that doesn't name a sub-area (areaHint null) leaves the actor where they
+  // last were, rather than snapping back to a default.
+  if (action.areaHint) actor.publicState.localArea = action.areaHint
   return start
 }
 

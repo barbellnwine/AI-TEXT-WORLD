@@ -4,7 +4,7 @@ import { MAX_PROVIDER_REQUEST_BYTES } from '../providers/requestBody.ts'
 import { WORLD_RULES_TEXT } from '../prompts/worldRules.ts'
 import { buildAgentPrompt } from '../prompts/agentPrompt.ts'
 import { buildAgentKnowledgeView } from '../world/knowledgeFilter.ts'
-import type { ProposedAction } from '../world/actionSchema.ts'
+import { LOCAL_AREAS, type ProposedAction } from '../world/actionSchema.ts'
 import type { DraftDTO } from './worldDrafts.ts'
 import type { RulePresetDTO } from './rulePresets.ts'
 import type { WorldState, WorldEvent } from './worldTypes.ts'
@@ -35,8 +35,9 @@ export const ACTION_SCHEMA = {
     destinationId: nullableString, spokenText: nullableString, usedItemIds: { type: 'array', items: string },
     claimedKnowledgeId: nullableString,
     resourceKey: nullableString, factId: nullableString, durationMinutes: { type: ['integer', 'null'] },
+    areaHint: { type: ['string', 'null'], enum: [...LOCAL_AREAS, null] },
   },
-  required: ['actorId', 'actionType', 'locationId', 'targetIds', 'intendedAction', 'destinationId', 'spokenText', 'usedItemIds', 'claimedKnowledgeId', 'resourceKey', 'factId', 'durationMinutes'],
+  required: ['actorId', 'actionType', 'locationId', 'targetIds', 'intendedAction', 'destinationId', 'spokenText', 'usedItemIds', 'claimedKnowledgeId', 'resourceKey', 'factId', 'durationMinutes', 'areaHint'],
 }
 export const JUDGE_SCHEMA = {
   type: 'object', additionalProperties: false,
@@ -58,10 +59,12 @@ export function parseProposedAction(raw: unknown, actorId: string): ProposedActi
   }
   if (r.actorId !== actorId || !ACTION_SCHEMA.properties.actionType.enum.includes(String(r.actionType))) throw new Error('invalid_action_actor_or_type')
   if (r.durationMinutes != null && (typeof r.durationMinutes !== 'number' || !Number.isInteger(r.durationMinutes) || r.durationMinutes < 1 || r.durationMinutes > 480)) throw new Error('invalid_action_duration')
+  if (r.areaHint != null && !(LOCAL_AREAS as readonly string[]).includes(String(r.areaHint))) throw new Error('invalid_action_area_hint')
   return { actorId, actionType: r.actionType as ProposedAction['actionType'], locationId: text('locationId')!,
     intendedAction: text('intendedAction')!, targetIds: ids('targetIds'), usedItemIds: ids('usedItemIds'),
     destinationId: text('destinationId', true), spokenText: text('spokenText', true), claimedKnowledgeId: text('claimedKnowledgeId', true),
-    resourceKey: text('resourceKey', true), factId: text('factId', true), durationMinutes: typeof r.durationMinutes === 'number' && Number.isInteger(r.durationMinutes) && r.durationMinutes > 0 && r.durationMinutes <= 480 ? r.durationMinutes : undefined }
+    resourceKey: text('resourceKey', true), factId: text('factId', true), durationMinutes: typeof r.durationMinutes === 'number' && Number.isInteger(r.durationMinutes) && r.durationMinutes > 0 && r.durationMinutes <= 480 ? r.durationMinutes : undefined,
+    areaHint: r.areaHint == null ? undefined : r.areaHint as ProposedAction['areaHint'] }
 }
 
 export function parseJudgment(raw: unknown): { approved: boolean; reason: string; ended: boolean } {
@@ -98,7 +101,8 @@ export function agentRequest(execution: WorldExecution, actorId: string, world: 
       '[YOUR INVENTORY]', JSON.stringify(world.engine?.objects.filter(o=>o.location.kind==='agent'&&o.location.id===actorId).map(({id,name,kind,quantity})=>({id,name,kind,quantity}))),
       'USE_ITEM은 소지한 food/water/medicine/fuel 1단위를 사용하거나 tool을 사용합니다. DROP_ITEM은 소지품을 현재 장소에 내려놓습니다. INTERACT에 resourceKey를 지정하면 해당 장소의 실제 자원 1단위를 작업에 소비합니다. 새 아이템을 만들거나 작업 성공을 보장하지 않습니다. 직업·장점은 가능한 시도를 판단하는 맥락이며 성공을 보장하지 않습니다.',
       'MOVE는 알고 있는 인접 장소로 이동, TAKE_ITEM은 현재 장소의 기존 물건 하나를 가져오기, GIVE_ITEM은 소지품 하나를 전달합니다. EAT/DRINK는 현재 장소의 food/water 자원을 1단위 소비합니다. SHARE_INFO는 자신의 factId를 상대에게 전달합니다. EXPLORE는 기존 장소/정보만 탐색합니다. REST/SLEEP/WAIT는 정상 선택입니다. 긴 행동은 엔진이 시간 동안 실행하며 재판단하지 않습니다. 타인의 반응·동의·행동이나 결과를 확정하지 마십시오. 성적 행동은 지원하지 않으며 욕구 수치가 행동을 강제하지 않습니다.',
-      'intendedAction은 게임 로그나 시스템 문구가 아니라 소설처럼 자연스러운 한두 문장으로 쓰십시오. 위의 세계 배경·장르·현재 장소·자신의 상태(허기, 피로 등)에 어울리는 구체적인 행동으로 묘사하십시오. 예: "허기가 올라와 다급히 바다로 들어가 물고기라도 잡아보려 한다", "나무에 열린 열매를 따려고 손을 뻗는다". "~을(를) 확보하려 시도한다", "~을 채취하여 소지품으로 확보한다" 같은 기계적·사무적 표현은 쓰지 마십시오. 다만 시도만 적고 성공·발견·타인의 반응을 지어내지 마십시오. 사용하지 않는 선택 필드는 null 또는 []로 반환하십시오.'
+      'intendedAction은 게임 로그나 시스템 문구가 아니라 소설처럼 자연스러운 한두 문장으로 쓰십시오. 위의 세계 배경·장르·현재 장소·자신의 상태(허기, 피로 등)에 어울리는 구체적인 행동으로 묘사하십시오. 예: "허기가 올라와 다급히 바다로 들어가 물고기라도 잡아보려 한다", "나무에 열린 열매를 따려고 손을 뻗는다". "~을(를) 확보하려 시도한다", "~을 채취하여 소지품으로 확보한다" 같은 기계적·사무적 표현은 쓰지 마십시오. 다만 시도만 적고 성공·발견·타인의 반응을 지어내지 마십시오. 사용하지 않는 선택 필드는 null 또는 []로 반환하십시오.',
+      'areaHint는 지금 장소가 넓을 때(예: 섬 전체) 이 행동이 그 안 어디서 일어나는지를 나타냅니다: SHORE(해안가), FOREST(숲), HIGH_GROUND(고지대/전망대), CAVE(동굴), WATER(물가/개울), CAMP(야영지/거처), CENTER(중심/기타). intendedAction의 실제 내용과 일치하게 고르십시오(예: "해안가로 간다"면 SHORE). 특정 구역과 무관하면 null을 반환하십시오 — null이면 이전 위치를 유지합니다.'
       // The exact schema is already enforced by response_format/tool_choice — restating the full
       // JSON schema in the prompt text only duplicates ~900 bytes without adding information.
       ].join('\n\n') })

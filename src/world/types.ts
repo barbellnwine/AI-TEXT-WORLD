@@ -79,6 +79,7 @@ export interface AgentPublicState {
   visibleGoal: string | null
   lastAction: string | null
   lastActiveAt: string
+  localArea?: string
 }
 
 export interface AgentKnowledgeEntry {

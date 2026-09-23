@@ -2,6 +2,12 @@
 // touches WorldState directly. Only worldValidator.ts + actionResolver.ts may do that, and only
 // after every check in worldValidator.ts passes. This file has no dependency on any LLM SDK.
 
+// A generic set of sub-areas any single place can contain (a "place" can be a whole 2km island —
+// this lets an agent's position on the map move within it without needing a separate place per
+// spot). Deliberately setting-agnostic so it applies to an island, a building, a forest, etc.
+export const LOCAL_AREAS = ['SHORE', 'FOREST', 'HIGH_GROUND', 'CAVE', 'WATER', 'CAMP', 'CENTER'] as const
+export type LocalArea = typeof LOCAL_AREAS[number]
+
 export type ProposedActionType =
   | 'MOVE'
   | 'SPEAK'
@@ -42,6 +48,9 @@ export interface ProposedAction {
   resourceKey?: string
   factId?: string
   durationMinutes?: number
+  // Where within the current (possibly large) place this action is happening. Sticky: WORLD
+  // ENGINE keeps the actor's last known area when an action doesn't specify one.
+  areaHint?: LocalArea
 }
 
 export type RejectionReason =
