@@ -20,10 +20,12 @@ export interface WorldExecution {
   draft: DraftDTO
   rules: RulePresetDTO['rules']
   mode: 'demo' | 'live'
+  // Frozen at START WORLD. Absent on older checkpoints = v3.
+  engine?: 'v3' | 'v4'
 }
 export interface WorldModelRequest {
   maxOutputTokens?: number
-  role: 'agent' | 'planner' | 'judge' | 'narrator'
+  role: 'agent' | 'planner' | 'judge' | 'narrator' | 'character' | 'gm'
   provider: string
   model: string
   prompt: string
@@ -332,12 +334,22 @@ export function ensureModelConfigured(request: Pick<WorldModelRequest, 'provider
   if (!DEFAULT_PRICING.some(p => p.provider === request.provider && p.model === request.model)) throw new ProviderCallError('MODEL_PRICING_MISSING', 'configure model and pricing before running')
 }
 
+// v4 prompts carry narrative context (Korean is 3 bytes/char), so they get their own bound.
+export const V4_MAX_REQUEST_BYTES = 48_000
+const longForm = (request: Pick<WorldModelRequest, 'role'>) => request.role === 'narrator' || request.role === 'gm'
+const requestLimit = (request: Pick<WorldModelRequest, 'role'>) => request.role === 'gm' || request.role === 'character' ? V4_MAX_REQUEST_BYTES : MAX_PROVIDER_REQUEST_BYTES
+// The GM model: explicit WORLD_GM_MODEL (with its pricing) or the provider's configured model.
+export function gmModel(): { provider: 'openai' | 'anthropic'; model: string } {
+  const provider = config.worldGmProvider
+  return { provider, model: config.worldGmModel || (provider === 'openai' ? config.openaiModel : config.anthropicModel) }
+}
+
 function serializeWorldRequest(request: WorldModelRequest): string {
   const body = JSON.stringify(request.provider === 'openai' ? {
-    model: request.model, messages: [{ role: 'user', content: request.prompt }], max_completion_tokens: Math.min(request.role==='narrator'?12000:6000, request.maxOutputTokens ?? 1500),
+    model: request.model, messages: [{ role: 'user', content: request.prompt }], max_completion_tokens: Math.min(longForm(request)?12000:6000, request.maxOutputTokens ?? 1500),
     response_format: { type: 'json_schema', json_schema: { name: `world_${request.role}`, strict: true, schema: request.schema } },
   } : {
-    model: request.model, messages: [{ role: 'user', content: request.prompt }], max_tokens: Math.min(request.role==='narrator'?12000:6000, request.maxOutputTokens ?? 1500),
+    model: request.model, messages: [{ role: 'user', content: request.prompt }], max_tokens: Math.min(longForm(request)?12000:6000, request.maxOutputTokens ?? 1500),
     tools: [{ name: 'submit_world_result', description: 'Submit the structured result.', input_schema: request.schema }],
     tool_choice: { type: 'tool', name: 'submit_world_result' },
   })
@@ -346,9 +358,9 @@ function serializeWorldRequest(request: WorldModelRequest): string {
 
 export function worldRequestBody(request: WorldModelRequest): string {
   const body=serializeWorldRequest(request)
-  if (Buffer.byteLength(body) > MAX_PROVIDER_REQUEST_BYTES) {
+  if (Buffer.byteLength(body) > requestLimit(request)) {
     // Temporary diagnostic: pinpoint which requests overflow and by how much (never logs prompt content).
-    console.error(`[world] WORLD_CONTEXT_TOO_LARGE role=${request.role} provider=${request.provider} bytes=${Buffer.byteLength(body)} limit=${MAX_PROVIDER_REQUEST_BYTES} promptBytes=${Buffer.byteLength(request.prompt)}`)
+    console.error(`[world] WORLD_CONTEXT_TOO_LARGE role=${request.role} provider=${request.provider} bytes=${Buffer.byteLength(body)} limit=${requestLimit(request)} promptBytes=${Buffer.byteLength(request.prompt)}`)
     throw new ProviderCallError('WORLD_CONTEXT_TOO_LARGE', 'shorten world rules or character context')
   }
   return body
@@ -362,7 +374,7 @@ export const worldModelAdapter: WorldModelAdapter = async request => {
       ? { 'content-type': 'application/json', authorization: `Bearer ${config.openaiApiKey}` }
       : { 'content-type': 'application/json', 'x-api-key': config.anthropicApiKey, 'anthropic-version': '2023-06-01' },
     body: worldRequestBody(request),
-    }, 0, request.role === 'narrator' ? 120_000 : config.requestTimeoutMs) // Long prose has a bounded separate timeout; no paid retries.
+    }, 0, longForm(request) ? 120_000 : request.role === 'character' ? Math.max(config.requestTimeoutMs, 45_000) : config.requestTimeoutMs) // Long prose has a bounded separate timeout; no paid retries.
   if (!response.ok) throw new ProviderCallError(`WORLD_PROVIDER_HTTP_${response.status}`, 'world provider request failed')
   const data = await response.json() as {
     choices?: Array<{ finish_reason?: string; message: { content?: string; refusal?: string } }>

@@ -56,6 +56,7 @@ export interface EngineState {
     plans: Array<{ id: string; sourceEventId?: string; placeId: string; proposerId: string; participantIds: string[]; createdMinute: number; expiresMinute: number; status: 'proposed' | 'active' | 'completed' | 'exhausted' | 'expired'; tasks: Array<{ id: string; actorId: string; intent: import('./actionSchema.ts').ActionIntent; status: 'invited' | 'suggested' | 'in_progress' | 'completed' | 'blocked'; result?: string }> }>
   }
   context?: { genre: string; background: string }
+  v4?: import('./v4/sceneTypes.ts').V4State
   studio?: import('./studioEngine.ts').StudioRuntime
   weather?: import('./studioEngine.ts').WeatherState
   version: 1

@@ -45,6 +45,8 @@ import { processStudio } from '../world/studioEngine.ts'
 import { validateGmEvent } from '../world/worldValidator.ts'
 import { applyStateChanges } from '../world/stateTransition.ts'
 import { eraseWorldDesign } from './worldDrafts.ts'
+import { runScene } from '../world/v4/sceneEngine.ts'
+import { runDirector, ensureV4State } from '../world/v4/director.ts'
 
 const DEFAULT_TICK_MS = 5_000
 const MAX_EVENTS_KEPT = 500
@@ -469,7 +471,7 @@ export function getPublicRuntime() {
 export function getAdminRuntime(): WorldRuntime {
   return { ...state.runtime, schedulerRegistered: timer !== null && !shuttingDown,
     tickSkipReason: timer === null && state.runtime.status === 'RUNNING' ? 'scheduler_not_registered' : state.runtime.tickSkipReason,
-    mode: state.execution?.mode ?? 'preview', queuedEvents: state.worldState.engine?.ongoingActions.length ?? state.queued.length, maxActiveCharacters: config.maxActiveCharacters, worldMinutesPerTick: state.execution?.draft.studio?.minutesPerTick ?? config.worldMinutesPerTick }
+    mode: state.execution?.mode ?? 'preview', queuedEvents: state.worldState.engine?.ongoingActions.length ?? state.queued.length, maxActiveCharacters: config.maxActiveCharacters, worldMinutesPerTick: state.execution?.draft.studio?.minutesPerTick ?? config.worldMinutesPerTick, engine: v4Active() ? 'v4' : 'v3' }
 }
 
 export function listActionAudit(): WorldEvent[] { return state.events.filter(e => e.provenance).slice(0, 50) }
@@ -486,7 +488,8 @@ export function advanceWorldTick(minutes = state.execution?.draft.studio?.minute
   if (reactionPending) return
   if(state.runtime.lockHolder==='combat-adjudication')return
   const previousDay = state.worldState.clock.day
-  state.worldState.engine!.requireCombatAdjudication=state.execution.mode==='live'
+  // v4 never runs the v3 combat adjudicator; a v3 attack left over from before a switch resolves by the engine's own rules.
+  state.worldState.engine!.requireCombatAdjudication=state.execution.mode==='live'&&!v4Active()
   state.runtime.lastTickAt = new Date().toISOString()
   const deadline = state.execution.draft.maxDays === null ? Infinity : (state.execution.draft.startDay - 1 + state.execution.draft.maxDays) * 1440
   advanceEngine(state.worldState, Math.min(minutes, Math.max(0, deadline - state.worldState.engine!.minute)), state.events, recordEngineEvent)
@@ -797,6 +800,7 @@ async function callModel(request: WorldModelRequest, actorId: string): Promise<u
 }
 
 function queueChapter(e: WorldEvent): void {
+  if (v4Active()) return // v4 scenes carry their own prose; the v3 chapter narrator never runs.
   if (!storyEvent(e)) return
   if (e.outcome === 'REJECTED' || e.visibility === 'private' || !state.execution) return
   if (state.chapterBuffer && state.chapterBuffer.day !== e.day) flushChapter(true)
@@ -942,7 +946,7 @@ async function enhanceSceneNarration(sceneId: string, events: WorldEvent[]): Pro
 const dayJobs=new Set<string>()
 const dayAttempts=new Map<string,number>()
 export async function refreshDayNarration(day: number, force=false): Promise<void> {
-  if(!narratorEnabled)return
+  if(!narratorEnabled||v4Active())return
   const seasonId=state.season.id,key=`${seasonId}:${day}`
   if(dayJobs.has(key))return
   const all=historyEvents().filter(e=>e.day===day&&storyEvent(e)).sort((a,b)=>(a.worldMinute??0)-(b.worldMinute??0))
@@ -1024,9 +1028,88 @@ export async function rebuildCurrentNarration(): Promise<void> {
   for(const day of [...new Set(historyEvents().map(e=>e.day))].slice(-2))await refreshDayNarration(day,true)
 }
 
+// --- v4 scene engine ---------------------------------------------------------
+
+// v4 needs real models; a demo-mode world always stays on the deterministic v3 engine.
+// Seasons that never chose an engine (including checkpoints from before v4) follow the server default.
+function v4Active(): boolean { return (state.execution?.engine ?? config.worldEngine) === 'v4' && state.execution?.mode === 'live' }
+
+function publishScene(scene: ChronicleEntry): void {
+  state.scenes.push(scene)
+  broadcast({ type: 'scene', payload: scene })
+}
+
+// Retrying these only burns reservations: a bad key, missing price or empty budget won't fix itself.
+const FATAL_SCENE_ERRORS = new Set(['BUDGET_LIMIT', 'PROVIDER_KEY_MISSING', 'MODEL_PRICING_MISSING', 'PROVIDER_LIMITS_UNCONFIRMED', 'WORLD_STORAGE_REQUIRED', 'WORLD_PROVIDER_HTTP_401', 'WORLD_PROVIDER_HTTP_403'])
+
+async function performScene(): Promise<void> {
+  if (shuttingDown || state.runtime.status !== 'RUNNING' || !state.execution || state.runtime.decisionsPaused) return
+  const execution = state.execution
+  const v4 = ensureV4State(state.worldState, execution)
+  // Director pressure is deterministic and free; it runs every tick, independent of model cooldown.
+  for (const e of runDirector(state.worldState, execution)) {
+    pushEvent(e, true)
+    if (e.cause !== 'director:zone_damage') publishScene({ id: `scene-director-${e.id}`, kind: 'LIVE', seasonId: state.season.id, worldDay: e.day,
+      timeStart: e.worldTime ?? state.worldState.clock.time, timeEnd: e.worldTime ?? state.worldState.clock.time, title: e.title, body: e.summary,
+      locationIds: [e.placeId], agentIds: [], sourceEventIds: [e.id], stateChanges: e.stateChanges, importance: 'notable', createdAt: new Date().toISOString() })
+  }
+  if ((state.nextPaidDecisionAt ?? 0) > Date.now()) { state.runtime.tickSkipReason = 'decision_cooldown'; return }
+  state.nextPaidDecisionAt = Date.now() + config.worldSceneCooldownMs
+  const ticket = revision
+  const current = () => ticket === revision && state.runtime.status === 'RUNNING' && !shuttingDown
+  state.runtime.lockHolder = 'scene'
+  try {
+    const applied = await runScene(state.worldState, execution, state.season.id, { callModel, current, scenes: () => state.scenes })
+    if (applied && current()) {
+      v4.consecutiveFailures = 0
+      pushEvent(applied.event, true)
+      publishScene(applied.scene)
+      state.season.survivorCount = state.worldState.agents.filter(a => a.publicState.status !== 'deceased').length
+    } else if (current()) v4.consecutiveFailures++
+  } catch (error) {
+    if (ticket === revision) {
+      const code = error instanceof ProviderCallError ? error.code : error instanceof Error && error.message === 'call_budget_exhausted' ? 'CALL_BUDGET_EXHAUSTED' : 'WORLD_SCENE_FAILED'
+      console.error('[world-v4] scene failed', code, error instanceof Error ? error.message : error)
+      recordRuntimeError('scene', code)
+      v4.consecutiveFailures++
+      if (FATAL_SCENE_ERRORS.has(code) || code === 'CALL_BUDGET_EXHAUSTED') { state.runtime.decisionsPaused = true; state.runtime.decisionStatus = code }
+    }
+  } finally {
+    // Three unusable scenes in a row means something is systematically wrong — stop spending.
+    if (v4.consecutiveFailures >= 3 && !state.runtime.decisionsPaused) { state.runtime.decisionsPaused = true; state.runtime.decisionStatus = 'SCENE_REPEATEDLY_FAILED' }
+    state.runtime.lockHolder = null
+    if (state.runtime.decisionsPaused && state.runtime.status === 'RUNNING') pauseSeason()
+    persist()
+    broadcast({ type: 'runtime', payload: publicRuntime() })
+  }
+}
+
+// A v4 DAY chapter is simply that day's scenes in order — the prose already is the story.
+function v4DayStories(): ChronicleEntry[] {
+  const days = [...new Set(state.scenes.map(s => s.worldDay))].sort((a, b) => b - a)
+  return days.map(day => {
+    const scenes = state.scenes.filter(s => s.worldDay === day).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    const placeName = (id: string | undefined) => state.worldState.places.find(p => p.id === id)?.name ?? ''
+    return { id: `day-${state.season.id}-${day}`, kind: 'DAY' as const, seasonId: state.season.id, worldDay: day,
+      timeStart: scenes[0].timeStart, timeEnd: scenes.at(-1)!.timeEnd, title: `DAY ${day}`,
+      body: scenes.map(s => `${s.timeStart} · ${placeName(s.locationIds[0])} — ${s.title}\n\n${s.body}`).join('\n\n＊ ＊ ＊\n\n'),
+      locationIds: [...new Set(scenes.flatMap(s => s.locationIds))], agentIds: [...new Set(scenes.flatMap(s => s.agentIds))],
+      sourceEventIds: scenes.flatMap(s => s.sourceEventIds), stateChanges: [],
+      importance: scenes.some(s => s.importance === 'major') ? 'major' as const : scenes.some(s => s.importance === 'notable') ? 'notable' as const : 'ordinary' as const,
+      createdAt: scenes[0].createdAt, completed: day < state.worldState.clock.day || state.runtime.status === 'ENDED' }
+  })
+}
+
 export function runWorldTick(): Promise<void> {
   if (activeTick) return activeTick
   const minutes=state.execution?.draft.studio?.minutesPerTick??config.worldMinutesPerTick
+  if (v4Active()) {
+    activeTick = (async()=>{
+      advanceWorldTick(minutes)
+      if (state.runtime.status === 'RUNNING') await performScene()
+    })().finally(() => { activeTick = null })
+    return activeTick
+  }
   const rounds=minutes>=120?2:1
   const start=state.worldState.engine?.minute??0
   const paidRoundAllowed=(state.nextPaidDecisionAt??0)<=Date.now()
@@ -1354,6 +1437,7 @@ export type { ProviderUsage }
 
 // DAY chapters are derived from the append-only event journal, not truncated LIVE pages.
 export function listDayStories(): ChronicleEntry[] {
+  if (v4Active()) return v4DayStories()
   const events = historyEvents().map(toPublicEvent)
   const days = [...new Set(events.map(e => e.day))].sort((a,b) => b-a)
   return days.map(day => {

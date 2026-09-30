@@ -4,7 +4,7 @@ import { eventProse } from '../domain/eventProse.ts'
 
 export function toPublicAgent(agent: Agent): Omit<Agent, 'hiddenNotes'> {
   const { hiddenNotes: _hidden, ...publicAgent } = agent
-  return { ...publicAgent, dispositions: undefined, motivations: undefined, observedPossessions: undefined, knowledge: [], memories: [], knownPlaceIds: [], wakeReason: undefined,
+  return { ...publicAgent, dispositions: undefined, motivations: undefined, observedPossessions: undefined, knowledge: [], memories: [], journal: undefined, knownPlaceIds: [], wakeReason: undefined,
     relationships: agent.relationships.map(({ note: _note, ...relationship }) => relationship) }
 }
 
@@ -25,7 +25,7 @@ export function toPublicWorld(world: WorldState): WorldState {
   const places = world.places.filter(p => p.isDiscovered !== false)
   const visible = new Set(places.map(p => p.id))
   return { ...world, places: places.map(p => ({ ...p, connectedPlaceIds: p.connectedPlaceIds.filter(id => visible.has(id)) })), agents: world.agents.map(toPublicAgent),
-    engine: world.engine ? { ...world.engine, decisions: undefined, interactions: undefined, outcomes: undefined, studio: undefined, truths: [], behavior: undefined, combatAlerts: undefined,
+    engine: world.engine ? { ...world.engine, decisions: undefined, interactions: undefined, outcomes: undefined, studio: undefined, truths: [], behavior: undefined, combatAlerts: undefined, v4: undefined,
       connections: world.engine.connections.filter(c => visible.has(c.fromPlaceId) && visible.has(c.toPlaceId)).map(c => ({ ...c, requirements: '' })),
       objects: world.engine.objects.filter(o => o.location.kind === 'place' && visible.has(o.location.id)),
       ongoingActions: world.engine.ongoingActions.map(a => ({ ...a, adjudication:undefined, proposal: { actorId: a.proposal.actorId, actionType: a.proposal.actionType,

@@ -134,6 +134,8 @@ export interface Agent {
   wakeReason?: string
   knownPlaceIds?: string[]
   memories?: AgentMemory[]
+  // v4 scene engine: the character's private running journal (never public).
+  journal?: import('../world/v4/sceneTypes.ts').JournalEntry[]
   id: string
   name: string
   codeNumber: string
@@ -312,6 +314,7 @@ export interface WorldRuntime {
     }
   maxActiveCharacters?: number
   worldMinutesPerTick?: number
+  engine?: 'v3' | 'v4'
   decisionsPaused?: boolean
   decisionStatus?: string
   mode?: 'preview' | 'demo' | 'live'

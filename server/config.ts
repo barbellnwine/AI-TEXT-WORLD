@@ -46,6 +46,15 @@ export const config = {
   worldDecisionCooldownMs: Math.max(1000, num(process.env.WORLD_DECISION_COOLDOWN_MS, 30_000)),
   worldChapterMinutes: Math.max(10, num(process.env.WORLD_CHAPTER_MINUTES, 60)),
 
+  // v4 SCENE ENGINE. A world design may pick its engine in the studio; this is the default for
+  // designs that don't. v4 only runs in live mode (it needs real models); demo worlds stay on v3.
+  worldEngine: process.env.WORLD_ENGINE === 'v3' ? 'v3' as const : 'v4' as const,
+  // GM = scene adjudication + literary prose. Defaults to whichever provider has a key (OpenAI
+  // first) and that provider's configured model. WORLD_GM_MODEL needs its own pricing (below).
+  worldGmProvider: (process.env.WORLD_GM_PROVIDER === 'anthropic' || process.env.WORLD_GM_PROVIDER !== 'openai' && !process.env.OPENAI_API_KEY && process.env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai') as 'openai' | 'anthropic',
+  worldGmModel: process.env.WORLD_GM_MODEL ?? '',
+  worldSceneCooldownMs: Math.max(5_000, num(process.env.WORLD_SCENE_COOLDOWN_MS, 45_000)),
+
   weeklyBudgetKrw: num(process.env.AI_COMMUNITY_WEEKLY_BUDGET_KRW, 10000),
   monthlyBudgetKrw: num(process.env.AI_COMMUNITY_MONTHLY_BUDGET_KRW, 40000),
   budgetSafetyMargin: num(process.env.AI_COMMUNITY_BUDGET_SAFETY_MARGIN, 0.2),
@@ -68,3 +77,8 @@ export const DEFAULT_PRICING: Array<{ provider: 'openai' | 'anthropic'; model: s
   { provider: 'openai', model: config.openaiModel, inputUsdPerMTok: 0.4, outputUsdPerMTok: 1.6 },
   { provider: 'anthropic', model: config.anthropicModel, inputUsdPerMTok: 1.0, outputUsdPerMTok: 5.0 },
 ]
+// A dedicated GM model is only usable with explicit prices, so the shared budget stays accurate.
+const gmInput = Number(process.env.WORLD_GM_INPUT_USD_PER_MTOK), gmOutput = Number(process.env.WORLD_GM_OUTPUT_USD_PER_MTOK)
+if (config.worldGmModel && Number.isFinite(gmInput) && gmInput > 0 && Number.isFinite(gmOutput) && gmOutput > 0 &&
+  !DEFAULT_PRICING.some(p => p.provider === config.worldGmProvider && p.model === config.worldGmModel))
+  DEFAULT_PRICING.push({ provider: config.worldGmProvider, model: config.worldGmModel, inputUsdPerMTok: gmInput, outputUsdPerMTok: gmOutput })

@@ -21,6 +21,11 @@ export interface StudioConfig {
   characters: Record<string, StudioCharacter>; items: StudioItem[]; events: StudioEvent[]; truths: StudioTruth[]
   relationships: Array<{ from: string; to: string; kind: RelationKind }>
   endings: EndRule[]; endMode: 'AND' | 'OR'
+  // Simulation engine for this world. Absent = server default (WORLD_ENGINE).
+  engine?: 'v3' | 'v4'
+  // v4 content intensity. mature = adult dark survival (brutal violence, killing, betrayal).
+  // Absent = inferred from the premise (last-survivor or adult/dark genre).
+  maturity?: 'standard' | 'mature'
 }
 export function defaultStudio(limit = 10): StudioConfig { return { version: 2, climate: '온대', rainChance: 35, persistence: 65, baseTemperature: 18, activeLimit: Math.min(3, limit), minutesPerTick: 5, seed: 12345, characters: {}, items: [], events: [], truths: [], relationships: [], endings: [], endMode: 'OR' } }
 export function defaultCharacter(): StudioCharacter { return { orientation: '이성애', health: 10, energy: 8, hunger: 2, thirst: 2, loneliness: 2 } }

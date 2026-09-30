@@ -153,7 +153,10 @@ export function startWorldFromDraft(db: DatabaseSync, draft: DraftDTO): LaunchRe
   }
 
   db.prepare("UPDATE world_drafts SET status='ENDED', ended_at=? WHERE status IN ('RUNNING', 'PAUSED') AND id<>?").run(nowIso, draft.id)
-  store.loadWorldState({ season, worldState, initialEvent, execution: { draft, rules: preset?.rules ?? [], mode: config.worldDemoMode ? 'demo' : 'live' } })
+  const mode = config.worldDemoMode ? 'demo' as const : 'live' as const
+  const engine = draft.studio?.engine ?? config.worldEngine
+  if (engine === 'v4' && mode === 'demo') console.warn('[world] v4 scene engine needs live mode (AI_WORLD_DEMO_MODE=false); this season runs on v3')
+  store.loadWorldState({ season, worldState, initialEvent, execution: { draft, rules: preset?.rules ?? [], mode, engine } })
   setDraftStatus(db, draft.id, 'RUNNING', { startedAt: nowIso })
   return { ok: true, warnings: validation.warnings }
 }

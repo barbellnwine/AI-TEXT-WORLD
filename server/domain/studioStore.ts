@@ -30,6 +30,8 @@ export function saveStudio(db: DatabaseSync, id: string, input: DraftDTO): Draft
   if (s.version !== 2 || !s.characters || !['items','events','truths','relationships','endings'].every(k=>Array.isArray(s[k as 'items']))) throw new HttpError(400,'invalid_studio_shape')
   const validNum = (v: number, min: number, max: number) => Number.isFinite(v) && v >= min && v <= max
   if (!validNum(s.activeLimit, 1, config.maxActiveCharacters) || !Number.isInteger(s.activeLimit) || !validNum(s.minutesPerTick, 1, 1440) || !Number.isInteger(s.minutesPerTick) || !CLIMATES.includes(s.climate) || !validNum(s.rainChance, 0, 100) || !validNum(s.persistence, 0, 100) || !validNum(s.baseTemperature, -60, 60)) throw new HttpError(400, 'invalid_simulation_settings')
+  if (s.engine !== undefined && s.engine !== 'v3' && s.engine !== 'v4') throw new HttpError(400, 'invalid_simulation_settings')
+  if (s.maturity !== undefined && s.maturity !== 'standard' && s.maturity !== 'mature') throw new HttpError(400, 'invalid_simulation_settings')
   if (!validNum(data.simSpeedMs, 5000, 3600000) || !validNum(data.targetPopulation, 1, 100) || !Number.isInteger(data.targetPopulation) || data.characters.length > 100 || data.places.length > 100 || data.maxDays !== null && (!Number.isInteger(data.maxDays) || data.maxDays < 1)) throw new HttpError(400, 'invalid_world_limits')
   for (const c of data.characters) {
     try { if (c.dispositions) c.dispositions = parseDispositions(c.dispositions) } catch { throw new HttpError(400, 'invalid_dispositions') }
