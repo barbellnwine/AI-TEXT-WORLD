@@ -1088,7 +1088,10 @@ async function performScene(): Promise<void> {
 function v4DayStories(): ChronicleEntry[] {
   const days = [...new Set(state.scenes.map(s => s.worldDay))].sort((a, b) => b - a)
   return days.map(day => {
-    const scenes = state.scenes.filter(s => s.worldDay === day).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    // Story time, not publication time: a scene covering 02:35–03:00 precedes a 03:00 broadcast.
+    // A scene that began the previous evening (23:40–00:20) opens the day.
+    const start = (s: ChronicleEntry) => s.timeStart <= s.timeEnd ? s.timeStart : '00:00'
+    const scenes = state.scenes.filter(s => s.worldDay === day).sort((a, b) => start(a).localeCompare(start(b)) || a.createdAt.localeCompare(b.createdAt))
     const placeName = (id: string | undefined) => state.worldState.places.find(p => p.id === id)?.name ?? ''
     return { id: `day-${state.season.id}-${day}`, kind: 'DAY' as const, seasonId: state.season.id, worldDay: day,
       timeStart: scenes[0].timeStart, timeEnd: scenes.at(-1)!.timeEnd, title: `DAY ${day}`,

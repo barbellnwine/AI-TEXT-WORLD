@@ -53,6 +53,7 @@ test('v4 runs one scene: free character intents, GM prose published, crafted ite
     assert.match(gmPrompt, /\[수위\]/)
     assert.match(gmPrompt, /성폭력은[^\n]*묘사하거나 암시하지 않는다/, 'sexual content is excluded at every intensity')
     assert.match(gmPrompt, /생존자 5명/)
+    assert.match(gmPrompt, /한자리에서 마주치게/, 'people sharing a place meet on the page')
     const scene = store.listScenes({ limit: 5 }).items.find(s => s.id.startsWith('scene-v4-'))
     assert.ok(scene); assert.equal(scene.body, PROSE); assert.equal(scene.title, '의자 다리로 만든 창')
     const w = store.getWorldState()
