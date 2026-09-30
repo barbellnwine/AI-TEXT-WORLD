@@ -1,4 +1,5 @@
 import { test, after } from 'node:test'
+import { writeFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { createServer } from 'node:http'
@@ -19,6 +20,11 @@ import { config } from '../server/config.ts'
 import { parseProposedAction, worldModelAdapter, ACTION_SCHEMA, agentRequest, judgeRequest, worldRequestBody, type WorldModelAdapter } from '../server/domain/worldAgent.ts'
 import { MAX_PROVIDER_REQUEST_BYTES } from '../server/providers/requestBody.ts'
 import { toPublicWorld } from '../server/world/publicView.ts'
+import { behaviorContext } from '../server/world/behaviorPolicy.ts'
+import { eventProse } from '../server/domain/eventProse.ts'
+import { meaningfulChanges } from '../server/world/stateThresholds.ts'
+import { composeDay, storyEvent, validateEditorialPlan } from '../server/domain/storyComposition.ts'
+import { prepareDecision } from '../server/world/decisionController.ts'
 import { Router } from '../server/http.ts'
 import { registerAuthRoutes } from '../server/api/authRoutes.ts'
 import { registerWorldAdminRoutes } from '../server/api/worldAdminRoutes.ts'
@@ -29,6 +35,359 @@ import { hashPassword } from '../server/auth/password.ts'
 import { getMonthlyLedger, setSetting } from '../server/domain/budget.ts'
 
 after(() => store.stopSimulationTimerForTests())
+
+test('same-instant living counterattack resolves instead of being cancelled by array order',async()=>{
+ const ctx=setup(undefined,false)
+ try{
+  const world=store.getWorldState(),[a,b]=world.agents
+  for(const p of [a,b]){p.body={health:1,injury:1};p.humanState!.fatigue=1;p.publicState.localArea='CENTER'}
+  for(const [actor,target] of [[a,b],[b,a]])beginAction(world,{actorId:actor.id,locationId:actor.publicState.locationId,actionType:'ATTACK',targetIds:[target.id],intendedAction:'counterstrike'})
+  const events=advanceEngine(world,5)
+  assert.equal(events.filter(e=>e.actionType==='ATTACK'&&e.phase==='COMPLETED').length,2)
+  assert.equal(events.filter(e=>e.phase==='CANCELLED').length,0)
+  assert.ok(a.body!.injury>1&&b.body!.injury>1)
+ }finally{await ctx.close()}
+})
+
+test('an already-selected eating target gets an independent reaction slot and cannot ignore the visible threat',async()=>{
+ let agentCalls=0
+ const ctx=setup(async request=>{
+  if(request.role==='judge')return{raw:{approved:true,reason:'fixture',ended:false},inputTokens:1,outputTokens:1}
+  agentCalls++;const [a,b]=store.getWorldState().agents
+  const actor=agentCalls===2?b:a
+  const chosen=prepareDecision(store.getWorldState(),actor.id,[]).choices.find(c=>c.action.actionType===(agentCalls===2?'ATTACK':agentCalls===1?'EAT':'OBSERVE'))!
+  assert.ok(chosen,`missing V2 candidate for call ${agentCalls}`)
+  return{raw:{...chosen.action,targetIds:chosen.action.targetIds,usedItemIds:chosen.action.usedItemIds??[],candidateId:chosen.id,publicAction:chosen.action.intendedAction},inputTokens:1,outputTokens:1}
+ })
+ try{
+  const world=store.getWorldState(),[a,b]=world.agents;store.setMaxActiveAgents(2)
+  world.places[0].resources.push({key:'food',label:'food',level:5,max:5,trend:'stable'})
+  b.relationships.push({agentId:b.id,otherAgentId:a.id,stance:'hostile',hostility:8})
+  a.humanState!.survival_need=8;a.nextDecisionAt=b.nextDecisionAt=0
+  await store.runWorldTick()
+  assert.equal(agentCalls,3)
+  const response=world.engine!.ongoingActions.find(t=>t.proposal.actorId===a.id)!
+  assert.ok(response);assert.ok(!['EAT','DRINK','SLEEP','REST'].includes(response.proposal.actionType))
+  const interruption=store.listEvents({offset:0,limit:100}).items.find(e=>e.cause==='visible_attack_interrupt')!
+  assert.ok(interruption);assert.doesNotMatch(interruption.actionResult!,/공격해 부상/)
+ }finally{await ctx.close()}
+})
+test('same tick collects both agent intents before either start mutates WORLD STATE',async()=>{
+ let agentCalls=0
+ const observedOngoing:number[]=[]
+ const ctx=setup(async request=>{
+   if(request.role==='judge')return {raw:{approved:true,reason:'fixture',ended:false},inputTokens:1,outputTokens:1}
+   const world=store.getWorldState(), actor=selectDecisionAgents(world,2)[agentCalls++]
+   observedOngoing.push(world.engine!.ongoingActions.length)
+   const chosen=prepareDecision(world,actor.id,[]).choices.find(c=>c.action.actionType==='WAIT')!
+   return {raw:{...chosen.action,targetIds:[],usedItemIds:[],candidateId:chosen.id,publicAction:chosen.action.intendedAction},inputTokens:1,outputTokens:1}
+ })
+ try{
+   store.setMaxActiveAgents(2)
+   for(const actor of store.getWorldState().agents)actor.nextDecisionAt=0
+   await store.runWorldTick()
+   assert.deepEqual(observedOngoing,[0,0])
+   assert.equal(store.getWorldState().engine!.ongoingActions.length,2)
+ }finally{await ctx.close()}
+})
+
+test('same-tick competition for one water unit starts only one claim and preserves stock until completion',async()=>{
+ let calls=0
+ const ctx=setup(async request=>{
+   if(request.role==='judge')return {raw:{approved:true,reason:'fixture',ended:false},inputTokens:1,outputTokens:1}
+   const world=store.getWorldState(),actor=selectDecisionAgents(world,2)[calls++]
+   const chosen=prepareDecision(world,actor.id,[]).choices.find(c=>c.action.actionType==='DRINK')!
+   assert.ok(chosen)
+   return {raw:{...chosen.action,targetIds:[],usedItemIds:[],candidateId:chosen.id,publicAction:chosen.action.intendedAction},inputTokens:1,outputTokens:1}
+ })
+ try{
+   const world=store.getWorldState();store.setMaxActiveAgents(2)
+   world.places[0].resources.push({key:'water',label:'water',level:1,max:1,trend:'stable'})
+   for(const actor of world.agents){actor.nextDecisionAt=0;actor.humanState!.survival_need=8}
+   await store.runWorldTick()
+   assert.equal(calls,2)
+   assert.equal(world.engine!.ongoingActions.filter(t=>t.proposal.actionType==='DRINK').length,1)
+   assert.equal(world.places[0].resources.find(r=>r.key==='water')!.level,1)
+   assert.equal(store.diagnosticSnapshot().events.filter(e=>e.actionType==='DRINK'&&e.outcome==='REJECTED').length,1)
+ }finally{await ctx.close()}
+})
+
+test('two attacks selected from one snapshot are simultaneous, not fabricated counterattacks',async()=>{
+ let calls=0
+ const ctx=setup(async request=>{
+   if(request.role==='judge')return {raw:{approved:true,reason:'fixture',ended:false},inputTokens:1,outputTokens:1}
+   const world=store.getWorldState(),actor=selectDecisionAgents(world,2)[calls++]
+   const chosen=prepareDecision(world,actor.id,[]).choices.find(c=>c.action.actionType==='ATTACK')!
+   assert.ok(chosen)
+   return {raw:{...chosen.action,targetIds:chosen.action.targetIds,usedItemIds:chosen.action.usedItemIds??[],candidateId:chosen.id,publicAction:chosen.action.intendedAction},inputTokens:1,outputTokens:1}
+ })
+ try{
+   const world=store.getWorldState(),[a,b]=world.agents
+   for(const [actor,target] of [[a,b],[b,a]]){
+     actor.relationships.push({agentId:actor.id,otherAgentId:target.id,stance:'hostile',hostility:8})
+     actor.nextDecisionAt=0
+   }
+   store.setMaxActiveAgents(2)
+   await store.runWorldTick()
+   assert.equal(calls,2)
+   const attacks=world.engine!.ongoingActions.filter(t=>t.proposal.actionType==='ATTACK')
+   assert.equal(attacks.length,2)
+   assert.ok(attacks.every(t=>!t.responseToActionId))
+ }finally{await ctx.close()}
+})
+
+test('editorial DAY correction preserves the previous text and all simulation facts',async()=>{
+ const ctx=setup(undefined,false)
+ try{
+  const world=store.getWorldState(),[a,b]=world.agents
+  beginAction(world,{actorId:a.id,locationId:a.publicState.locationId,actionType:'SPEAK',targetIds:[b.id],spokenText:'The recorded notice arrived.',intendedAction:'speak'})
+  store.advanceWorldTick(3)
+  const events=store.listEvents({offset:0,limit:100}).items.filter(storyEvent),raw={paragraphs:[{text:'The recorded notice arrived.',eventIds:events.map(e=>e.id)}]},id=store.getSeason().id
+  assert.throws(()=>store.correctDayNarration(1,id,raw,'test review'),/pause_world/)
+  store.pauseSeason()
+  const before=JSON.stringify(store.getWorldState()),prior=store.listDayStories()[0].body
+  assert.throws(()=>store.correctDayNarration(1,'old-season',raw,'test review'),/season_changed/)
+  store.correctDayNarration(1,id,raw,'Source checked')
+  assert.equal(JSON.stringify(store.getWorldState()),before)
+  assert.ok(store.listDayStories()[0].corrections?.some(c=>c.previousBody===prior&&c.reason.includes('Source checked')))
+ }finally{await ctx.close()}
+})
+
+test('reviewed literary DAY prose is cached without changing engine facts or inventing dialogue',async()=>{
+ let reviews=0
+ const ctx=setup(async request=>{
+  if(request.prompt.startsWith('Check every factual assertion')){reviews++;return{raw:{approved:true,unsupportedClaims:[]},inputTokens:1,outputTokens:1}}
+  const sources=JSON.parse(request.prompt.split('[NEW_EVENTS — CONFIRMED EVENTS]')[1].trimStart().split('\n')[0])
+  return{raw:{paragraphs:sources.map(e=>({text:e.result+(e.publicQuote??''),eventIds:[e.id]}))},inputTokens:1,outputTokens:1}
+ },true,false,'',true)
+ try{
+  const world=store.getWorldState(),[a,b]=world.agents
+  for(let i=0;i<3;i++){
+   beginAction(world,{actorId:a.id,locationId:a.publicState.locationId,actionType:'SPEAK',targetIds:[b.id],spokenText:`recorded ${i}`,intendedAction:'speak'})
+   store.advanceWorldTick(3)
+  }
+  const before=JSON.stringify(world),calls=store.getAdminRuntime().callsUsed
+  await store.refreshDayNarration(world.clock.day,true)
+  assert.equal(reviews,1);assert.equal(JSON.stringify(world),before)
+  const chapter=store.listDayStories()[0];assert.ok(chapter.body.includes('말을 건넸다'))
+  assert.equal(store.getAdminRuntime().callsUsed,calls)
+  await store.shutdownWorldRuntime();store.initializeWorldRuntime(ctx.db)
+  assert.equal(store.listDayStories()[0].body,chapter.body)
+ }finally{await ctx.close()}
+})
+
+test('rejected DAY drafts get one evidence correction attempt and never publish rejected text',async()=>{
+ let writers=0,reviews=0
+ const ctx=setup(async request=>{
+  if(request.prompt.startsWith('Check every factual assertion')){reviews++;return{raw:{approved:false,unsupportedClaims:['unsupported outcome']},inputTokens:1,outputTokens:1}}
+  writers++
+  if(writers===2)assert.match(request.prompt,/FACTUAL CORRECTIONS REQUIRED[\s\S]*unsupported outcome/)
+  const sources=JSON.parse(request.prompt.split('[NEW_EVENTS — CONFIRMED EVENTS]')[1].trimStart().split('\n')[0])
+  return{raw:{paragraphs:sources.map(e=>({text:e.result+' REJECTED_DRAFT',eventIds:[e.id]}))},inputTokens:1,outputTokens:1}
+ },true,false,'',true)
+ try{
+  const world=store.getWorldState(),[a,b]=world.agents
+  for(const [actor,target,i] of [[a,b,0],[b,a,1]] as const){beginAction(world,{actorId:actor.id,locationId:actor.publicState.locationId,actionType:'SPEAK',targetIds:[target.id],spokenText:`Recorded notice ${i}`,intendedAction:'speak'});store.advanceWorldTick(3)}
+  beginAction(world,{actorId:a.id,locationId:a.publicState.locationId,actionType:'MOVE',targetIds:[],destinationId:ctx.places[1].id,intendedAction:'move'});store.advanceWorldTick(60)
+  await store.refreshDayNarration(1,true)
+  await store.shutdownWorldRuntime()
+  assert.ok(writers>=2);assert.ok(reviews>=1)
+  assert.ok(store.listDayStories().every(day=>!day.body.includes('REJECTED_DRAFT')))
+ }finally{await ctx.close()}
+})
+
+test('administrative notices remain auditable but never become a DAY chapter',async()=>{
+ let writers=0
+ const ctx=setup(async request=>{
+  assert.ok(Buffer.byteLength(worldRequestBody(request))<=20000)
+  if(request.prompt.startsWith('Check every factual assertion'))return{raw:{approved:true,unsupportedClaims:[]},inputTokens:1,outputTokens:1}
+  writers++
+  const sources=JSON.parse(request.prompt.split('[NEW_EVENTS — CONFIRMED EVENTS]')[1].trimStart().split('\n')[0])
+  return{raw:{paragraphs:sources.map(e=>({text:e.result,eventIds:[e.id]}))},inputTokens:1,outputTokens:1}
+ },true,false,'',true)
+ try{
+  for(let i=0;i<12;i++)store.addOperatorEvent({type:'SYSTEM',placeId:ctx.places[0].id,agentIds:[],title:`Recorded notice ${i}`,summary:`${i}: `+'실제 기록으로 제공된 공지 내용이다. '.repeat(65),addedBy:'test'})
+  await store.refreshDayNarration(1,true)
+  assert.equal(writers,0)
+  assert.equal(store.listDayStories().length,0)
+ }finally{await ctx.close()}
+})
+
+test('an ungrounded Planner source is rejected without calling the judge', async()=>{
+  const ctx=setup(async request=>{
+    const actor=store.getWorldState().agents[0]
+    if(request.role==='agent')return {raw:{goal:'reshape material',purpose:'prepare',method:'alter a visible object',targetId:null,placeId:actor.publicState.locationId,objectIds:['absent'],desiredOutcome:'usable object',longerTermPlan:null},inputTokens:1,outputTokens:1}
+    assert.equal(request.role,'planner','invalid source must not spend a judge call')
+    return {raw:{steps:[{actorId:actor.id,locationId:actor.publicState.locationId,targetIds:[],usedItemIds:[],actionType:'INTERACT',intendedAction:'reshape',interaction:{operation:'alter',sourceObjectIds:['absent'],resultName:'result',resultForm:'new form',materials:['wood'],quantity:1}}]},inputTokens:1,outputTokens:1}
+  })
+  try{
+    await store.runWorldTick()
+    assert.equal(store.getAdminRuntime().status,'RUNNING')
+    assert.equal(store.getAdminRuntime().decisionsPaused,false)
+    assert.equal(store.getWorldState().engine!.ongoingActions.length,0)
+    assert.ok(store.listActionAudit().some(e=>e.outcome==='REJECTED'&&e.engineVerdict?.includes('object:not_perceived')))
+    assert.equal(store.getAdminRuntime().pipeline?.groundingFailures,1)
+  }finally{await ctx.close()}
+})
+
+test('runtime executes a Planner step and persists its Brain goal through completion', async () => {
+  const ctx = setup(async request => {
+    if (request.role === 'judge') return { raw: { approved: true, reason: 'fixture rule approval', ended: false }, inputTokens: 1, outputTokens: 1 }
+    const actor=store.getWorldState().agents[0]
+    if(request.role==='agent')return {raw:{goal:'WAIT_FOR_CHANGE',purpose:'watch for change',method:'wait briefly',targetId:null,placeId:actor.publicState.locationId,objectIds:[],desiredOutcome:'time passes',longerTermPlan:null},inputTokens:1,outputTokens:1}
+    return {raw:{steps:[{actorId:actor.id,locationId:actor.publicState.locationId,targetIds:[],usedItemIds:[],actionType:'WAIT',intendedAction:'wait briefly'}]},inputTokens:1,outputTokens:1}
+  })
+  try {
+    const world = store.getWorldState(), actor = world.agents[0]
+    await store.runWorldTick()
+    const chosen = world.engine!.ongoingActions.find(a => a.proposal.actorId === actor.id)!
+    assert.equal(chosen.proposal.actionType, 'WAIT')
+    assert.equal(chosen.proposal.goalKey, 'WAIT_FOR_CHANGE')
+    assert.ok(world.engine!.decisions![actor.id].evaluation!.length)
+    assert.equal(actor.v2?.freePlan?.brain.goal,'WAIT_FOR_CHANGE')
+    store.advanceWorldTick(20)
+    assert.equal(actor.v2?.currentAction?.status, 'completed')
+    assert.ok(actor.v2?.goalStartedAt !== null)
+    assert.ok(actor.motivations!.goals.some(g => g.goal === 'WAIT_FOR_CHANGE' && g.evidenceEventIds.length))
+    store.initializeWorldRuntime(ctx.db)
+    assert.deepEqual(store.getWorldState().agents[0].motivations, JSON.parse(JSON.stringify(actor.motivations)))
+    assert.equal(store.getWorldState().agents[0].v2?.currentAction?.status, 'completed')
+  } finally { await ctx.close() }
+})
+
+test('visible attack gives the target one independent bounded response before time advances',async()=>{
+ let calls=0
+ const ctx=setup(async request=>{
+   calls++
+   if(request.role==='judge')return{raw:{approved:true,reason:'test permits',ended:false},inputTokens:1,outputTokens:1}
+   const world=store.getWorldState(),[a,b]=world.agents
+   const defense=request.prompt.includes('visible_attack_attempt')
+   const actor=defense?b:a
+   if(defense){const minute=world.engine!.minute;store.advanceWorldTick(30);assert.equal(world.engine!.minute,minute);assert.match(request.prompt,/threats/)}
+   const chosen=prepareDecision(world,actor.id,[]).choices.find(c=>c.action.actionType===(defense?'OBSERVE':'ATTACK'))!
+   assert.ok(chosen)
+   return{raw:{...chosen.action,targetIds:chosen.action.targetIds,usedItemIds:chosen.action.usedItemIds??[],candidateId:chosen.id,publicAction:chosen.action.intendedAction},inputTokens:1,outputTokens:1}
+ })
+ try{
+   const world=store.getWorldState(),[a,b]=world.agents
+   a.relationships.push({agentId:a.id,otherAgentId:b.id,stance:'hostile',hostility:8})
+   a.nextDecisionAt=0;b.nextDecisionAt=1000
+   await store.runWorldTick()
+   assert.equal(calls,4);assert.equal(world.engine!.ongoingActions.length,2)
+   assert.ok(world.engine!.ongoingActions.some(t=>t.proposal.actorId===b.id&&t.proposal.actionType==='OBSERVE'))
+ }finally{await ctx.close()}
+})
+
+test('accepted exchange cancels if an offered item disappears before completion',async()=>{
+ const ctx=setup(undefined,false)
+ try{
+   const world=store.getWorldState(),[a,b]=world.agents
+   beginAction(world,{actorId:a.id,actionType:'SPEAK',locationId:a.publicState.locationId,targetIds:[b.id],intendedAction:'offer',spokenText:'take it?',offerItemId:'key'});advanceEngine(world,3)
+   const reply:ProposedAction={actorId:b.id,actionType:'SPEAK',locationId:b.publicState.locationId,targetIds:[a.id],intendedAction:'accept',spokenText:'yes',replyTo:world.engine!.interactions![0].id,response:'ACCEPT'}
+   assert.ok(validateEngineAction(reply,world,[]).approved);beginAction(world,reply)
+   world.engine!.objects[0].quantity=0;world.engine!.objects[0].condition='destroyed'
+   const events=advanceEngine(world,3)
+   assert.equal(events[0].phase,'FAILED');assert.ok(!b.inventory.includes('key'));assert.equal(world.engine!.interactions![0].status,'pending')
+ }finally{await ctx.close()}
+})
+
+test('independent contact replies, refusal and consent-based exchange recheck actual ownership', async () => {
+  const ctx = setup(undefined, false)
+  try {
+    const world = store.getWorldState(), [a,b] = world.agents
+    a.humanState!.fatigue = b.humanState!.fatigue = 9
+    const proposal: ProposedAction = { actorId: a.id, locationId: a.publicState.locationId, actionType: 'SPEAK', intent: 'NEGOTIATE', targetIds: [b.id], intendedAction: 'offer key', spokenText: '열쇠가 필요해?', offerItemId: 'key' }
+    assert.equal(validateEngineAction(proposal, world, []).approved, true, 'fatigue must not ban conversation')
+    b.publicState.localArea = 'FOREST'
+    assert.equal(validateEngineAction(proposal, world, []).approved, false)
+    b.publicState.localArea = 'CENTER'
+    beginAction(world, proposal)
+    advanceEngine(world, 3, [], e => recordExperience(world,e))
+    const offer = world.engine!.interactions![0]
+    assert.equal(offer.status, 'pending'); assert.ok(a.inventory.includes('key')); assert.ok(!b.inventory.includes('key'))
+    const reply: ProposedAction = { actorId: b.id, locationId: b.publicState.locationId, actionType: 'SPEAK', targetIds: [a.id], intendedAction: 'refuse', spokenText: '지금은 필요 없어.', replyTo: offer.id, response: 'REFUSE' }
+    assert.equal(validateEngineAction({ ...reply, actorId:a.id, targetIds:[b.id] },world,[]).approved,false)
+    assert.equal(validateEngineAction(reply,world,[]).approved,true)
+    beginAction(world,reply); const refusal = advanceEngine(world,3,[],e=>recordExperience(world,e))[0]
+    assert.equal(offer.status,'refused'); assert.ok(a.inventory.includes('key')); assert.ok(refusal.relatedEventIds.includes(offer.sourceEventId!))
+    assert.ok(b.memories?.some(m=>m.sourceEventIds.includes(refusal.id)))
+    // A distinct gift offer may be accepted by the recipient, never by the proposer.
+    beginAction(world,{...proposal,intent:'REQUEST_HELP'}); advanceEngine(world,3)
+    const next = world.engine!.interactions!.at(-1)!
+    const accept = {...reply,replyTo:next.id,response:'ACCEPT' as const,spokenText:'받을게.'}
+    beginAction(world,accept); advanceEngine(world,3)
+    assert.ok(b.inventory.includes('key')); assert.ok(!a.inventory.includes('key'))
+    assert.equal(validateEngineAction(accept,world,[]).approved,false,'same consent cannot execute twice')
+    assert.equal(toPublicWorld(world).engine!.interactions,undefined)
+    assert.equal(toPublicWorld(world).engine!.outcomes,undefined)
+  } finally { await ctx.close() }
+})
+
+test('failures persist as actor-specific outcomes; scarcity offers different priorities and known contacts', async () => {
+  const ctx = setup(undefined,false)
+  try {
+    const world = store.getWorldState(), [a,b] = world.agents
+    a.humanState!.fatigue=9; a.humanState!.survival_need=1; a.emotion!.fear=0
+    b.humanState!.fatigue=1; b.humanState!.survival_need=9; b.emotion!.fear=1
+    assert.notEqual(prepareDecision(world,a.id,[]).choices[0].goal,prepareDecision(world,b.id,[]).choices[0].goal)
+    assert.ok(prepareDecision(world,b.id,[]).choices.some(c=>c.action.targetIds.includes(a.id)))
+    beginAction(world,{actorId:b.id,locationId:b.publicState.locationId,actionType:'EXPLORE',intent:'SEARCH_FOOD',areaHint:'FOREST',targetIds:[],intendedAction:'look for food'})
+    const events=advanceEngine(world,30,[],e=>recordExperience(world,e))
+    assert.ok(world.engine!.outcomes![b.id].some(o=>o.failed && o.area==='FOREST'))
+    const restored=JSON.parse(JSON.stringify(world))
+    assert.ok(behaviorContext(restored,b.id).deliberation.failedAreas.some(o=>o.area==='FOREST'))
+    assert.ok(b.memories?.some(m=>events.some(e=>m.sourceEventIds.includes(e.id))))
+    assert.equal(buildAgentKnowledgeView(b.id,world,events)!.othersPresent.length,0)
+    assert.ok(!JSON.stringify(behaviorContext(world,a.id).outcomes).includes(events[0].id))
+  } finally { await ctx.close() }
+})
+
+test('DAY composition filters state-only ticks and connects real invitation, refusal and choices', async () => {
+  const ctx=setup(undefined,false)
+  try {
+    const world=store.getWorldState(), [a,b]=world.agents
+    a.name='도영동'; b.name='김기업'
+    const places=new Map(world.places.map(p=>[p.id,p])), agents=new Map(world.agents.map(a=>[a.id,a]))
+    const quiet=Array.from({length:10},(_,i)=>({ id:`wet-${i}`,type:'SYSTEM' as const,day:1,occurredAt:new Date().toISOString(),placeId:world.places[0].id,agentIds:[a.id],title:'wet',summary:'wet',stateChanges:[{field:`agent:${i}:wetness`,from:'5',to:'7'}],importance:'low' as const,relatedEventIds:[],phase:'STATE_UPDATE' as const }))
+    assert.ok(quiet.every(e=>!storyEvent(e)))
+    assert.equal(composeDay(1,world.seasonId,quiet,places,agents,false),null)
+    const events: import('../server/domain/worldTypes.ts').WorldEvent[]=[]
+    const act=(action:ProposedAction,minutes=3)=>{assert.equal(validateEngineAction(action,world,events).approved,true);beginAction(world,action);advanceEngine(world,minutes,events,e=>{events.push(e);recordExperience(world,e)})}
+    act({actorId:a.id,locationId:a.publicState.locationId,actionType:'SPEAK',intent:'REQUEST_HELP',targetIds:[b.id],spokenText:'열쇠를 줄 테니 받아 줄래?',offerItemId:'key',intendedAction:'offer',publicAction:'도영동은 김기업에게 열쇠를 내밀었다.',publicReason:'혼자 들고 있기보다 필요한 사람에게 건네고 싶었다.'})
+    act({actorId:b.id,locationId:b.publicState.locationId,actionType:'SPEAK',targetIds:[a.id],spokenText:'지금은 필요 없어.',replyTo:world.engine!.interactions![0].id,response:'REFUSE',intendedAction:'refuse',publicAction:'김기업은 제안을 거절하려 했다.',publicReason:'지금은 열쇠를 사용할 계획이 없었다.'})
+    const short=composeDay(1,world.seasonId,events,places,agents,false)!
+    act({actorId:a.id,locationId:a.publicState.locationId,actionType:'EXPLORE',intent:'SEARCH_FOOD',areaHint:'FOREST',targetIds:[],intendedAction:'search',publicAction:'도영동은 숲을 살펴보려 했다.',publicReason:'주변에서 이용할 수 있는 식량을 직접 확인하고 싶었다.'},30)
+    const day=composeDay(1,world.seasonId,[...quiet,...events],places,agents,true)!
+    assert.ok(day.body.length>short.body.length); assert.match(day.body,/지금은 필요 없어/)
+    assert.ok(day.sourceEventIds.every(id=>events.some(e=>e.id===id))); assert.ok(!day.body.includes('wet'))
+    const sources=events.filter(storyEvent)
+    assert.ok(validateEditorialPlan({paragraphs:sources.map(e=>[e.id])},sources))
+    assert.equal(validateEditorialPlan({title:'승리',body:'모두 죽었다',sourceEventIds:sources.map(e=>e.id)},sources),null)
+    assert.equal(validateEditorialPlan({paragraphs:[['invented']]},sources),null)
+    assert.equal(validateEditorialPlan({paragraphs:[[sources[0].id,sources[0].id]]},sources),null)
+    if (process.env.WORLD_EXPORT_EXAMPLE === '1') writeFileSync('docs/world-story-test-example.md', `# 오프라인 엔진 테스트에서 생성한 예시\n\n운영 세계의 사건이 아닙니다. 테스트가 열쇠를 가진 도영동과 김기업을 생성하고, 제안 → 독립적인 거절 → 숲 탐색을 엔진에 실행시킨 결과입니다. 발견·싸움·사망을 추가하지 않았습니다.\n\n## 짧은 LIVE의 근거\n\n${sources.slice(0,2).map(e => `${eventProse(e,agents)}\n\n${e.publicQuote ? `“${e.publicQuote}”` : ''}`).join('\n\n')}\n\n## DAY 구성 결과\n\n${day.body}\n\n## 원본 테스트 사건\n\n\`\`\`json\n${JSON.stringify(sources.map(e => ({ id:e.id, relatedEventIds:e.relatedEventIds, time:e.worldTime, type:e.type, summary:e.summary, quote:e.publicQuote, changes:e.stateChanges })),null,2)}\n\`\`\`\n`, 'utf8')
+  } finally { await ctx.close() }
+})
+
+test('an offered item may be stolen only under engine-checked contact and opportunity',async()=>{
+  const ctx=setup(undefined,false)
+  try {
+    const world=store.getWorldState(),[a,b]=world.agents
+    const steal:ProposedAction={actorId:b.id,actionType:'STEAL',targetIds:[a.id],locationId:b.publicState.locationId,intendedAction:'steal key',usedItemIds:['key']}
+    assert.equal(validateEngineAction(steal,world,[]).approved,false,'hidden inventory cannot be targeted')
+    beginAction(world,{actorId:a.id,actionType:'SPEAK',targetIds:[b.id],locationId:a.publicState.locationId,intendedAction:'offer',spokenText:'key?',offerItemId:'key'});advanceEngine(world,3)
+    beginAction(world,{actorId:a.id,actionType:'OBSERVE',targetIds:[],locationId:a.publicState.locationId,intendedAction:'guard'})
+    assert.equal(validateEngineAction(steal,world,[]).approved,true)
+    beginAction(world,steal);advanceEngine(world,5)
+    assert.ok(a.inventory.includes('key'));assert.ok(!b.inventory.includes('key'))
+    world.engine!.ongoingActions=[]
+    beginAction(world,{actorId:a.id,actionType:'SLEEP',targetIds:[],locationId:a.publicState.locationId,intendedAction:'sleep'})
+    b.humanState!.fatigue=0
+    beginAction(world,steal);const stolen=advanceEngine(world,5,[],e=>recordExperience(world,e))
+    assert.ok(b.inventory.includes('key'))
+    assert.ok(!buildAgentKnowledgeView(a.id,world,stolen)!.observedEvents.some(e=>e.actionType==='STEAL'),'sleeping victim must not know the thief identity')
+  }finally{await ctx.close()}
+})
 
 function setup(adapter?: WorldModelAdapter, live = true, privateWorld = false, endCondition = '', enableNarrator = false) {
   const db = new DatabaseSync(':memory:')
@@ -61,6 +420,110 @@ function moveAction() {
   return { actorId: actor.id, locationId: actor.publicState.locationId, actionType: 'MOVE', targetIds: [], usedItemIds: [], destinationId: world.places.find(p => p.id !== actor.publicState.locationId)!.id, intendedAction: 'move', spokenText: null, claimedKnowledgeId: null }
 }
 
+test('semantic cooldown survives serialization, ignores wording and expires at six world hours', async () => {
+  const ctx = setup(undefined, false)
+  try {
+    const world = store.getWorldState(), [a, b] = world.agents
+    a.humanState!.survival_need = 1; a.humanState!.fatigue = 1
+    const action: ProposedAction = { actorId: a.id, actionType: 'SPEAK', intent: 'SOCIAL', targetIds: [b.id], locationId: a.publicState.locationId, intendedAction: 'first wording', spokenText: 'hello' }
+    assert.equal(validateEngineAction(action, world, []).approved, true)
+    beginAction(world, action); advanceEngine(world, 3)
+    const restored = JSON.parse(JSON.stringify(world))
+    const changed = { ...action, intendedAction: 'entirely different wording' }
+    assert.ok(validateEngineAction(changed, restored, []).notes.includes('semantic_action_cooldown_6h'))
+    assert.equal(validateEngineAction({ ...changed, intent: 'OTHER' }, restored, []).approved, true, 'a genuinely different intent has a different semantic key')
+    restored.engine.minute = world.agents[0].v2!.recentActions[0].minute + 359
+    assert.equal(validateEngineAction(changed, restored, []).approved, false)
+    restored.engine.minute++
+    assert.equal(validateEngineAction(changed, restored, []).approved, true)
+    assert.equal(toPublicWorld(world).engine!.behavior, undefined)
+  } finally { await ctx.close() }
+})
+
+test('cooperation creates proposed tasks, blocks concurrent proposals and executes real supplies without forced consent', async () => {
+  const ctx = setup(undefined, false)
+  try {
+    const world = store.getWorldState(), [a, b] = world.agents
+    for (const actor of world.agents) { actor.humanState!.survival_need = 1; actor.humanState!.fatigue = 1 }
+    const action: ProposedAction = { actorId: a.id, actionType: 'SPEAK', intent: 'PROPOSE_SURVIVAL_PLAN', targetIds: [b.id], locationId: a.publicState.locationId, intendedAction: 'make a plan', spokenText: 'let us cooperate' }
+    beginAction(world, action)
+    assert.ok(validateEngineAction({ ...action, actorId: b.id, targetIds: [a.id] }, world, []).notes.includes('survival_plan_already_active'))
+    advanceEngine(world, 3)
+    const plan = world.engine!.behavior!.plans[0]
+    assert.equal(plan.status, 'proposed'); assert.equal(plan.tasks.length, 2)
+    assert.equal(plan.tasks.find(t => t.actorId === a.id)!.status, 'suggested')
+    assert.equal(plan.tasks.find(t => t.actorId === b.id)!.status, 'invited')
+    assert.equal(behaviorContext(world, b.id).plans[0].tasks.length, 1)
+    assert.ok(validateEngineAction(action, world, []).notes.includes('survival_plan_already_active'))
+    const invitation = world.engine!.interactions!.find(i => i.actorId === a.id && i.targetId === b.id)!
+    const acceptance: ProposedAction = { actorId: b.id, actionType: 'SPEAK', targetIds: [a.id], locationId: b.publicState.locationId,
+      intendedAction: 'accept plan', spokenText: 'I agree', replyTo: invitation.id, response: 'ACCEPT' }
+    const validAcceptance = validateEngineAction(acceptance, world, [])
+    assert.ok(validAcceptance.approved, validAcceptance.notes.join(','))
+    beginAction(world, acceptance)
+    advanceEngine(world, 3)
+    assert.equal(world.engine!.behavior!.plans[0].tasks.find(t => t.actorId === b.id)!.status, 'suggested')
+    world.places[0].resources.push({ key: 'water', label: 'water', level: 2, max: 2, trend: 'stable' })
+    a.humanState!.survival_need = 8
+    const drink = prepareDecision(world,a.id,[]).choices.find(c => c.action.actionType === 'DRINK')!.action
+    assert.equal(validateEngineAction(drink, world, []).approved, true)
+    beginAction(world, drink); assert.ok(drink.taskId); advanceEngine(world, 5)
+    assert.equal(world.places[0].resources.find(r => r.key === 'water')!.level, 1)
+    const updated = world.engine!.behavior!.plans[0]
+    assert.equal(updated.tasks.find(t => t.actorId === a.id)!.status, 'completed')
+    assert.equal(updated.tasks.find(t => t.actorId === b.id)!.status, 'suggested')
+  } finally { await ctx.close() }
+})
+
+test('failed or empty searches resolve as blocked tasks, never fabricate food or fulfill group goals', async () => {
+  const ctx = setup(undefined, false)
+  try {
+    const world = store.getWorldState(), [a, b] = world.agents
+    for (const actor of world.agents) { actor.humanState!.survival_need = 1; actor.humanState!.fatigue = 1 }
+    beginAction(world, { actorId: a.id, locationId: a.publicState.locationId, actionType: 'SPEAK', intent: 'PROPOSE_SURVIVAL_PLAN', targetIds: [b.id], intendedAction: 'plan', spokenText: 'let us cooperate' })
+    advanceEngine(world, 3)
+    const invitation = world.engine!.interactions!.find(i => i.actorId === a.id && i.targetId === b.id)!
+    beginAction(world, { actorId: b.id, locationId: b.publicState.locationId, actionType: 'SPEAK', targetIds: [a.id],
+      intendedAction: 'accept plan', spokenText: 'I agree', replyTo: invitation.id, response: 'ACCEPT' })
+    advanceEngine(world, 3)
+    const task = world.engine!.behavior!.plans[0].tasks.find(t => t.actorId === b.id)!
+    const foodBefore = JSON.stringify(world.places.map(p => p.resources))
+    const search: ProposedAction = { actorId: b.id, locationId: b.publicState.locationId, actionType: 'EXPLORE', intent: task.intent, taskId: task.id, targetIds: [], intendedAction: 'search', areaHint: 'FOREST' }
+    assert.equal(validateEngineAction(search, world, []).approved, true)
+    beginAction(world, search); advanceEngine(world, 30)
+    assert.equal(world.engine!.behavior!.plans[0].tasks.find(t => t.id === task.id)!.status, 'blocked')
+    assert.equal(JSON.stringify(world.places.map(p => p.resources)), foodBefore)
+    assert.notEqual(world.engine!.behavior!.plans[0].status, 'completed')
+  } finally { await ctx.close() }
+})
+
+test('thresholds ignore tiny changes and saturation but expose crossing, injury and depletion', () => {
+  const change = (field: string, from: number | string, to: number | string) => ({ field, from: String(from), to: String(to) })
+  assert.equal(meaningfulChanges([change('agent:a:fatigue', 6.1, 6.3), change('agent:a:wetness', 10, 10), change('agent:a:weatherExposureDays', 2, 3), change('place:a:food', 3, 2.9)]).length, 0)
+  for (const threshold of [3, 5, 7, 9]) assert.equal(meaningfulChanges([change('agent:a:fatigue', threshold - 0.1, threshold)]).length, 1)
+  assert.equal(meaningfulChanges([change('agent:a:fatigue', 7, 6), change('agent:a:status', 'alive', 'injured'), change('place:a:food', 1, 0.9)]).length, 3)
+})
+
+test('rejected repetition never triggers an independent fallback decision', async () => {
+  const ctx = setup(async request => {
+    const world = store.getWorldState(), [actor, target] = world.agents
+    return { raw: request.role === 'agent' ? { actorId: actor.id, actionType: 'SPEAK', intent: 'PROPOSE_SURVIVAL_PLAN', locationId: actor.publicState.locationId, targetIds: [target.id], usedItemIds: [], intendedAction: 'cooperate again', spokenText: 'let us cooperate' } : { approved: true, reason: '', ended: false }, inputTokens: 1, outputTokens: 1 }
+  })
+  try {
+    const world = store.getWorldState(), a = world.agents[0]
+    a.humanState!.survival_need = 8; a.humanState!.fatigue = 1
+    beginAction(world, { actorId: a.id, actionType: 'SPEAK', intent: 'PROPOSE_SURVIVAL_PLAN', targetIds: [world.agents[1].id], locationId: a.publicState.locationId, intendedAction: 'plan', spokenText: 'plan' }); advanceEngine(world, 3)
+    for(const other of world.agents.slice(1))other.nextDecisionAt=Number.MAX_SAFE_INTEGER
+    world.places[0].resources.push({ key: 'water', label: 'water', level: 2, max: 2, trend: 'stable' })
+    await store.runWorldTick()
+    assert.equal(world.engine!.ongoingActions.length, 0)
+    assert.equal(store.getAdminRuntime().callsUsed, 1)
+    assert.ok(store.listActionAudit().some(e => e.outcome === 'REJECTED'))
+    assert.ok(store.listEvents({ offset: 0, limit: 100 }).items.every(e => e.phase !== 'STARTED'))
+    assert.equal(world.places[0].resources.find(r => r.key === 'water')!.level, 2)
+  } finally { await ctx.close() }
+})
+
 test('live tick uses frozen design, updates location/occupancy/memory/scenes and restores a paused checkpoint', async () => {
   const prompts: string[] = []
   const ctx = setup(async request => { prompts.push(request.prompt); return { raw: request.role === 'agent' ? moveAction() : { approved: true, reason: '', ended: false }, inputTokens: 100, outputTokens: 30 } })
@@ -86,13 +549,17 @@ test('live tick uses frozen design, updates location/occupancy/memory/scenes and
     assert.match(prompts[0], /Alice_PERSONALITY|Alice_PRIVATE_SECRET/)
     assert.match(prompts[1], /HIDDEN_WORLD_SECRET/)
     assert.doesNotMatch(chunks.join(''), /PRIVATE_SECRET|HIDDEN_WORLD_SECRET|provenance/)
+    store.advanceWorldTick(60)
     const scene = store.listScenes({ limit: 1 }).items[0]
-    assert.equal(scene.seasonId, ctx.design.id)
-    assert.ok(scene.sourceEventIds.length)
+    assert.equal(scene?.seasonId, ctx.design.id)
+    assert.ok(scene?.sourceEventIds.length)
     const savedLocation = actor.publicState.locationId
     store.initializeWorldRuntime(ctx.db)
     assert.equal(store.getAdminRuntime().status, 'PAUSED')
     assert.equal(store.getWorldState().agents[0].publicState.locationId, savedLocation)
+    assert.equal(store.getWorldState().agents[0].v2?.version, 2)
+    assert.equal(store.getWorldState().agents[0].v2?.currentGoal, actor.v2?.currentGoal)
+    assert.ok(store.getWorldState().agents[0].v2?.recentActions.length)
     assert.equal(store.getAdminRuntime().callsUsed, 2)
     assert.equal(getDraft(ctx.db, ctx.design.id)!.status, 'PAUSED')
   } finally { await ctx.close() }
@@ -118,21 +585,21 @@ test('concurrent ticks share one call and pause invalidates an in-flight respons
   } finally { await ctx.close() }
 })
 
-test('call budget is enforced before a pair of paid calls; provider failure pauses without demo fallback', async () => {
+test('call budget reserves Brain, Planner and judge before paid work; provider failure pauses', async () => {
   let calls = 0
   const ctx = setup(async () => { calls++; throw new Error('SECRET_API_ERROR') })
   try {
     store.setCallBudget(1)
     await store.runWorldTick()
     assert.equal(calls, 0)
-    assert.equal(store.getAdminRuntime().status, 'RUNNING')
+    assert.equal(store.getAdminRuntime().status, 'PAUSED')
     assert.equal(store.getAdminRuntime().decisionsPaused, true)
-    store.setCallBudget(2)
+    store.setCallBudget(3)
     store.resumeSeason()
     await store.runWorldTick()
     assert.equal(calls, 1)
     assert.equal(store.getAdminRuntime().callsUsed, 1)
-    assert.equal(store.getAdminRuntime().status, 'RUNNING')
+    assert.equal(store.getAdminRuntime().status, 'PAUSED')
     assert.equal(store.getAdminRuntime().decisionsPaused, true)
     assert.doesNotMatch(JSON.stringify(store.getAdminRuntime()), /SECRET_API_ERROR/)
     assert.ok(getMonthlyLedger(ctx.db).settled_usd > 0, 'failed requests retain an estimated charge')
@@ -160,8 +627,9 @@ test('a configured timer triggers the same serialized simulation path', async t 
     t.mock.timers.tick(5000)
     await store.runWorldTick()
     assert.equal(store.getWorldState().agents[0].publicState.locationId, ctx.places[0].id)
-    store.advanceWorldTick(15)
-    assert.equal(store.getWorldState().agents[0].publicState.locationId, ctx.places[1].id)
+    assert.ok(store.getWorldState().engine!.ongoingActions.length > 0)
+    store.advanceWorldTick(60)
+    assert.ok(store.getWorldState().engine!.outcomes?.[store.getWorldState().agents[0].id]?.length)
     assert.equal(store.listActionAudit().length, 1)
   } finally { await ctx.close(); t.mock.timers.reset() }
 })
@@ -178,14 +646,14 @@ test('judge rejection produces only an admin audit record and no public state ch
   } finally { await ctx.close() }
 })
 
-test('a satisfied configured end condition ends the season without applying the proposal', async () => {
+test('a judge cannot end a season without engine termination evidence', async () => {
   const ctx = setup(async request => ({ raw: request.role === 'agent' ? moveAction() : { approved: true, reason: 'End condition satisfied', ended: true }, inputTokens: 1, outputTokens: 1 }), true, false, 'End when both characters are in A')
   try {
     await store.runWorldTick()
-    assert.equal(store.getAdminRuntime().status, 'ENDED')
+    assert.equal(store.getAdminRuntime().status, 'RUNNING')
     assert.equal(store.getWorldState().agents[0].publicState.locationId, ctx.places[0].id)
     assert.equal(store.getAdminRuntime().callsUsed, 2)
-    assert.equal(getDraft(ctx.db, ctx.design.id)!.status, 'ENDED')
+    assert.equal(getDraft(ctx.db, ctx.design.id)!.status, 'RUNNING')
   } finally { await ctx.close() }
 })
 
@@ -194,8 +662,9 @@ test('demo executes state transitions without calls; end day stops further ticks
   try {
     await store.runWorldTick()
     assert.equal(store.getAdminRuntime().callsUsed, 0)
-    store.advanceWorldTick(15)
-    assert.equal(store.getWorldState().agents[0].publicState.locationId, ctx.places[1].id)
+    assert.ok(store.getWorldState().engine!.ongoingActions.length > 0)
+    store.advanceWorldTick(60)
+    assert.ok(store.getWorldState().engine!.outcomes?.[store.getWorldState().agents[0].id]?.length)
     const world = store.getWorldState()
     world.engine!.minute = (ctx.design.startDay + ctx.design.maxDays! - 1) * 1440 - 1
     world.engine!.lastVitalsMinute = world.engine!.minute
@@ -216,11 +685,179 @@ test('areaHint moves a character within one place and clears once they change pl
     assert.throws(() => parseProposedAction({ ...moveAction(), actionType: 'EXPLORE', destinationId: null, areaHint: 'VOLCANO' }, actor.id), /invalid_action_area_hint/)
     const explore: ProposedAction = { actorId: actor.id, actionType: 'EXPLORE', targetIds: [], locationId: actor.publicState.locationId, intendedAction: '해안가를 살펴본다', areaHint: 'SHORE' }
     beginAction(world, explore)
+    assert.equal(world.agents[0].publicState.localArea, undefined)
+    advanceEngine(world, 10)
     assert.equal(world.agents[0].publicState.localArea, 'SHORE')
     const otherPlaceId = world.places.find(p => p.id !== actor.publicState.locationId)!.id
     applyStateChange(world, { field: `agent:${actor.id}:location`, from: actor.publicState.locationId, to: otherPlaceId })
     assert.equal(world.agents[0].publicState.locationId, otherPlaceId)
     assert.equal(world.agents[0].publicState.localArea, undefined)
+  } finally { await ctx.close() }
+})
+
+test('combat checks reach and living targets, applies injury and hostility, and interrupts the victim', async () => {
+  assert.ok(ACTION_SCHEMA.properties.actionType.enum.includes('ATTACK'))
+  const ctx = setup(undefined, false)
+  try {
+    const world = store.getWorldState(), [actor, target] = world.agents
+    const attack: ProposedAction = { actorId: actor.id, locationId: actor.publicState.locationId, actionType: 'ATTACK', targetIds: [target.id], intendedAction: '상대를 공격한다' }
+    target.publicState.localArea = 'SHORE'
+    assert.equal(validateEngineAction(attack, world, []).approved, false)
+    target.publicState.localArea = undefined
+    assert.equal(validateEngineAction({ ...attack, targetIds: [actor.id] }, world, []).approved, false)
+    assert.equal(validateEngineAction(attack, world, []).approved, true)
+    const health = target.body!.health
+    beginAction(world, { actorId: target.id, locationId: target.publicState.locationId, actionType: 'SLEEP', targetIds: [], intendedAction: '잠든다' })
+    beginAction(world, attack)
+    const events = advanceEngine(world, 5)
+    assert.ok(target.body!.health > health)
+    assert.equal(target.publicState.status, 'injured')
+    assert.equal(target.relationships.find(r => r.otherAgentId === actor.id)?.stance, 'hostile')
+    assert.ok(events.some(e => e.type === 'CONFLICT' && e.phase === 'COMPLETED'))
+    assert.ok(events.some(e => e.phase === 'CANCELLED' && e.agentIds.includes(target.id)))
+    target.body!.health = 9
+    beginAction(world, attack)
+    advanceEngine(world, 5)
+    assert.equal(target.publicState.status, 'deceased')
+    assert.equal(validateEngineAction(attack, world, []).approved, false)
+    assert.ok(!selectDecisionAgents(world, 10).some(a => a.id === target.id))
+  } finally { await ctx.close() }
+})
+
+test('exhausted attackers can exploit a sleeping target, with recovery cost and alert protection', async () => {
+  const ctx = setup(undefined, false)
+  try {
+    const world = store.getWorldState(), [actor, target] = world.agents
+    actor.humanState!.fatigue = 10; target.humanState!.fatigue = 1
+    const attack: ProposedAction = { actorId: actor.id, locationId: actor.publicState.locationId, actionType: 'ATTACK', targetIds: [target.id], intendedAction: 'attack' }
+    beginAction(world, { actorId: target.id, locationId: target.publicState.locationId, actionType: 'SLEEP', targetIds: [], intendedAction: 'sleep' })
+    assert.match(buildAgentKnowledgeView(actor.id, world, [])!.othersPresent[0].combatCue!, /잠들어/)
+    assert.equal(validateEngineAction(attack, world, []).approved, true)
+    const health = target.body!.health, stress = actor.humanState!.stress
+    beginAction(world, attack)
+    assert.equal(world.engine!.ongoingActions.find(a => a.proposal.actorId === actor.id)!.completesMinute - world.engine!.minute, 10)
+    const events = advanceEngine(world, 10)
+    assert.equal(target.body!.health, health + 2)
+    assert.ok(events.some(e => e.type === 'CONFLICT' && e.summary.includes('그 틈을 노렸다')))
+    assert.ok(actor.humanState!.stress >= stress)
+    assert.ok(actor.nextDecisionAt! >= world.engine!.minute + 20)
+    assert.doesNotMatch(buildAgentKnowledgeView(actor.id, world, [])!.othersPresent[0].combatCue!, /\uacbd\uacc4/, 'private engine alert is not visible to another agent')
+    assert.ok(!world.engine!.ongoingActions.some(a => a.proposal.actorId === target.id))
+    actor.body!.injury = 8
+    world.engine!.minute += 30
+    assert.ok(validateEngineAction(attack, world, []).notes.includes('body_cannot_fight'))
+  } finally { await ctx.close() }
+})
+
+test('fatigue is not a validation ban; guarding prevents an exhausted attack from inventing an injury', async () => {
+  const ctx = setup(undefined, false)
+  try {
+    const world = store.getWorldState(), [actor, target] = world.agents
+    actor.humanState!.fatigue = 10; target.humanState!.fatigue = 10
+    beginAction(world, { actorId: target.id, locationId: target.publicState.locationId, actionType: 'OBSERVE', targetIds: [], intendedAction: 'watch', durationMinutes: 30 })
+    const attack: ProposedAction = { actorId: actor.id, locationId: actor.publicState.locationId, actionType: 'ATTACK', targetIds: [target.id], intendedAction: 'attack' }
+    assert.equal(validateEngineAction(attack, world, []).approved, true)
+    const body = structuredClone(target.body), status = target.publicState.status
+    beginAction(world, attack)
+    const events = advanceEngine(world, 10)
+    assert.deepEqual(target.body, body); assert.equal(target.publicState.status, status)
+    assert.ok(events.some(e => e.type === 'CONFLICT' && e.summary.includes('부상을 입히지 못했다')))
+  } finally { await ctx.close() }
+})
+
+test('an opening is rechecked on completion and another area does not reveal combat cues', async () => {
+  const ctx = setup(undefined, false)
+  try {
+    const world = store.getWorldState(), [actor, target] = world.agents
+    actor.humanState!.fatigue = 10; target.humanState!.fatigue = 1
+    target.publicState.localArea = 'SHORE'
+    assert.equal(buildAgentKnowledgeView(actor.id, world, [])!.othersPresent[0], undefined)
+    target.publicState.localArea = actor.publicState.localArea
+    beginAction(world, { actorId: target.id, locationId: target.publicState.locationId, actionType: 'REST', targetIds: [], intendedAction: 'rest', durationMinutes: 20 })
+    advanceEngine(world, 15)
+    const health = target.body!.health
+    beginAction(world, { actorId: actor.id, locationId: actor.publicState.locationId, actionType: 'ATTACK', targetIds: [target.id], intendedAction: 'attack' })
+    const events = advanceEngine(world, 10)
+    assert.equal(target.body!.health, health)
+    assert.ok(events.some(e => e.type === 'CONFLICT' && e.summary.includes('부상을 입히지 못했다')))
+  } finally { await ctx.close() }
+})
+
+test('restart repairs an invented ending while retaining time, cast and real source events', async () => {
+  const ctx = setup(undefined, false)
+  try {
+    await store.shutdownWorldRuntime()
+    const row = ctx.db.prepare('SELECT payload FROM world_runtime_checkpoint WHERE id=1').get() as {payload:string}
+    const saved=JSON.parse(row.payload)
+    const source={...saved.events[0],id:'ambiguous-power',cause:'scheduled:power-off',phase:'STATE_UPDATE',summary:'의문의 배틀로얄: ',title:'의문의 배틀로얄',stateChanges:[{field:'place:test:power',from:'true',to:'false'}]}
+    saved.events.unshift(source)
+    saved.scenes.push({id:'bad-scene',title:'배틀로얄 종료',body:'배틀로얄이 갑작스럽게 종료되었다.',sourceEventIds:[source.id]})
+    ctx.db.prepare('UPDATE world_runtime_checkpoint SET payload=? WHERE id=1').run(JSON.stringify(saved))
+    store.initializeWorldRuntime(ctx.db);store.stopSimulationTimerForTests()
+    const repaired=store.getScene('bad-scene')!
+    assert.doesNotMatch(repaired.body+repaired.title,/종료/)
+    assert.match(repaired.body,/전기 공급/)
+    assert.deepEqual(repaired.sourceEventIds,[source.id])
+    assert.equal(store.getWorldState().clock.time,saved.worldState.clock.time)
+    assert.equal(store.getWorldState().agents.length,2)
+    store.endSeason()
+    assert.equal(store.getAdminRuntime().status, 'PAUSED')
+    assert.ok(!store.listEvents({offset:0,limit:100}).items.some(e=>e.cause==='world_ended'))
+    assert.ok(repaired.corrections?.length)
+  } finally {await ctx.close()}
+})
+
+test('medicine requires real injury, names the patient and effect, and rechecks before consuming stock', async () => {
+  const ctx = setup(undefined, false)
+  try {
+    const world = store.getWorldState(), [actor, patient] = world.agents, place = world.places[0]
+    place.resources.push({ key: 'medicine', label: '의약품', level: 3, max: 3, trend: 'stable', unit: '개' })
+    const treatment: ProposedAction = { actorId: actor.id, actionType: 'USE_ITEM', locationId: place.id, targetIds: [patient.id], resourceKey: 'medicine', intendedAction: '다친 상대의 부상을 치료한다' }
+    const untouched = structuredClone(world)
+    assert.equal(validateEngineAction(treatment, world, []).approved, false)
+    assert.deepEqual(world, untouched)
+    assert.equal(validateEngineAction({ ...treatment, actionType: 'INTERACT' }, world, []).approved, false)
+    patient.body!.injury = 4; patient.publicState.status = 'injured'
+    assert.equal(validateEngineAction(treatment, world, []).approved, true)
+    beginAction(world, treatment)
+    const result = advanceEngine(world, 5).find(e => e.phase === 'COMPLETED')!
+    assert.equal(patient.body!.injury, 2)
+    assert.equal(place.resources.find(r => r.key === 'medicine')!.level, 2)
+    assert.match(result.summary, /부상을 치료하기 위해 의약품을 썼다/)
+    assert.ok(result.summary.includes(patient.name))
+    assert.ok(result.stateChanges.some(c => c.field === `agent:${patient.id}:injury` && c.from === '4' && c.to === '2'))
+    beginAction(world, treatment)
+    patient.body!.injury = 0; patient.publicState.status = 'alive'
+    const interrupted = advanceEngine(world, 5)
+    assert.ok(interrupted.some(e => e.phase === 'FAILED'))
+    assert.equal(place.resources.find(r => r.key === 'medicine')!.level, 2)
+    world.engine!.objects.push({ id: 'medicine-item', name: '의약품', kind: 'medicine', quantity: 2, condition: 'intact', location: { kind: 'agent', id: actor.id } })
+    actor.inventory.push('medicine-item')
+    const owned = { ...treatment, resourceKey: undefined, usedItemIds: ['medicine-item'] }
+    assert.equal(validateEngineAction(owned, world, []).approved, false)
+    patient.body!.injury = 2; patient.publicState.status = 'injured'
+    beginAction(world, owned); advanceEngine(world, 5)
+    assert.equal(patient.body!.injury, 0)
+    assert.equal(world.engine!.objects.find(o => o.id === 'medicine-item')!.quantity, 1)
+    assert.equal(patient.publicState.status, 'alive')
+  } finally { await ctx.close() }
+})
+
+test('every new action carries a public purpose through start and failure without exposing private intentions', async () => {
+  const ctx = setup(undefined, false)
+  try {
+    const world = store.getWorldState(), actor = world.agents[0]
+    const action: ProposedAction = { actorId: actor.id, actionType: 'INTERACT', locationId: actor.publicState.locationId, targetIds: [], resourceKey: 'medicine', intendedAction: 'PRIVATE_REASON_MUST_NOT_APPEAR', publicAction: 'Alice는 의약품을 작업에 사용하려 했다.', publicReason: '다친 동료를 도울 준비가 필요했다.' }
+    const started = beginAction(world, action)
+    assert.ok(started.summary.includes(action.publicAction!))
+    assert.ok(started.summary.includes(action.publicReason!))
+    const failed = advanceEngine(world, 10).find(e => e.phase === 'FAILED')!
+    assert.ok(failed.summary.includes(action.publicAction!))
+    assert.ok(failed.summary.includes(action.publicReason!))
+    assert.match(failed.summary, /의약품을 일반 작업에 소비할 수는 없었다/)
+    assert.doesNotMatch(failed.summary, /조건 변화|PRIVATE_REASON/)
+    assert.ok(ACTION_SCHEMA.required.includes('publicReason'))
+    assert.throws(() => parseProposedAction({ ...action, usedItemIds: [], publicReason: ' ' }, actor.id), /public_action_and_reason_required/)
   } finally { await ctx.close() }
 })
 
@@ -253,7 +890,7 @@ test('ADMIN sessions authorize world APIs, USER/anonymous/token-only and cross-o
       return response.headers.get('set-cookie')!.split(';')[0]
     }
     const adminCookie = await login('operator'), userCookie = await login('user@example.com')
-    for (const path of ['runtime', 'drafts', 'rule-presets']) {
+    for (const path of ['runtime', 'drafts', 'rule-presets', 'cognition']) {
       assert.equal((await fetch(`${base}/api/admin/world/${path}`)).status, 401)
       assert.equal((await fetch(`${base}/api/admin/world/${path}`, { headers: { cookie: userCookie } })).status, 403)
       assert.equal((await fetch(`${base}/api/admin/world/${path}`, { headers: { cookie: adminCookie } })).status, 200)
@@ -409,12 +1046,12 @@ test('operator notices cannot rewrite reality and event history survives beyond 
       if (!first) first = e.id
     }
     assert.deepEqual(store.getWorldState().agents, stateBefore)
-    assert.equal(store.listEvents({ limit: 100, offset: 500 }).items.length, 6)
+    assert.equal(store.listEvents({ limit: 100, offset: 500 }).items.length, 0)
     assert.equal(store.awaySummary('2000-01-01T00:00:00.000Z').eventCount, before + 505)
     assert.equal(store.getEvent(first)?.cause, 'operator_announcement')
     store.initializeWorldRuntime(ctx.db)
     assert.equal(store.getEvent(first)?.cause, 'operator_announcement')
-    assert.equal(store.listEvents({ limit: 1, offset: 0 }).total, before + 505)
+    assert.equal(store.listEvents({ limit: 1, offset: 0 }).total, 0)
   } finally { await ctx.close() }
 })
 
@@ -430,39 +1067,37 @@ test('configured character ceiling blocks launch and preserves the existing worl
   } finally { config.maxActiveCharacters = prior; await ctx.close() }
 })
 
-test('world chapters wait for results, span multiple events, and never narrate unfinished actions', async () => {
+test('quiet ticks do not force a public scene from unfinished or state-only actions', async () => {
   const ctx = setup(undefined, false)
   try {
     await store.runWorldTick()
-    assert.equal(store.listChapters()[0].status, 'IN_PROGRESS')
+    assert.equal(store.listChapters().length,0)
     assert.equal(store.listScenes({ limit: 10 }).items.length, 0)
     store.advanceWorldTick(59)
-    const scene = store.listScenes({ limit: 10 }).items[0]
-    assert.ok(scene.sourceEventIds.length >= 2)
-    assert.ok(scene.sourceEventIds.every(id => store.getEvent(id)?.phase !== 'STARTED'))
-    assert.equal(store.listChapters()[0].status, 'COMPLETED')
-    assert.equal(scene.worldDay, ctx.design.startDay)
+    assert.ok(store.listScenes({ limit: 10 }).items.every(scene => scene.sourceEventIds.every(id => store.getEvent(id)?.phase !== 'STARTED')))
     assert.equal(store.getAdminRuntime().callsUsed, 0)
   } finally { await ctx.close() }
 })
 
-test('narrator enhancement rewrites a completed chapter scene without affecting decision call accounting', async () => {
+test('narrator rejects fabricated prose without affecting decision call accounting', async () => {
   const ctx = setup(async request => {
     if (request.role === 'agent') return { raw: moveAction(), inputTokens: 1, outputTokens: 1 }
     if (request.role === 'judge') return { raw: { approved: true, reason: 'ok', ended: false }, inputTokens: 1, outputTokens: 1 }
-    return { raw: { title: 'AI_TITLE', body: 'AI_BODY_TEXT', sourceEventIds: [] }, inputTokens: 1, outputTokens: 1 }
+    const events = JSON.parse(request.prompt.split('[NEW_EVENTS — CONFIRMED EVENTS]\n\n')[1].split('\n\n[PLACE NAMES]')[0]) as Array<{ id: string }>
+    return { raw: { title: 'AI_TITLE', body: 'AI_BODY_TEXT', sourceEventIds: events.map(e => e.id) }, inputTokens: 1, outputTokens: 1 }
   }, true, false, '', true)
   try {
     await store.runWorldTick()
     store.advanceWorldTick(59)
+    store.advanceWorldTick(60)
     const deterministic = store.listScenes({ limit: 10 }).items[0]
     assert.notEqual(deterministic.body, 'AI_BODY_TEXT')
     const callsBefore = store.getAdminRuntime().callsUsed
     await store.shutdownWorldRuntime()
     const enhanced = store.listScenes({ limit: 10 }).items[0]
     assert.equal(enhanced.id, deterministic.id)
-    assert.equal(enhanced.title, 'AI_TITLE')
-    assert.equal(enhanced.body, 'AI_BODY_TEXT')
+    assert.notEqual(enhanced.title, 'AI_TITLE')
+    assert.notEqual(enhanced.body, 'AI_BODY_TEXT')
     // A supplementary enrichment call, not a world decision — must never inflate callsUsed.
     assert.equal(store.getAdminRuntime().callsUsed, callsBefore)
   } finally { ctx.db.close() }
@@ -511,7 +1146,8 @@ test('default constitutional preset fits bounded agent and judge requests withou
     const world = store.getWorldState()
     const actor = world.agents[0]
     for (let i = 2; i < 10; i++) world.agents.push({ ...structuredClone(actor), id: `character-${i}`, name: `Character ${i}` })
-    const request = agentRequest(execution, actor.id, world, [])
+    world.engine!.behavior = { history: Array.from({ length: 12 }, () => ({ actorId: actor.id, minute: world.engine!.minute, type: 'SOCIAL', key: 'previous-key'.repeat(300) })), plans: [] }
+    const request = agentRequest(execution, actor.id, world, [], prepareDecision(world, actor.id, []))
     assert.ok(Buffer.byteLength(worldRequestBody(request)) <= MAX_PROVIDER_REQUEST_BYTES)
     const judgment = judgeRequest(execution, moveAction() as ProposedAction, world, [])
     assert.ok(Buffer.byteLength(worldRequestBody(judgment)) <= MAX_PROVIDER_REQUEST_BYTES)
@@ -540,4 +1176,30 @@ test('character generation obeys prepaid limits and charges failed requests with
   } finally {
     config.openaiApiKey = original.key; config.worldDemoMode = original.mode; config.prepaidBudgetUsd = original.prepaid; config.production = original.production; globalThis.fetch = original.fetch; db.close()
   }
+})
+
+test('large held inventory is compacted before any provider call without changing world state',async()=>{
+ const ctx=setup(undefined,false)
+ try{
+  store.setMaxActiveAgents(2)
+  const world=store.getWorldState()
+  for(const actor of world.agents)actor.nextDecisionAt=0
+  const selected=selectDecisionAgents(world,2)
+  assert.equal(selected.length,2)
+  const target=selected[1],template=world.engine!.objects[0]
+  assert.ok(template)
+  for(let i=0;i<90;i++){
+   const id=`oversized-held-${i}`
+   world.engine!.objects.push({...structuredClone(template),id,name:`Visible held item ${i} ${'detail'.repeat(40)}`,quantity:1,location:{kind:'agent',id:target.id}})
+   target.inventory.push(id)
+  }
+  const execution={draft:ctx.design,rules:[],mode:'live' as const}
+  const assessment=prepareDecision(world,target.id,[])
+  const before=JSON.stringify(world)
+  const request=agentRequest(execution,target.id,world,[],assessment)
+  assert.ok(Buffer.byteLength(worldRequestBody(request))<=MAX_PROVIDER_REQUEST_BYTES)
+  assert.match(request.prompt,/"total":9[01]/)
+  assert.ok(!request.prompt.includes('oversized-held-89'))
+  assert.equal(JSON.stringify(world),before)
+ }finally{await ctx.close()}
 })

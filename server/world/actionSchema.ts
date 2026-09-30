@@ -8,6 +8,9 @@
 export const LOCAL_AREAS = ['SHORE', 'FOREST', 'HIGH_GROUND', 'CAVE', 'WATER', 'CAMP', 'CENTER'] as const
 export type LocalArea = typeof LOCAL_AREAS[number]
 
+export const ACTION_INTENTS = ['PROPOSE_SURVIVAL_PLAN', 'SEARCH_WATER', 'SEARCH_FOOD', 'FIND_SHELTER', 'KEEP_WATCH', 'RECOVER', 'SOCIAL', 'SELF_STATE_DISCLOSURE', 'QUESTION', 'NEGOTIATE', 'REQUEST_HELP', 'WARN', 'THREATEN', 'OTHER'] as const
+export type ActionIntent = typeof ACTION_INTENTS[number]
+
 export type ProposedActionType =
   | 'MOVE'
   | 'SPEAK'
@@ -19,6 +22,9 @@ export type ProposedActionType =
   | 'WAIT'
   | 'COOPERATE'
   | 'ATTACK'
+  | 'STEAL'
+  | 'ROB'
+  | 'HIDE'
   | 'REST'
   | 'SLEEP'
   | 'TAKE_ITEM'
@@ -30,11 +36,40 @@ export type ProposedActionType =
 // What an AGENT PROMPT (or GM PROMPT) is allowed to return. This is a proposal only — the actor
 // itself never gets to decide whether it succeeds.
 export interface ProposedAction {
+  interaction?: { operation: 'separate' | 'alter' | 'combine'; sourceObjectIds: string[]; resultName: string; resultForm: string; materials: string[]; quantity: number }
+  // Private decision metadata. The engine still binds the executable action to a
+  // validated candidate; this cannot assert facts or change an action's effects.
+  decisionV3?: {
+    transition: 'CONTINUE' | 'MODIFY' | 'ABANDON' | 'COMPLETE'
+    goal: string
+    purpose: string
+    method: string
+    nextSteps: ProposedActionType[]
+    nextStepTargets?: (string | null)[]
+    expectedReward: number
+    expectedRisk: number
+  }
+  searchPoint?: { x: number; y: number }
+  pickupItemId?: string
+  aim?: 'HEAD'|'TORSO'|'ARM'|'LEG'
+  defense?: 'DODGE'|'BLOCK'
+  candidateId?: string
+  goalKey?: string
+  // A reply belongs to a recorded invitation; it cannot stand in for the other person's consent.
+  replyTo?: string
+  response?: 'ACCEPT' | 'REFUSE'
+  offerItemId?: string
+  requestItemId?: string
+  intent?: ActionIntent
+  taskId?: string
   actorId: string
   actionType: ProposedActionType
   targetIds: string[]
   locationId: string
   intendedAction: string
+  // Short public narrative, not private reasoning or hidden information.
+  publicAction?: string
+  publicReason?: string
   spokenText?: string
   usedItemIds?: string[]
   // Only relevant for MOVE: the place the actor is trying to reach.

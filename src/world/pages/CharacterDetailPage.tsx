@@ -104,6 +104,9 @@ export function CharacterDetailPage({ agentId }: { agentId: string }) {
               <div><dt>최근 행동</dt><dd>{agent.publicState.lastAction ?? '기록 없음'}</dd></div>
               <div><dt>소속</dt><dd>{myFactions.length > 0 ? myFactions.map(f => f.name).join(', ') : '무소속'}</dd></div>
               <div><dt>최근 활동</dt><dd className="world-mono">{formatDateTime(agent.publicState.lastActiveAt)}</dd></div>
+              {agent.trauma&&<><div><dt>부상 경과</dt><dd>{agent.trauma.injuries.filter(w=>!w.healed).length}개 상처 · 통증 {agent.trauma.pain.toFixed(1)} / 10 · 누적 출혈 부담 {(agent.trauma.bloodLoss*100).toFixed(1)}%</dd></div>
+              {Object.entries(agent.trauma.functions).map(([key,loss])=><div key={key}><dt>{{vision:'시야 제약',mobility:'이동 제약',dexterity:'손 사용 제약',attention:'집중 제약'}[key]}</dt><dd>{Math.round(loss*100)}%</dd></div>)}
+              <div><dt>처치</dt><dd>{agent.trauma.injuries.some(w=>!w.healed&&w.treatedAt===null)?'처치하지 않은 상처가 있습니다.':'처치 후 경과 관찰 또는 회복 중입니다.'}</dd></div></>}
             </dl>
           </section>
         )}

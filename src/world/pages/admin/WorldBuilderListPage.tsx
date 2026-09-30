@@ -41,10 +41,16 @@ export function WorldBuilderListPage() {
   }
 
   async function removeDraft(draft: DraftSummary) {
-    if (draft.status !== 'DRAFT') { setMessage('DRAFT 상태의 WORLD만 삭제할 수 있습니다.'); return }
-    if (!window.confirm(`"${draft.name}" DRAFT를 삭제할까요?`)) return
-    await worldBuilderApi.deleteDraft(draft.id)
-    await refresh()
+    if (!window.confirm(`"${draft.name}" 세계의 설정과 기록을 영구 삭제할까요? 실행 중인 세계라면 즉시 중단됩니다. 되돌릴 수 없습니다.`)) return
+    try { await worldBuilderApi.deleteDraft(draft.id); await refresh(); setMessage('세계를 삭제했습니다.') }
+    catch (err) { setMessage(err instanceof Error ? err.message : '세계 삭제에 실패했습니다.') }
+  }
+
+  async function copyDraft(draft: DraftSummary) {
+    try {
+      const result = await worldBuilderApi.copyDraft(draft.id)
+      navigate(`/admin/world/builder/${result.draft.id}`)
+    } catch (err) { setMessage(err instanceof Error ? err.message : '설정 복사에 실패했습니다.') }
   }
 
   return (
@@ -93,7 +99,7 @@ export function WorldBuilderListPage() {
                   <td>{d.placeCount}</td>
                   <td>{d.characterCount} / {d.targetPopulation}</td>
                   <td className="micro">{new Date(d.updatedAt).toLocaleString('ko-KR')}</td>
-                  <td>{d.status === 'DRAFT' && <button className="danger" onClick={() => removeDraft(d)}>삭제</button>}</td>
+                  <td><button onClick={() => void copyDraft(d)}>설정 복사·수정</button>{' '}<button className="danger" onClick={() => void removeDraft(d)}>세계 삭제</button></td>
                 </tr>
               ))}
             </tbody>

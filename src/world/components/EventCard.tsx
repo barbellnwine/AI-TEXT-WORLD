@@ -1,5 +1,6 @@
 import { EVENT_TYPE_LABEL, eventTypeClass, formatDateTime } from '../format'
 import type { Agent, Place, WorldEvent } from '../types'
+import { eventProse } from '../../../server/domain/eventProse'
 
 interface Props {
   event: WorldEvent
@@ -19,7 +20,7 @@ export function EventCard({ event, place, agents, onOpenDetail }: Props) {
           {(event.importance === 'high' || event.importance === 'critical') && <span className="world-flag">주요 사건</span>}
         </div>
         <p className="world-event-card-title">{event.title}</p>
-        <p className="world-event-card-summary">{event.summary}</p>
+        <p className="world-event-card-summary">{eventProse(event, new Map(agents.map(a => [a.id, a])))}</p>
         {agents.length > 0 && (
           <p className="world-event-card-agents">
             {agents.map(a => a.name).join(', ')}

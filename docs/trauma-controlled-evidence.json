@@ -1,0 +1,682 @@
+{
+  "source": "Controlled injury fixture; injury proposal is test input, NOT real API output or production story.",
+  "snapshots": [
+    {
+      "stage": "공격 직후",
+      "minute": 5,
+      "state": {
+        "version": 1,
+        "lastMinute": 5,
+        "bloodLoss": 0,
+        "pain": 4,
+        "functions": {
+          "vision": 0.4,
+          "mobility": 0,
+          "dexterity": 0,
+          "attention": 0
+        },
+        "injuries": [
+          {
+            "part": "HEAD",
+            "site": "scalp",
+            "type": "laceration",
+            "severity": 2,
+            "bleeding": 1.5,
+            "pain": 4,
+            "healingHours": 12,
+            "effects": [
+              {
+                "function": "vision",
+                "degree": 0.4,
+                "mechanism": "blood_obstruction"
+              }
+            ],
+            "id": "04088310-ee59-4df5-8930-cecfbbbc5e6e",
+            "sourceEventId": "d1177905-878d-46b0-ad44-dc7a9897ffe4",
+            "onset": 5,
+            "treatedAt": null,
+            "healed": false
+          }
+        ]
+      }
+    },
+    {
+      "stage": "30분 경과",
+      "minute": 35,
+      "state": {
+        "version": 1,
+        "lastMinute": 35,
+        "bloodLoss": 0.015375416912500018,
+        "pain": 3.8333333333333335,
+        "functions": {
+          "vision": 0.4,
+          "mobility": 0,
+          "dexterity": 0,
+          "attention": 0
+        },
+        "injuries": [
+          {
+            "part": "HEAD",
+            "site": "scalp",
+            "type": "laceration",
+            "severity": 2,
+            "bleeding": 1.4850000000000017,
+            "pain": 4,
+            "healingHours": 12,
+            "effects": [
+              {
+                "function": "vision",
+                "degree": 0.4,
+                "mechanism": "blood_obstruction"
+              }
+            ],
+            "id": "04088310-ee59-4df5-8930-cecfbbbc5e6e",
+            "sourceEventId": "d1177905-878d-46b0-ad44-dc7a9897ffe4",
+            "onset": 5,
+            "treatedAt": null,
+            "healed": false
+          }
+        ]
+      }
+    },
+    {
+      "stage": "처치 후 경과",
+      "minute": 75,
+      "state": {
+        "version": 1,
+        "lastMinute": 75,
+        "bloodLoss": 0.020327497825000047,
+        "pain": 3.4166666666666665,
+        "functions": {
+          "vision": 0,
+          "mobility": 0,
+          "dexterity": 0,
+          "attention": 0
+        },
+        "injuries": [
+          {
+            "part": "HEAD",
+            "site": "scalp",
+            "type": "laceration",
+            "severity": 2,
+            "bleeding": 0,
+            "pain": 4,
+            "healingHours": 12,
+            "effects": [
+              {
+                "function": "vision",
+                "degree": 0.4,
+                "mechanism": "blood_obstruction"
+              }
+            ],
+            "id": "04088310-ee59-4df5-8930-cecfbbbc5e6e",
+            "sourceEventId": "d1177905-878d-46b0-ad44-dc7a9897ffe4",
+            "onset": 5,
+            "treatedAt": 40,
+            "healed": false
+          }
+        ]
+      }
+    }
+  ],
+  "choices": [
+    {
+      "goal": "PREPARE_PROTECTION"
+    },
+    {
+      "goal": "TREAT_INJURY"
+    },
+    {
+      "goal": "SECURE_SUPPLIES"
+    },
+    {
+      "goal": "SECURE_SUPPLIES"
+    },
+    {
+      "goal": "SECURE_SUPPLIES"
+    },
+    {
+      "goal": "SECURE_SUPPLIES"
+    },
+    {
+      "goal": "SECURE_SUPPLIES"
+    },
+    {
+      "goal": "SECURE_SUPPLIES"
+    },
+    {
+      "goal": "CONFRONT_RIVAL"
+    },
+    {
+      "goal": "SEEK_TREATMENT"
+    },
+    {
+      "goal": "SEEK_TREATMENT"
+    },
+    {
+      "goal": "SEEK_TREATMENT"
+    },
+    {
+      "goal": "SEEK_TREATMENT"
+    },
+    {
+      "goal": "CONFRONT_RIVAL"
+    },
+    {
+      "goal": "BUILD_TRUST"
+    },
+    {
+      "goal": "BUILD_TRUST"
+    },
+    {
+      "goal": "BUILD_TRUST"
+    },
+    {
+      "goal": "BUILD_TRUST"
+    },
+    {
+      "goal": "ASSESS_OPPORTUNITY"
+    },
+    {
+      "goal": "ASSESS_OPPORTUNITY"
+    },
+    {
+      "goal": "ASSESS_OPPORTUNITY"
+    },
+    {
+      "goal": "ASSESS_OPPORTUNITY"
+    },
+    {
+      "goal": "SECURE_SUPPLIES"
+    },
+    {
+      "goal": "SECURE_SUPPLIES"
+    },
+    {
+      "goal": "SECURE_SUPPLIES"
+    },
+    {
+      "goal": "SECURE_SUPPLIES"
+    },
+    {
+      "goal": "KEEP_SAFE"
+    },
+    {
+      "goal": "WAIT_FOR_CHANGE"
+    },
+    {
+      "goal": "RECOVER"
+    },
+    {
+      "goal": "LEAVE_DANGER"
+    },
+    {
+      "goal": "LEAVE_DANGER"
+    },
+    {
+      "goal": "LEAVE_DANGER"
+    },
+    {
+      "goal": "LEAVE_DANGER"
+    }
+  ],
+  "events": [
+    {
+      "id": "551f141a-e2e0-448d-ad2d-0d6d83785255",
+      "type": "DECISION",
+      "occurredAt": "2026-09-24T17:16:20.431Z",
+      "day": 1,
+      "worldTime": "00:00",
+      "worldMinute": 0,
+      "placeId": "a3048642-74ec-4130-bcdc-6ec4dd295192",
+      "agentIds": [
+        "69976653-d515-4095-a740-1fc4ae889fab",
+        "be33a519-4d1f-4f71-b102-27f5a136c476"
+      ],
+      "summary": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별은 공격을 시도했다.",
+      "title": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별은 공격을 시도했다.",
+      "stateChanges": [
+        {
+          "field": "object:rock:quantity",
+          "from": "2",
+          "to": "1"
+        },
+        {
+          "field": "object:3b85127a-499a-4039-9ef4-0c7f2b27519d:holder",
+          "from": "place:a3048642-74ec-4130-bcdc-6ec4dd295192",
+          "to": "69976653-d515-4095-a740-1fc4ae889fab"
+        }
+      ],
+      "phase": "STARTED",
+      "actionResult": "김높별은 공격을 시도했다.",
+      "actionMotive": "상대의 위협에서 벗어나려 했다.",
+      "actionContext": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다.",
+      "actionType": "ATTACK",
+      "attemptedAction": "접근 가능한 도구로 공격을 시도한다",
+      "engineVerdict": "STARTED",
+      "importance": "normal",
+      "relatedEventIds": [],
+      "outcome": "CONFIRMED",
+      "cause": "action:ATTACK",
+      "witnessIds": [
+        "69976653-d515-4095-a740-1fc4ae889fab",
+        "be33a519-4d1f-4f71-b102-27f5a136c476",
+        "ed8e2306-b116-477a-b7f7-4d859a7047a9",
+        "eb0223ed-5e0e-4757-9fc9-f592287f92db",
+        "ffe7aa52-e497-4173-b813-7736876c3287"
+      ],
+      "detail": {
+        "version": 1,
+        "startedMinute": 0,
+        "endedMinute": 5,
+        "intent": "상대의 위협에서 벗어나려 했다.",
+        "steps": [
+          {
+            "minute": 0,
+            "actorId": "69976653-d515-4095-a740-1fc4ae889fab",
+            "kind": "PICK_UP",
+            "objectId": "3b85127a-499a-4039-9ef4-0c7f2b27519d",
+            "text": "김높별은(는) 발이 닿는 곳의 돌을(를) 집어 들었다."
+          }
+        ],
+        "equipment": {
+          "id": "3b85127a-499a-4039-9ef4-0c7f2b27519d",
+          "name": "돌",
+          "source": "ground",
+          "sourceId": "rock"
+        }
+      },
+      "actionId": "2be49524-e09c-4474-b866-552683758c81"
+    },
+    {
+      "id": "d1177905-878d-46b0-ad44-dc7a9897ffe4",
+      "type": "CONFLICT",
+      "occurredAt": "2026-09-24T17:16:20.438Z",
+      "day": 1,
+      "worldTime": "00:05",
+      "worldMinute": 5,
+      "placeId": "a3048642-74ec-4130-bcdc-6ec4dd295192",
+      "agentIds": [
+        "69976653-d515-4095-a740-1fc4ae889fab",
+        "be33a519-4d1f-4f71-b102-27f5a136c476"
+      ],
+      "summary": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 팔을 들어 막으려 했다. 김높별의 공격이 도영동의 머리에 닿아 뚜렷한 부상을 남겼다.",
+      "title": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 팔을 들어 막으려 했다. 김높별의 공격이 도영동의 머리에 닿아 뚜렷한 부상을 남겼다.",
+      "stateChanges": [
+        {
+          "field": "agent:be33a519-4d1f-4f71-b102-27f5a136c476:health",
+          "from": "0",
+          "to": "2"
+        },
+        {
+          "field": "agent:be33a519-4d1f-4f71-b102-27f5a136c476:injury",
+          "from": "0",
+          "to": "2"
+        },
+        {
+          "field": "agent:be33a519-4d1f-4f71-b102-27f5a136c476:status",
+          "from": "alive",
+          "to": "injured"
+        },
+        {
+          "field": "agent:69976653-d515-4095-a740-1fc4ae889fab:fatigue",
+          "from": "0",
+          "to": "1"
+        },
+        {
+          "field": "relationship:be33a519-4d1f-4f71-b102-27f5a136c476:69976653-d515-4095-a740-1fc4ae889fab:stance",
+          "from": "neutral",
+          "to": "hostile"
+        },
+        {
+          "field": "relationship:be33a519-4d1f-4f71-b102-27f5a136c476:69976653-d515-4095-a740-1fc4ae889fab:trust",
+          "from": "5",
+          "to": "2"
+        },
+        {
+          "field": "relationship:be33a519-4d1f-4f71-b102-27f5a136c476:69976653-d515-4095-a740-1fc4ae889fab:hostility",
+          "from": "0",
+          "to": "6"
+        },
+        {
+          "field": "agent:be33a519-4d1f-4f71-b102-27f5a136c476:trauma",
+          "from": "null",
+          "to": "{\"version\":1,\"lastMinute\":5,\"bloodLoss\":0,\"pain\":4,\"functions\":{\"vision\":0.4,\"mobility\":0,\"dexterity\":0,\"attention\":0},\"injuries\":[{\"part\":\"HEAD\",\"site\":\"scalp\",\"type\":\"laceration\",\"severity\":2,\"bleeding\":1.5,\"pain\":4,\"healingHours\":12,\"effects\":[{\"function\":\"vision\",\"degree\":0.4,\"mechanism\":\"blood_obstruction\"}],\"id\":\"04088310-ee59-4df5-8930-cecfbbbc5e6e\",\"sourceEventId\":\"d1177905-878d-46b0-ad44-dc7a9897ffe4\",\"onset\":5,\"treatedAt\":null,\"healed\":false}]}"
+        }
+      ],
+      "phase": "COMPLETED",
+      "actionResult": "김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 팔을 들어 막으려 했다. 김높별의 공격이 도영동의 머리에 닿아 뚜렷한 부상을 남겼다. 도영동의 상처에는 출혈이 있으며, 시야에 제약이 생겼다.",
+      "actionMotive": "상대의 위협에서 벗어나려 했다.",
+      "actionContext": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다.",
+      "actionType": "ATTACK",
+      "attemptedAction": "접근 가능한 도구로 공격을 시도한다",
+      "engineVerdict": "COMPLETED",
+      "importance": "high",
+      "relatedEventIds": [
+        "551f141a-e2e0-448d-ad2d-0d6d83785255"
+      ],
+      "outcome": "CONFIRMED",
+      "cause": "action:ATTACK",
+      "witnessIds": [
+        "69976653-d515-4095-a740-1fc4ae889fab",
+        "be33a519-4d1f-4f71-b102-27f5a136c476",
+        "ed8e2306-b116-477a-b7f7-4d859a7047a9",
+        "eb0223ed-5e0e-4757-9fc9-f592287f92db",
+        "ffe7aa52-e497-4173-b813-7736876c3287"
+      ],
+      "detail": {
+        "version": 1,
+        "startedMinute": 0,
+        "endedMinute": 5,
+        "intent": "상대의 위협에서 벗어나려 했다.",
+        "steps": [
+          {
+            "minute": 0,
+            "actorId": "69976653-d515-4095-a740-1fc4ae889fab",
+            "kind": "PICK_UP",
+            "objectId": "3b85127a-499a-4039-9ef4-0c7f2b27519d",
+            "text": "김높별은(는) 발이 닿는 곳의 돌을(를) 집어 들었다."
+          },
+          {
+            "minute": 5,
+            "actorId": "be33a519-4d1f-4f71-b102-27f5a136c476",
+            "kind": "NOTICE",
+            "text": "도영동은(는) 자신을 향한 공격을 알아차렸다."
+          },
+          {
+            "minute": 5,
+            "actorId": "69976653-d515-4095-a740-1fc4ae889fab",
+            "kind": "AIM",
+            "objectId": "3b85127a-499a-4039-9ef4-0c7f2b27519d",
+            "text": "김높별은(는) 돌을(를) 사용해 도영동의 머리을(를) 노렸다."
+          },
+          {
+            "minute": 5,
+            "actorId": "69976653-d515-4095-a740-1fc4ae889fab",
+            "kind": "STRIKE",
+            "objectId": "3b85127a-499a-4039-9ef4-0c7f2b27519d",
+            "text": "김높별은(는) 돌을(를) 손에 쥔 채 휘둘렀다."
+          },
+          {
+            "minute": 5,
+            "actorId": "be33a519-4d1f-4f71-b102-27f5a136c476",
+            "kind": "DEFEND",
+            "text": "도영동은(는) 팔을 들어 막으려 했다."
+          },
+          {
+            "minute": 5,
+            "actorId": "69976653-d515-4095-a740-1fc4ae889fab",
+            "kind": "RESULT",
+            "text": "김높별의 공격이 도영동의 머리에 닿아 뚜렷한 부상을 남겼다."
+          },
+          {
+            "minute": 5,
+            "actorId": "ed8e2306-b116-477a-b7f7-4d859a7047a9",
+            "kind": "WITNESS",
+            "text": "캐릭터 C은(는) 충돌을 목격하고 자신의 안전을 살필 필요를 느꼈다."
+          },
+          {
+            "minute": 5,
+            "actorId": "eb0223ed-5e0e-4757-9fc9-f592287f92db",
+            "kind": "WITNESS",
+            "text": "캐릭터 D은(는) 충돌을 목격하고 자신의 안전을 살필 필요를 느꼈다."
+          },
+          {
+            "minute": 5,
+            "actorId": "ffe7aa52-e497-4173-b813-7736876c3287",
+            "kind": "WITNESS",
+            "text": "캐릭터 E은(는) 충돌을 목격하고 자신의 안전을 살필 필요를 느꼈다."
+          },
+          {
+            "minute": 5,
+            "actorId": "be33a519-4d1f-4f71-b102-27f5a136c476",
+            "kind": "RESULT",
+            "text": "도영동의 상처에는 출혈이 있으며, 시야에 제약이 생겼다."
+          }
+        ],
+        "equipment": {
+          "id": "3b85127a-499a-4039-9ef4-0c7f2b27519d",
+          "name": "돌",
+          "source": "ground",
+          "sourceId": "rock"
+        },
+        "adjudication": {
+          "version": 1,
+          "fingerprint": "9cff5f0d612b301be5a0c8cc860e64354d31e1c28e4330364ca75a8674b02414",
+          "proposal": {
+            "actionId": "2be49524-e09c-4474-b866-552683758c81",
+            "outcome": "HIT",
+            "reaction": "BLOCK",
+            "injury": {
+              "part": "HEAD",
+              "site": "scalp",
+              "type": "laceration",
+              "severity": 2,
+              "bleeding": 1.5,
+              "pain": 4,
+              "healingHours": 12,
+              "effects": [
+                {
+                  "function": "vision",
+                  "degree": 0.4,
+                  "mechanism": "blood_obstruction"
+                }
+              ]
+            },
+            "basis": "명시적으로 지정한 검증용 응답"
+          },
+          "reaction": {
+            "kind": "BLOCK",
+            "source": "reflex",
+            "reason": "정면으로 오는 공격을 막아 자신을 지키려 했다."
+          },
+          "provider": "openai",
+          "model": "controlled-test",
+          "atMinute": 5
+        },
+        "combat": {
+          "method": "CONTACT",
+          "attackerId": "69976653-d515-4095-a740-1fc4ae889fab",
+          "targetId": "be33a519-4d1f-4f71-b102-27f5a136c476",
+          "tool": {
+            "id": "3b85127a-499a-4039-9ef4-0c7f2b27519d",
+            "name": "돌",
+            "source": "ground",
+            "sourceId": "rock"
+          },
+          "toolAfter": {
+            "kind": "agent",
+            "id": "69976653-d515-4095-a740-1fc4ae889fab"
+          },
+          "aimedPart": "HEAD",
+          "reaction": {
+            "kind": "BLOCK",
+            "source": "reflex",
+            "reason": "정면으로 오는 공격을 막아 자신을 지키려 했다."
+          },
+          "outcome": "HIT",
+          "injuredPart": "HEAD",
+          "damage": 2,
+          "roll": 0.02040268573909998,
+          "hitChance": 0.6799999999999999
+        },
+        "witnesses": [
+          {
+            "actorId": "ed8e2306-b116-477a-b7f7-4d859a7047a9",
+            "concern": "self_safety",
+            "nextDecisionAt": 5
+          },
+          {
+            "actorId": "eb0223ed-5e0e-4757-9fc9-f592287f92db",
+            "concern": "self_safety",
+            "nextDecisionAt": 5
+          },
+          {
+            "actorId": "ffe7aa52-e497-4173-b813-7736876c3287",
+            "concern": "self_safety",
+            "nextDecisionAt": 5
+          }
+        ]
+      },
+      "actionId": "2be49524-e09c-4474-b866-552683758c81"
+    },
+    {
+      "id": "be5f3222-517d-46cd-aaf1-61b60d25ab99",
+      "type": "RESOURCE_CHANGE",
+      "occurredAt": "2026-09-24T17:16:20.453Z",
+      "day": 1,
+      "worldTime": "00:40",
+      "worldMinute": 40,
+      "placeId": "a3048642-74ec-4130-bcdc-6ec4dd295192",
+      "agentIds": [
+        "be33a519-4d1f-4f71-b102-27f5a136c476"
+      ],
+      "summary": "도영동은 의약품을 사용하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 도영동은 도영동의 상처를 처치했다. 출혈과 기능 저하는 경과를 지켜봐야 한다.",
+      "title": "도영동은 의약품을 사용하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 도영동은 도영동의 상처를 처치했다. 출혈과 기능 저하는 경과를 지켜봐야 한다.",
+      "stateChanges": [
+        {
+          "field": "place:a3048642-74ec-4130-bcdc-6ec4dd295192:medicine",
+          "from": "1",
+          "to": "0"
+        },
+        {
+          "field": "agent:be33a519-4d1f-4f71-b102-27f5a136c476:injury",
+          "from": "2",
+          "to": "2"
+        },
+        {
+          "field": "agent:be33a519-4d1f-4f71-b102-27f5a136c476:trauma",
+          "from": "{\"version\":1,\"lastMinute\":40,\"bloodLoss\":0.017908011887500023,\"pain\":3.8055555555555554,\"functions\":{\"vision\":0.4,\"mobility\":0,\"dexterity\":0,\"attention\":0},\"injuries\":[{\"part\":\"HEAD\",\"site\":\"scalp\",\"type\":\"laceration\",\"severity\":2,\"bleeding\":1.482500000000002,\"pain\":4,\"healingHours\":12,\"effects\":[{\"function\":\"vision\",\"degree\":0.4,\"mechanism\":\"blood_obstruction\"}],\"id\":\"04088310-ee59-4df5-8930-cecfbbbc5e6e\",\"sourceEventId\":\"d1177905-878d-46b0-ad44-dc7a9897ffe4\",\"onset\":5,\"treatedAt\":null,\"healed\":false}]}",
+          "to": "{\"version\":1,\"lastMinute\":40,\"bloodLoss\":0.017908011887500023,\"pain\":3.8055555555555554,\"functions\":{\"vision\":0.4,\"mobility\":0,\"dexterity\":0,\"attention\":0},\"injuries\":[{\"part\":\"HEAD\",\"site\":\"scalp\",\"type\":\"laceration\",\"severity\":2,\"bleeding\":1.482500000000002,\"pain\":4,\"healingHours\":12,\"effects\":[{\"function\":\"vision\",\"degree\":0.4,\"mechanism\":\"blood_obstruction\"}],\"id\":\"04088310-ee59-4df5-8930-cecfbbbc5e6e\",\"sourceEventId\":\"d1177905-878d-46b0-ad44-dc7a9897ffe4\",\"onset\":5,\"treatedAt\":40,\"healed\":false}]}"
+        }
+      ],
+      "phase": "COMPLETED",
+      "actionResult": "도영동은 도영동의 상처를 처치했다. 출혈과 기능 저하는 경과를 지켜봐야 한다.",
+      "actionContext": "도영동은 의약품을 사용하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다.",
+      "actionType": "USE_ITEM",
+      "attemptedAction": "상처를 처치한다",
+      "engineVerdict": "COMPLETED",
+      "importance": "normal",
+      "relatedEventIds": [
+        "08c01a60-6be8-4f72-8ac8-5bbdf4950516"
+      ],
+      "outcome": "CONFIRMED",
+      "cause": "action:USE_ITEM",
+      "witnessIds": [
+        "69976653-d515-4095-a740-1fc4ae889fab",
+        "be33a519-4d1f-4f71-b102-27f5a136c476",
+        "ed8e2306-b116-477a-b7f7-4d859a7047a9",
+        "eb0223ed-5e0e-4757-9fc9-f592287f92db",
+        "ffe7aa52-e497-4173-b813-7736876c3287"
+      ],
+      "detail": {
+        "version": 1,
+        "startedMinute": 35,
+        "endedMinute": 40,
+        "intent": "상처를 처치한다",
+        "steps": [
+          {
+            "minute": 40,
+            "actorId": "be33a519-4d1f-4f71-b102-27f5a136c476",
+            "kind": "RESULT",
+            "text": "도영동은 도영동의 상처를 처치했다. 출혈과 기능 저하는 경과를 지켜봐야 한다."
+          }
+        ]
+      },
+      "actionId": "f847fa34-5f73-4117-b0e4-b31dfb4fb07c"
+    },
+    {
+      "id": "977f7da5-3b24-4ba9-bb5e-0e68e1b7caa3",
+      "occurredAt": "2026-09-24T17:16:20.454Z",
+      "day": 1,
+      "worldMinute": 49,
+      "worldTime": "00:49",
+      "placeId": "a3048642-74ec-4130-bcdc-6ec4dd295192",
+      "agentIds": [
+        "be33a519-4d1f-4f71-b102-27f5a136c476"
+      ],
+      "witnessIds": [
+        "be33a519-4d1f-4f71-b102-27f5a136c476"
+      ],
+      "type": "SYSTEM",
+      "phase": "STATE_UPDATE",
+      "cause": "injury_progression",
+      "title": "도영동의 부상 경과로 시야에 변화가 생겼다.",
+      "summary": "도영동의 부상 경과로 시야에 변화가 생겼다.",
+      "stateChanges": [
+        {
+          "field": "agent:be33a519-4d1f-4f71-b102-27f5a136c476:trauma",
+          "from": "{\"version\":1,\"lastMinute\":48,\"bloodLoss\":0.020922219387500027,\"pain\":3.6416666666666666,\"functions\":{\"vision\":0.4,\"mobility\":0,\"dexterity\":0,\"attention\":0},\"injuries\":[{\"part\":\"HEAD\",\"site\":\"scalp\",\"type\":\"laceration\",\"severity\":2,\"bleeding\":1.0025000000000015,\"pain\":4,\"healingHours\":12,\"effects\":[{\"function\":\"vision\",\"degree\":0.4,\"mechanism\":\"blood_obstruction\"}],\"id\":\"04088310-ee59-4df5-8930-cecfbbbc5e6e\",\"sourceEventId\":\"d1177905-878d-46b0-ad44-dc7a9897ffe4\",\"onset\":5,\"treatedAt\":40,\"healed\":false}]}",
+          "to": "{\"version\":1,\"lastMinute\":49,\"bloodLoss\":0.021153370825000028,\"pain\":3.6333333333333333,\"functions\":{\"vision\":0.3770000000000006,\"mobility\":0,\"dexterity\":0,\"attention\":0},\"injuries\":[{\"part\":\"HEAD\",\"site\":\"scalp\",\"type\":\"laceration\",\"severity\":2,\"bleeding\":0.9425000000000014,\"pain\":4,\"healingHours\":12,\"effects\":[{\"function\":\"vision\",\"degree\":0.4,\"mechanism\":\"blood_obstruction\"}],\"id\":\"04088310-ee59-4df5-8930-cecfbbbc5e6e\",\"sourceEventId\":\"d1177905-878d-46b0-ad44-dc7a9897ffe4\",\"onset\":5,\"treatedAt\":40,\"healed\":false}]}"
+        }
+      ],
+      "relatedEventIds": [
+        "d1177905-878d-46b0-ad44-dc7a9897ffe4"
+      ],
+      "importance": "normal",
+      "visibility": "public"
+    },
+    {
+      "id": "a0cf64d2-3870-40a3-a294-d6bb7e848335",
+      "occurredAt": "2026-09-24T17:16:20.454Z",
+      "day": 1,
+      "worldMinute": 55,
+      "worldTime": "00:55",
+      "placeId": "a3048642-74ec-4130-bcdc-6ec4dd295192",
+      "agentIds": [
+        "be33a519-4d1f-4f71-b102-27f5a136c476"
+      ],
+      "witnessIds": [
+        "be33a519-4d1f-4f71-b102-27f5a136c476"
+      ],
+      "type": "SYSTEM",
+      "phase": "STATE_UPDATE",
+      "cause": "injury_progression",
+      "title": "도영동의 부상 경과로 몸 상태에 변화가 생겼다.",
+      "summary": "도영동의 부상 경과로 몸 상태에 변화가 생겼다.",
+      "stateChanges": [
+        {
+          "field": "agent:be33a519-4d1f-4f71-b102-27f5a136c476:trauma",
+          "from": "{\"version\":1,\"lastMinute\":54,\"bloodLoss\":0.02193963301250003,\"pain\":3.591666666666667,\"functions\":{\"vision\":0.2570000000000005,\"mobility\":0,\"dexterity\":0,\"attention\":0},\"injuries\":[{\"part\":\"HEAD\",\"site\":\"scalp\",\"type\":\"laceration\",\"severity\":2,\"bleeding\":0.6425000000000012,\"pain\":4,\"healingHours\":12,\"effects\":[{\"function\":\"vision\",\"degree\":0.4,\"mechanism\":\"blood_obstruction\"}],\"id\":\"04088310-ee59-4df5-8930-cecfbbbc5e6e\",\"sourceEventId\":\"d1177905-878d-46b0-ad44-dc7a9897ffe4\",\"onset\":5,\"treatedAt\":40,\"healed\":false}]}",
+          "to": "{\"version\":1,\"lastMinute\":55,\"bloodLoss\":0.02203457845000003,\"pain\":3.5833333333333335,\"functions\":{\"vision\":0.23300000000000046,\"mobility\":0,\"dexterity\":0,\"attention\":0},\"injuries\":[{\"part\":\"HEAD\",\"site\":\"scalp\",\"type\":\"laceration\",\"severity\":2,\"bleeding\":0.5825000000000011,\"pain\":4,\"healingHours\":12,\"effects\":[{\"function\":\"vision\",\"degree\":0.4,\"mechanism\":\"blood_obstruction\"}],\"id\":\"04088310-ee59-4df5-8930-cecfbbbc5e6e\",\"sourceEventId\":\"d1177905-878d-46b0-ad44-dc7a9897ffe4\",\"onset\":5,\"treatedAt\":40,\"healed\":false}]}"
+        }
+      ],
+      "relatedEventIds": [
+        "d1177905-878d-46b0-ad44-dc7a9897ffe4"
+      ],
+      "importance": "normal",
+      "visibility": "public"
+    },
+    {
+      "id": "bf8d2fc3-659a-46f8-8aeb-0dea99ca5112",
+      "occurredAt": "2026-09-24T17:16:20.454Z",
+      "day": 1,
+      "worldMinute": 65,
+      "worldTime": "01:05",
+      "placeId": "a3048642-74ec-4130-bcdc-6ec4dd295192",
+      "agentIds": [
+        "be33a519-4d1f-4f71-b102-27f5a136c476"
+      ],
+      "witnessIds": [
+        "be33a519-4d1f-4f71-b102-27f5a136c476"
+      ],
+      "type": "SYSTEM",
+      "phase": "STATE_UPDATE",
+      "cause": "injury_progression",
+      "title": "도영동의 부상 경과로 몸 상태에 변화가 생겼다.",
+      "summary": "도영동의 부상 경과로 몸 상태에 변화가 생겼다.",
+      "stateChanges": [
+        {
+          "field": "agent:be33a519-4d1f-4f71-b102-27f5a136c476:trauma",
+          "from": "{\"version\":1,\"lastMinute\":64,\"bloodLoss\":0.022327082387500034,\"pain\":3.5083333333333333,\"functions\":{\"vision\":0.01700000000000044,\"mobility\":0,\"dexterity\":0,\"attention\":0},\"injuries\":[{\"part\":\"HEAD\",\"site\":\"scalp\",\"type\":\"laceration\",\"severity\":2,\"bleeding\":0.04250000000000109,\"pain\":4,\"healingHours\":12,\"effects\":[{\"function\":\"vision\",\"degree\":0.4,\"mechanism\":\"blood_obstruction\"}],\"id\":\"04088310-ee59-4df5-8930-cecfbbbc5e6e\",\"sourceEventId\":\"d1177905-878d-46b0-ad44-dc7a9897ffe4\",\"onset\":5,\"treatedAt\":40,\"healed\":false}]}",
+          "to": "{\"version\":1,\"lastMinute\":65,\"bloodLoss\":0.022327497825000035,\"pain\":3.5,\"functions\":{\"vision\":0,\"mobility\":0,\"dexterity\":0,\"attention\":0},\"injuries\":[{\"part\":\"HEAD\",\"site\":\"scalp\",\"type\":\"laceration\",\"severity\":2,\"bleeding\":0,\"pain\":4,\"healingHours\":12,\"effects\":[{\"function\":\"vision\",\"degree\":0.4,\"mechanism\":\"blood_obstruction\"}],\"id\":\"04088310-ee59-4df5-8930-cecfbbbc5e6e\",\"sourceEventId\":\"d1177905-878d-46b0-ad44-dc7a9897ffe4\",\"onset\":5,\"treatedAt\":40,\"healed\":false}]}"
+        }
+      ],
+      "relatedEventIds": [
+        "d1177905-878d-46b0-ad44-dc7a9897ffe4"
+      ],
+      "importance": "normal",
+      "visibility": "public"
+    }
+  ]
+}

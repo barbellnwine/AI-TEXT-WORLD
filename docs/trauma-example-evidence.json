@@ -1,0 +1,499 @@
+{
+  "source": "Isolated test, scripted choices. Real API consequence proposal validated by engine. Not operational events.",
+  "model": "gpt-4.1-mini",
+  "tokens": 6825,
+  "proposal": {
+    "results": [
+      {
+        "actionId": "38dba025-ef19-4975-84b3-6515048e8b6f",
+        "outcome": "BLOCKED",
+        "reaction": "BLOCK",
+        "basis": "공격을 맞기 전 상대가 방어 자세를 취함으로써 공격을 막았다.",
+        "injury": null
+      }
+    ]
+  },
+  "combat": {
+    "id": "c7dac4f9-5a9a-475a-a450-85c5d8924ee5",
+    "type": "CONFLICT",
+    "occurredAt": "2026-09-24T17:14:44.721Z",
+    "day": 1,
+    "worldTime": "00:05",
+    "worldMinute": 5,
+    "placeId": "e19e9259-3039-41a2-a6a7-38598f8eb7ec",
+    "agentIds": [
+      "55d42682-56e8-4712-a5c0-aace93dd92f9",
+      "e7aed8ff-1892-44b4-9b37-24fd8449dbb1"
+    ],
+    "summary": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 팔을 들어 막으려 했다. 도영동은 공격을 막아 새 부상을 입지 않았다.",
+    "title": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 팔을 들어 막으려 했다. 도영동은 공격을 막아 새 부상을 입지 않았다.",
+    "stateChanges": [
+      {
+        "field": "agent:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:health",
+        "from": "0",
+        "to": "0"
+      },
+      {
+        "field": "agent:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:injury",
+        "from": "0",
+        "to": "0"
+      },
+      {
+        "field": "agent:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:status",
+        "from": "alive",
+        "to": "alive"
+      },
+      {
+        "field": "agent:55d42682-56e8-4712-a5c0-aace93dd92f9:fatigue",
+        "from": "0",
+        "to": "1"
+      },
+      {
+        "field": "relationship:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:55d42682-56e8-4712-a5c0-aace93dd92f9:stance",
+        "from": "neutral",
+        "to": "hostile"
+      },
+      {
+        "field": "relationship:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:55d42682-56e8-4712-a5c0-aace93dd92f9:trust",
+        "from": "5",
+        "to": "2"
+      },
+      {
+        "field": "relationship:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:55d42682-56e8-4712-a5c0-aace93dd92f9:hostility",
+        "from": "0",
+        "to": "6"
+      }
+    ],
+    "phase": "COMPLETED",
+    "actionResult": "김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 팔을 들어 막으려 했다. 도영동은 공격을 막아 새 부상을 입지 않았다.",
+    "actionMotive": "상대의 위협에서 벗어나려 했다.",
+    "actionContext": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다.",
+    "actionType": "ATTACK",
+    "attemptedAction": "접근 가능한 도구로 공격을 시도한다",
+    "engineVerdict": "COMPLETED",
+    "importance": "high",
+    "relatedEventIds": [
+      "1588c918-ea43-4842-8f3f-5005799053e1"
+    ],
+    "outcome": "CONFIRMED",
+    "cause": "action:ATTACK",
+    "witnessIds": [
+      "55d42682-56e8-4712-a5c0-aace93dd92f9",
+      "e7aed8ff-1892-44b4-9b37-24fd8449dbb1",
+      "cff085ad-ffee-48a7-9b53-f511046559c5",
+      "b946e77e-6203-4e84-9748-716365fffc3a",
+      "819b59c0-7e41-46b2-96f9-a4d8ab1a2069"
+    ],
+    "detail": {
+      "version": 1,
+      "startedMinute": 0,
+      "endedMinute": 5,
+      "intent": "상대의 위협에서 벗어나려 했다.",
+      "steps": [
+        {
+          "minute": 0,
+          "actorId": "55d42682-56e8-4712-a5c0-aace93dd92f9",
+          "kind": "PICK_UP",
+          "objectId": "f9c18933-eb5f-47cc-b07c-b71193efff2a",
+          "text": "김높별은(는) 발이 닿는 곳의 돌을(를) 집어 들었다."
+        },
+        {
+          "minute": 5,
+          "actorId": "e7aed8ff-1892-44b4-9b37-24fd8449dbb1",
+          "kind": "NOTICE",
+          "text": "도영동은(는) 자신을 향한 공격을 알아차렸다."
+        },
+        {
+          "minute": 5,
+          "actorId": "55d42682-56e8-4712-a5c0-aace93dd92f9",
+          "kind": "AIM",
+          "objectId": "f9c18933-eb5f-47cc-b07c-b71193efff2a",
+          "text": "김높별은(는) 돌을(를) 사용해 도영동의 머리을(를) 노렸다."
+        },
+        {
+          "minute": 5,
+          "actorId": "55d42682-56e8-4712-a5c0-aace93dd92f9",
+          "kind": "STRIKE",
+          "objectId": "f9c18933-eb5f-47cc-b07c-b71193efff2a",
+          "text": "김높별은(는) 돌을(를) 손에 쥔 채 휘둘렀다."
+        },
+        {
+          "minute": 5,
+          "actorId": "e7aed8ff-1892-44b4-9b37-24fd8449dbb1",
+          "kind": "DEFEND",
+          "text": "도영동은(는) 팔을 들어 막으려 했다."
+        },
+        {
+          "minute": 5,
+          "actorId": "55d42682-56e8-4712-a5c0-aace93dd92f9",
+          "kind": "RESULT",
+          "text": "도영동은(는) 공격을 막아 새 부상을 입지 않았다."
+        },
+        {
+          "minute": 5,
+          "actorId": "cff085ad-ffee-48a7-9b53-f511046559c5",
+          "kind": "WITNESS",
+          "text": "캐릭터 C은(는) 충돌을 목격하고 자신의 안전을 살필 필요를 느꼈다."
+        },
+        {
+          "minute": 5,
+          "actorId": "b946e77e-6203-4e84-9748-716365fffc3a",
+          "kind": "WITNESS",
+          "text": "캐릭터 D은(는) 충돌을 목격하고 자신의 안전을 살필 필요를 느꼈다."
+        },
+        {
+          "minute": 5,
+          "actorId": "819b59c0-7e41-46b2-96f9-a4d8ab1a2069",
+          "kind": "WITNESS",
+          "text": "캐릭터 E은(는) 충돌을 목격하고 자신의 안전을 살필 필요를 느꼈다."
+        }
+      ],
+      "equipment": {
+        "id": "f9c18933-eb5f-47cc-b07c-b71193efff2a",
+        "name": "돌",
+        "source": "ground",
+        "sourceId": "rock"
+      },
+      "adjudication": {
+        "version": 1,
+        "fingerprint": "1e2f1911ecc345c0d2cd8a3acd3ace1009ade13bd2837d7b03883357e5e4ca5e",
+        "proposal": {
+          "actionId": "38dba025-ef19-4975-84b3-6515048e8b6f",
+          "outcome": "BLOCKED",
+          "reaction": "BLOCK",
+          "basis": "공격을 맞기 전 상대가 방어 자세를 취함으로써 공격을 막았다.",
+          "injury": null
+        },
+        "reaction": {
+          "kind": "BLOCK",
+          "source": "reflex",
+          "reason": "정면으로 오는 공격을 막아 자신을 지키려 했다."
+        },
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "atMinute": 5
+      },
+      "combat": {
+        "method": "CONTACT",
+        "attackerId": "55d42682-56e8-4712-a5c0-aace93dd92f9",
+        "targetId": "e7aed8ff-1892-44b4-9b37-24fd8449dbb1",
+        "tool": {
+          "id": "f9c18933-eb5f-47cc-b07c-b71193efff2a",
+          "name": "돌",
+          "source": "ground",
+          "sourceId": "rock"
+        },
+        "toolAfter": {
+          "kind": "agent",
+          "id": "55d42682-56e8-4712-a5c0-aace93dd92f9"
+        },
+        "aimedPart": "HEAD",
+        "reaction": {
+          "kind": "BLOCK",
+          "source": "reflex",
+          "reason": "정면으로 오는 공격을 막아 자신을 지키려 했다."
+        },
+        "outcome": "BLOCKED",
+        "injuredPart": null,
+        "damage": 0,
+        "roll": 0.02040268573909998,
+        "hitChance": 0.6799999999999999
+      },
+      "witnesses": [
+        {
+          "actorId": "cff085ad-ffee-48a7-9b53-f511046559c5",
+          "concern": "self_safety",
+          "nextDecisionAt": 5
+        },
+        {
+          "actorId": "b946e77e-6203-4e84-9748-716365fffc3a",
+          "concern": "self_safety",
+          "nextDecisionAt": 5
+        },
+        {
+          "actorId": "819b59c0-7e41-46b2-96f9-a4d8ab1a2069",
+          "concern": "self_safety",
+          "nextDecisionAt": 5
+        }
+      ]
+    },
+    "actionId": "38dba025-ef19-4975-84b3-6515048e8b6f"
+  },
+  "events": [
+    {
+      "id": "c7dac4f9-5a9a-475a-a450-85c5d8924ee5",
+      "type": "CONFLICT",
+      "occurredAt": "2026-09-24T17:14:44.721Z",
+      "day": 1,
+      "worldTime": "00:05",
+      "worldMinute": 5,
+      "placeId": "e19e9259-3039-41a2-a6a7-38598f8eb7ec",
+      "agentIds": [
+        "55d42682-56e8-4712-a5c0-aace93dd92f9",
+        "e7aed8ff-1892-44b4-9b37-24fd8449dbb1"
+      ],
+      "summary": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 팔을 들어 막으려 했다. 도영동은 공격을 막아 새 부상을 입지 않았다.",
+      "title": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 팔을 들어 막으려 했다. 도영동은 공격을 막아 새 부상을 입지 않았다.",
+      "stateChanges": [
+        {
+          "field": "agent:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:health",
+          "from": "0",
+          "to": "0"
+        },
+        {
+          "field": "agent:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:injury",
+          "from": "0",
+          "to": "0"
+        },
+        {
+          "field": "agent:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:status",
+          "from": "alive",
+          "to": "alive"
+        },
+        {
+          "field": "agent:55d42682-56e8-4712-a5c0-aace93dd92f9:fatigue",
+          "from": "0",
+          "to": "1"
+        },
+        {
+          "field": "relationship:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:55d42682-56e8-4712-a5c0-aace93dd92f9:stance",
+          "from": "neutral",
+          "to": "hostile"
+        },
+        {
+          "field": "relationship:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:55d42682-56e8-4712-a5c0-aace93dd92f9:trust",
+          "from": "5",
+          "to": "2"
+        },
+        {
+          "field": "relationship:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:55d42682-56e8-4712-a5c0-aace93dd92f9:hostility",
+          "from": "0",
+          "to": "6"
+        }
+      ],
+      "phase": "COMPLETED",
+      "actionResult": "김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 팔을 들어 막으려 했다. 도영동은 공격을 막아 새 부상을 입지 않았다.",
+      "actionMotive": "상대의 위협에서 벗어나려 했다.",
+      "actionContext": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다.",
+      "actionType": "ATTACK",
+      "attemptedAction": "접근 가능한 도구로 공격을 시도한다",
+      "engineVerdict": "COMPLETED",
+      "importance": "high",
+      "relatedEventIds": [
+        "1588c918-ea43-4842-8f3f-5005799053e1"
+      ],
+      "outcome": "CONFIRMED",
+      "cause": "action:ATTACK",
+      "witnessIds": [
+        "55d42682-56e8-4712-a5c0-aace93dd92f9",
+        "e7aed8ff-1892-44b4-9b37-24fd8449dbb1",
+        "cff085ad-ffee-48a7-9b53-f511046559c5",
+        "b946e77e-6203-4e84-9748-716365fffc3a",
+        "819b59c0-7e41-46b2-96f9-a4d8ab1a2069"
+      ],
+      "detail": {
+        "version": 1,
+        "startedMinute": 0,
+        "endedMinute": 5,
+        "intent": "상대의 위협에서 벗어나려 했다.",
+        "steps": [
+          {
+            "minute": 0,
+            "actorId": "55d42682-56e8-4712-a5c0-aace93dd92f9",
+            "kind": "PICK_UP",
+            "objectId": "f9c18933-eb5f-47cc-b07c-b71193efff2a",
+            "text": "김높별은(는) 발이 닿는 곳의 돌을(를) 집어 들었다."
+          },
+          {
+            "minute": 5,
+            "actorId": "e7aed8ff-1892-44b4-9b37-24fd8449dbb1",
+            "kind": "NOTICE",
+            "text": "도영동은(는) 자신을 향한 공격을 알아차렸다."
+          },
+          {
+            "minute": 5,
+            "actorId": "55d42682-56e8-4712-a5c0-aace93dd92f9",
+            "kind": "AIM",
+            "objectId": "f9c18933-eb5f-47cc-b07c-b71193efff2a",
+            "text": "김높별은(는) 돌을(를) 사용해 도영동의 머리을(를) 노렸다."
+          },
+          {
+            "minute": 5,
+            "actorId": "55d42682-56e8-4712-a5c0-aace93dd92f9",
+            "kind": "STRIKE",
+            "objectId": "f9c18933-eb5f-47cc-b07c-b71193efff2a",
+            "text": "김높별은(는) 돌을(를) 손에 쥔 채 휘둘렀다."
+          },
+          {
+            "minute": 5,
+            "actorId": "e7aed8ff-1892-44b4-9b37-24fd8449dbb1",
+            "kind": "DEFEND",
+            "text": "도영동은(는) 팔을 들어 막으려 했다."
+          },
+          {
+            "minute": 5,
+            "actorId": "55d42682-56e8-4712-a5c0-aace93dd92f9",
+            "kind": "RESULT",
+            "text": "도영동은(는) 공격을 막아 새 부상을 입지 않았다."
+          },
+          {
+            "minute": 5,
+            "actorId": "cff085ad-ffee-48a7-9b53-f511046559c5",
+            "kind": "WITNESS",
+            "text": "캐릭터 C은(는) 충돌을 목격하고 자신의 안전을 살필 필요를 느꼈다."
+          },
+          {
+            "minute": 5,
+            "actorId": "b946e77e-6203-4e84-9748-716365fffc3a",
+            "kind": "WITNESS",
+            "text": "캐릭터 D은(는) 충돌을 목격하고 자신의 안전을 살필 필요를 느꼈다."
+          },
+          {
+            "minute": 5,
+            "actorId": "819b59c0-7e41-46b2-96f9-a4d8ab1a2069",
+            "kind": "WITNESS",
+            "text": "캐릭터 E은(는) 충돌을 목격하고 자신의 안전을 살필 필요를 느꼈다."
+          }
+        ],
+        "equipment": {
+          "id": "f9c18933-eb5f-47cc-b07c-b71193efff2a",
+          "name": "돌",
+          "source": "ground",
+          "sourceId": "rock"
+        },
+        "adjudication": {
+          "version": 1,
+          "fingerprint": "1e2f1911ecc345c0d2cd8a3acd3ace1009ade13bd2837d7b03883357e5e4ca5e",
+          "proposal": {
+            "actionId": "38dba025-ef19-4975-84b3-6515048e8b6f",
+            "outcome": "BLOCKED",
+            "reaction": "BLOCK",
+            "basis": "공격을 맞기 전 상대가 방어 자세를 취함으로써 공격을 막았다.",
+            "injury": null
+          },
+          "reaction": {
+            "kind": "BLOCK",
+            "source": "reflex",
+            "reason": "정면으로 오는 공격을 막아 자신을 지키려 했다."
+          },
+          "provider": "openai",
+          "model": "gpt-4.1-mini",
+          "atMinute": 5
+        },
+        "combat": {
+          "method": "CONTACT",
+          "attackerId": "55d42682-56e8-4712-a5c0-aace93dd92f9",
+          "targetId": "e7aed8ff-1892-44b4-9b37-24fd8449dbb1",
+          "tool": {
+            "id": "f9c18933-eb5f-47cc-b07c-b71193efff2a",
+            "name": "돌",
+            "source": "ground",
+            "sourceId": "rock"
+          },
+          "toolAfter": {
+            "kind": "agent",
+            "id": "55d42682-56e8-4712-a5c0-aace93dd92f9"
+          },
+          "aimedPart": "HEAD",
+          "reaction": {
+            "kind": "BLOCK",
+            "source": "reflex",
+            "reason": "정면으로 오는 공격을 막아 자신을 지키려 했다."
+          },
+          "outcome": "BLOCKED",
+          "injuredPart": null,
+          "damage": 0,
+          "roll": 0.02040268573909998,
+          "hitChance": 0.6799999999999999
+        },
+        "witnesses": [
+          {
+            "actorId": "cff085ad-ffee-48a7-9b53-f511046559c5",
+            "concern": "self_safety",
+            "nextDecisionAt": 5
+          },
+          {
+            "actorId": "b946e77e-6203-4e84-9748-716365fffc3a",
+            "concern": "self_safety",
+            "nextDecisionAt": 5
+          },
+          {
+            "actorId": "819b59c0-7e41-46b2-96f9-a4d8ab1a2069",
+            "concern": "self_safety",
+            "nextDecisionAt": 5
+          }
+        ]
+      },
+      "actionId": "38dba025-ef19-4975-84b3-6515048e8b6f"
+    }
+  ],
+  "chapter": {
+    "id": "day-af9c741c-35a4-4762-b87a-0a1beff4797e-1",
+    "seasonId": "af9c741c-35a4-4762-b87a-0a1beff4797e",
+    "worldDay": 1,
+    "timeStart": "00:05",
+    "timeEnd": "00:05",
+    "title": "DAY 1 · 진행 중인 하루",
+    "body": "00:05 · 중앙 공터\n\n김높별은 상대의 위협에서 벗어나려 했다. 김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 팔을 들어 막으려 했다. 도영동은 공격을 막아 새 부상을 입지 않았다. 주변의 3명도 충돌을 목격했다.",
+    "locationIds": [
+      "e19e9259-3039-41a2-a6a7-38598f8eb7ec"
+    ],
+    "agentIds": [
+      "55d42682-56e8-4712-a5c0-aace93dd92f9",
+      "e7aed8ff-1892-44b4-9b37-24fd8449dbb1"
+    ],
+    "sourceEventIds": [
+      "c7dac4f9-5a9a-475a-a450-85c5d8924ee5"
+    ],
+    "resolvedActionIds": [
+      "38dba025-ef19-4975-84b3-6515048e8b6f"
+    ],
+    "stateChanges": [
+      {
+        "field": "agent:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:health",
+        "from": "0",
+        "to": "0"
+      },
+      {
+        "field": "agent:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:injury",
+        "from": "0",
+        "to": "0"
+      },
+      {
+        "field": "agent:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:status",
+        "from": "alive",
+        "to": "alive"
+      },
+      {
+        "field": "agent:55d42682-56e8-4712-a5c0-aace93dd92f9:fatigue",
+        "from": "0",
+        "to": "1"
+      },
+      {
+        "field": "relationship:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:55d42682-56e8-4712-a5c0-aace93dd92f9:stance",
+        "from": "neutral",
+        "to": "hostile"
+      },
+      {
+        "field": "relationship:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:55d42682-56e8-4712-a5c0-aace93dd92f9:trust",
+        "from": "5",
+        "to": "2"
+      },
+      {
+        "field": "relationship:e7aed8ff-1892-44b4-9b37-24fd8449dbb1:55d42682-56e8-4712-a5c0-aace93dd92f9:hostility",
+        "from": "0",
+        "to": "6"
+      }
+    ],
+    "importance": "notable",
+    "createdAt": "2026-09-24T17:14:44.721Z",
+    "kind": "DAY",
+    "completed": false
+  },
+  "mode": "추가 검증에서 투척 표현을 거부하고 확정 사건 기반 기본 서술 적용",
+  "issue": "CONTACT is a held-tool or unarmed strike, not a thrown projectile. The tool remains with its holder.",
+  "rejectedDraft": {
+    "body": "김높별은 자신에게 향하는 위협에서 벗어나기 위해 중심이 된 공간에 떨어져 있던 돌을 집어 들었다. 마음속에는 상대를 제압할 필요성을 느꼈다.\n\n도영동은 김높별의 돌 던지려는 움직임을 재빨리 포착했다. 그가 빗나가지 않도록 머리를 조준하는 것을 알아챔과 동시에 본능적으로 팔을 들어 올려 방어하려 했다.\n\n김높별의 돌은 휘둘러졌지만 도영동의 팔에 걸려 공격은 막혔다. 이로써 도영동은 다행히 추가적인 상처를 입지 않았고, 김높별은 자신에게 가해진 위협에서 일시적으로 벗어날 수 있었다.",
+    "reason": "CONTACT is a held-tool or unarmed strike, not a thrown projectile. The tool remains with its holder."
+  }
+}

@@ -34,7 +34,7 @@ export function ChronicleReader({ placesById, agentsById, latestStreamScene, onO
     setError(false)
     try {
       const hasSavedPosition = Boolean(getLastReadSceneId())
-      const res = await worldApi.scenes({ limit: hasSavedPosition ? 50 : 2, importantOnly })
+      const res = await worldApi.days({ limit: hasSavedPosition ? 50 : 2, importantOnly })
       const ascending = [...res.items].reverse()
       setScenes(ascending)
       seenIds.current = new Set(ascending.map(s => s.id))
@@ -76,10 +76,13 @@ export function ChronicleReader({ placesById, agentsById, latestStreamScene, onO
   }, [scenes, saveLastReadSceneId])
 
   useEffect(() => {
-    if (!latestStreamScene || seenIds.current.has(latestStreamScene.id)) return
-    if (importantOnly && latestStreamScene.importance === 'ordinary') return
-    seenIds.current.add(latestStreamScene.id)
-    setPendingScenes(p => [...p, latestStreamScene])
+    let disposed = false
+    const refresh = () => { void worldApi.days({ importantOnly }).then(res => {
+      if (!disposed) { setScenes([...res.items].reverse()); setHasMoreOlder(false) }
+    }).catch(() => {}) }
+    refresh()
+    const timer = setInterval(refresh, 15000)
+    return () => { disposed = true; clearInterval(timer) }
   }, [latestStreamScene, importantOnly])
 
   async function loadOlder() {
@@ -88,7 +91,7 @@ export function ChronicleReader({ placesById, agentsById, latestStreamScene, onO
     try {
       const oldest = scenes[0]
       const previousHeight = document.documentElement.scrollHeight
-      const res = await worldApi.scenes({ before: oldest.createdAt, limit: 2, importantOnly })
+      const res = await worldApi.days({ before: oldest.createdAt, limit: 2, importantOnly })
       const olderAscending = [...res.items].reverse()
       for (const s of olderAscending) seenIds.current.add(s.id)
       setScenes(current => [...olderAscending, ...current])
@@ -107,7 +110,7 @@ export function ChronicleReader({ placesById, agentsById, latestStreamScene, onO
     setLoadingInitial(true)
     setError(false)
     try {
-      const res = await worldApi.scenes({ limit: 50, importantOnly })
+      const res = await worldApi.days({ limit: 50, importantOnly })
       const ascending = [...res.items].reverse()
       setScenes(ascending)
       seenIds.current = new Set(ascending.map(s => s.id))

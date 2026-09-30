@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { worldApi } from '../api'
 import { ChronicleReader } from '../components/ChronicleReader'
 import { EventDetailPanel } from '../components/EventDetailPanel'
@@ -12,6 +12,7 @@ import { Icon } from '../../components/Icon'
 import { WorldMiniMap } from '../components/WorldMiniMap'
 import { useWorldExperience } from '../i18n'
 import { WorldLiveFeed } from '../components/WorldLiveFeed'
+import { eventProse } from '../../../server/domain/eventProse'
 
 export function WorldHomePage() {
   const { t, locale } = useWorldExperience()
@@ -163,7 +164,7 @@ export function WorldHomePage() {
           <section className="observatory-panel observatory-map"><header className="observatory-section-head"><h2><Icon name="map" size={16} />{t('map')}</h2><span className="observatory-kicker">MINIMAP</span></header><WorldMiniMap state={worldState} selectedAgentId={selectedAgentId} onSelectAgent={setSelectedAgentId} /></section>
           <section className="observatory-panel observatory-resources"><header className="observatory-section-head"><h2><Icon name="pulse" size={16} />{t('resources')}</h2></header>{resources.map(resource => <div className="observatory-resource" key={resource.id}><div><span>{resource.label}<small>{resource.placeName}</small></span><strong>{resource.level}{resource.unit ?? ''} <span>{resource.trend === 'down' ? '↘' : resource.trend === 'up' ? '↗' : '—'}</span></strong></div><meter min={0} max={Math.max(resource.max, 1)} value={resource.level} aria-label={`${resource.placeName} ${resource.label}`} /></div>)}</section>
         </aside>
-        <section className="observatory-events"><header className="observatory-section-head"><div><p className="observatory-kicker">WORLD TIMELINE</p><h2>{t('events')}</h2></div><span className="observatory-kicker">DAY {worldState.clock.day}</span></header>{eventsError && recentEvents.length === 0 ? <ErrorState onRetry={() => window.location.reload()} /> : recentEvents.length === 0 ? <p>{t('emptyEvents')}</p> : <ol>{recentEvents.map(event => <li key={event.id}><button onClick={() => setDetailEventId(event.id)}><span className="observatory-event-day">DAY {event.day}<small>{event.worldTime ?? '—'}</small></span><span className={`observatory-event-dot importance-${event.importance}`} /><span><strong>{event.title}</strong><small>{placesById.get(event.placeId)?.name} · {event.agentIds.map(id => agentsById.get(id)?.name).filter(Boolean).join(', ')}</small></span><span className="observatory-event-arrow">↗</span></button></li>)}</ol>}</section>
+        <section className="observatory-events"><header className="observatory-section-head"><div><p className="observatory-kicker">WORLD TIMELINE</p><h2>{t('events')}</h2></div><span className="observatory-kicker">DAY {worldState.clock.day}</span></header>{eventsError && recentEvents.length === 0 ? <ErrorState onRetry={() => window.location.reload()} /> : recentEvents.length === 0 ? <p>{t('emptyEvents')}</p> : <ol>{recentEvents.map(event => <li key={event.id}><button onClick={() => setDetailEventId(event.id)}><span className="observatory-event-day">DAY {event.day}<small>{event.worldTime ?? '—'}</small></span><span className={`observatory-event-dot importance-${event.importance}`} /><span><strong>{eventProse(event, agentsById)}</strong><small>{placesById.get(event.placeId)?.name} · {event.agentIds.map(id => agentsById.get(id)?.name).filter(Boolean).join(', ')}</small></span><span className="observatory-event-arrow">↗</span></button></li>)}</ol>}</section>
         </div>
       </main>
       <WorldFooter />

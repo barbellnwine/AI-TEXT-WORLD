@@ -52,6 +52,7 @@ export interface ConnectionDTO {
 }
 
 export interface CharacterDTO {
+  dispositions?: import('../../server/world/dispositions').Dispositions
   id: string; name: string; age: number | null; gender: string; appearance: string; background: string
   occupation: string; personality: string; goal: string; strengths: string[]; weaknesses: string[]
   provider: string; model: string; humanState: HumanState; emotion: Emotion; knowledge: DraftKnowledgeItem[]

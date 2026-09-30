@@ -1,0 +1,477 @@
+{
+  "source": "Isolated test, scripted choices. Real API consequence proposal validated by engine. Not operational events.",
+  "model": "gpt-4.1-mini",
+  "calls": 1,
+  "elapsedMs": 1652,
+  "tokens": 1654,
+  "proposal": {
+    "results": [
+      {
+        "actionId": "58d27f6f-23dd-4ec9-ba13-3eafadf133eb",
+        "outcome": "DODGED",
+        "reaction": "DODGE",
+        "basis": "피격자가 반사적으로 몸을 빼어 공격을 피함, 공격의 명중 확률이 낮음",
+        "injury": null
+      }
+    ]
+  },
+  "combat": {
+    "id": "a3e3b377-db77-4075-9578-094b274bde7c",
+    "type": "CONFLICT",
+    "occurredAt": "2026-09-24T18:04:48.883Z",
+    "day": 1,
+    "worldTime": "00:05",
+    "worldMinute": 5,
+    "placeId": "2aac92b0-8ac1-41e9-aa7b-8424660323a4",
+    "agentIds": [
+      "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+      "35978be1-fb13-4b73-a071-6c70d39a4261"
+    ],
+    "summary": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 몸을 빼 피하려 했다. 도영동은 공격을 피했다. 새 부상은 없었다.",
+    "title": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 몸을 빼 피하려 했다. 도영동은 공격을 피했다. 새 부상은 없었다.",
+    "stateChanges": [
+      {
+        "field": "agent:35978be1-fb13-4b73-a071-6c70d39a4261:health",
+        "from": "0",
+        "to": "0"
+      },
+      {
+        "field": "agent:35978be1-fb13-4b73-a071-6c70d39a4261:injury",
+        "from": "0",
+        "to": "0"
+      },
+      {
+        "field": "agent:35978be1-fb13-4b73-a071-6c70d39a4261:status",
+        "from": "alive",
+        "to": "alive"
+      },
+      {
+        "field": "agent:29d07a0a-9a01-4214-93a3-b525b75e75d6:fatigue",
+        "from": "0",
+        "to": "1"
+      },
+      {
+        "field": "relationship:35978be1-fb13-4b73-a071-6c70d39a4261:29d07a0a-9a01-4214-93a3-b525b75e75d6:stance",
+        "from": "neutral",
+        "to": "hostile"
+      },
+      {
+        "field": "relationship:35978be1-fb13-4b73-a071-6c70d39a4261:29d07a0a-9a01-4214-93a3-b525b75e75d6:trust",
+        "from": "5",
+        "to": "2"
+      },
+      {
+        "field": "relationship:35978be1-fb13-4b73-a071-6c70d39a4261:29d07a0a-9a01-4214-93a3-b525b75e75d6:hostility",
+        "from": "0",
+        "to": "6"
+      }
+    ],
+    "phase": "COMPLETED",
+    "actionResult": "김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 몸을 빼 피하려 했다. 도영동은 공격을 피했다. 새 부상은 없었다.",
+    "actionMotive": "상대의 위협에서 벗어나려 했다.",
+    "actionContext": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다.",
+    "actionType": "ATTACK",
+    "attemptedAction": "접근 가능한 도구로 공격을 시도한다",
+    "engineVerdict": "COMPLETED",
+    "importance": "high",
+    "relatedEventIds": [
+      "266b734c-67d6-4e75-aebf-e6c990d67335"
+    ],
+    "outcome": "CONFIRMED",
+    "cause": "action:ATTACK",
+    "witnessIds": [
+      "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+      "35978be1-fb13-4b73-a071-6c70d39a4261",
+      "9519ebcd-e2e0-4091-996a-2eed9e45958d",
+      "c43d4744-c821-4655-980c-7c94d4da7ff2",
+      "c8e9abc6-7b41-4006-88af-04126c4ba3c8"
+    ],
+    "detail": {
+      "version": 1,
+      "startedMinute": 0,
+      "endedMinute": 5,
+      "intent": "상대의 위협에서 벗어나려 했다.",
+      "steps": [
+        {
+          "minute": 0,
+          "actorId": "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+          "kind": "PICK_UP",
+          "objectId": "2556ac7a-a0f8-46c2-8a02-3d5faeb4a5e3",
+          "text": "김높별은(는) 발이 닿는 곳의 돌을(를) 집어 들었다."
+        },
+        {
+          "minute": 5,
+          "actorId": "35978be1-fb13-4b73-a071-6c70d39a4261",
+          "kind": "NOTICE",
+          "text": "도영동은(는) 자신을 향한 공격을 알아차렸다."
+        },
+        {
+          "minute": 5,
+          "actorId": "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+          "kind": "AIM",
+          "objectId": "2556ac7a-a0f8-46c2-8a02-3d5faeb4a5e3",
+          "text": "김높별은(는) 돌을(를) 사용해 도영동의 머리을(를) 노렸다."
+        },
+        {
+          "minute": 5,
+          "actorId": "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+          "kind": "STRIKE",
+          "objectId": "2556ac7a-a0f8-46c2-8a02-3d5faeb4a5e3",
+          "text": "김높별은(는) 돌을(를) 손에 쥔 채 휘둘렀다."
+        },
+        {
+          "minute": 5,
+          "actorId": "35978be1-fb13-4b73-a071-6c70d39a4261",
+          "kind": "DEFEND",
+          "text": "도영동은(는) 몸을 빼 피하려 했다."
+        },
+        {
+          "minute": 5,
+          "actorId": "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+          "kind": "RESULT",
+          "text": "도영동은(는) 공격을 피했다. 새 부상은 없었다."
+        }
+      ],
+      "equipment": {
+        "id": "2556ac7a-a0f8-46c2-8a02-3d5faeb4a5e3",
+        "name": "돌",
+        "source": "ground",
+        "sourceId": "rock"
+      },
+      "exchange": {
+        "id": "58d27f6f-23dd-4ec9-ba13-3eafadf133eb",
+        "role": "unlinked"
+      },
+      "adjudication": {
+        "version": 1,
+        "fingerprint": "d813269aafa8008b51b3c0c6bd6c531cba5a043419b77f8e03dfc054a1fc2e2c",
+        "proposal": {
+          "actionId": "58d27f6f-23dd-4ec9-ba13-3eafadf133eb",
+          "outcome": "DODGED",
+          "reaction": "DODGE",
+          "basis": "피격자가 반사적으로 몸을 빼어 공격을 피함, 공격의 명중 확률이 낮음",
+          "injury": null
+        },
+        "exchange": {
+          "id": "58d27f6f-23dd-4ec9-ba13-3eafadf133eb",
+          "role": "unlinked"
+        },
+        "reaction": {
+          "kind": "DODGE",
+          "source": "reflex",
+          "reason": "상대와 맞부딪치기보다 몸을 빼 피해를 피하려 했다."
+        },
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "atMinute": 5
+      },
+      "combat": {
+        "method": "CONTACT",
+        "attackerId": "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+        "targetId": "35978be1-fb13-4b73-a071-6c70d39a4261",
+        "tool": {
+          "id": "2556ac7a-a0f8-46c2-8a02-3d5faeb4a5e3",
+          "name": "돌",
+          "source": "ground",
+          "sourceId": "rock"
+        },
+        "toolAfter": {
+          "kind": "agent",
+          "id": "29d07a0a-9a01-4214-93a3-b525b75e75d6"
+        },
+        "aimedPart": "HEAD",
+        "reaction": {
+          "kind": "DODGE",
+          "source": "reflex",
+          "reason": "상대와 맞부딪치기보다 몸을 빼 피해를 피하려 했다."
+        },
+        "outcome": "DODGED",
+        "injuredPart": null,
+        "damage": 0,
+        "roll": 0.02040268573909998,
+        "hitChance": 0.1299999999999999
+      },
+      "witnesses": [
+        {
+          "actorId": "9519ebcd-e2e0-4091-996a-2eed9e45958d",
+          "concern": "self_safety",
+          "nextDecisionAt": 5
+        },
+        {
+          "actorId": "c43d4744-c821-4655-980c-7c94d4da7ff2",
+          "concern": "self_safety",
+          "nextDecisionAt": 5
+        },
+        {
+          "actorId": "c8e9abc6-7b41-4006-88af-04126c4ba3c8",
+          "concern": "self_safety",
+          "nextDecisionAt": 5
+        }
+      ]
+    },
+    "actionId": "58d27f6f-23dd-4ec9-ba13-3eafadf133eb"
+  },
+  "events": [
+    {
+      "id": "a3e3b377-db77-4075-9578-094b274bde7c",
+      "type": "CONFLICT",
+      "occurredAt": "2026-09-24T18:04:48.883Z",
+      "day": 1,
+      "worldTime": "00:05",
+      "worldMinute": 5,
+      "placeId": "2aac92b0-8ac1-41e9-aa7b-8424660323a4",
+      "agentIds": [
+        "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+        "35978be1-fb13-4b73-a071-6c70d39a4261"
+      ],
+      "summary": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 몸을 빼 피하려 했다. 도영동은 공격을 피했다. 새 부상은 없었다.",
+      "title": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 몸을 빼 피하려 했다. 도영동은 공격을 피했다. 새 부상은 없었다.",
+      "stateChanges": [
+        {
+          "field": "agent:35978be1-fb13-4b73-a071-6c70d39a4261:health",
+          "from": "0",
+          "to": "0"
+        },
+        {
+          "field": "agent:35978be1-fb13-4b73-a071-6c70d39a4261:injury",
+          "from": "0",
+          "to": "0"
+        },
+        {
+          "field": "agent:35978be1-fb13-4b73-a071-6c70d39a4261:status",
+          "from": "alive",
+          "to": "alive"
+        },
+        {
+          "field": "agent:29d07a0a-9a01-4214-93a3-b525b75e75d6:fatigue",
+          "from": "0",
+          "to": "1"
+        },
+        {
+          "field": "relationship:35978be1-fb13-4b73-a071-6c70d39a4261:29d07a0a-9a01-4214-93a3-b525b75e75d6:stance",
+          "from": "neutral",
+          "to": "hostile"
+        },
+        {
+          "field": "relationship:35978be1-fb13-4b73-a071-6c70d39a4261:29d07a0a-9a01-4214-93a3-b525b75e75d6:trust",
+          "from": "5",
+          "to": "2"
+        },
+        {
+          "field": "relationship:35978be1-fb13-4b73-a071-6c70d39a4261:29d07a0a-9a01-4214-93a3-b525b75e75d6:hostility",
+          "from": "0",
+          "to": "6"
+        }
+      ],
+      "phase": "COMPLETED",
+      "actionResult": "김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 몸을 빼 피하려 했다. 도영동은 공격을 피했다. 새 부상은 없었다.",
+      "actionMotive": "상대의 위협에서 벗어나려 했다.",
+      "actionContext": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다.",
+      "actionType": "ATTACK",
+      "attemptedAction": "접근 가능한 도구로 공격을 시도한다",
+      "engineVerdict": "COMPLETED",
+      "importance": "high",
+      "relatedEventIds": [
+        "266b734c-67d6-4e75-aebf-e6c990d67335"
+      ],
+      "outcome": "CONFIRMED",
+      "cause": "action:ATTACK",
+      "witnessIds": [
+        "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+        "35978be1-fb13-4b73-a071-6c70d39a4261",
+        "9519ebcd-e2e0-4091-996a-2eed9e45958d",
+        "c43d4744-c821-4655-980c-7c94d4da7ff2",
+        "c8e9abc6-7b41-4006-88af-04126c4ba3c8"
+      ],
+      "detail": {
+        "version": 1,
+        "startedMinute": 0,
+        "endedMinute": 5,
+        "intent": "상대의 위협에서 벗어나려 했다.",
+        "steps": [
+          {
+            "minute": 0,
+            "actorId": "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+            "kind": "PICK_UP",
+            "objectId": "2556ac7a-a0f8-46c2-8a02-3d5faeb4a5e3",
+            "text": "김높별은(는) 발이 닿는 곳의 돌을(를) 집어 들었다."
+          },
+          {
+            "minute": 5,
+            "actorId": "35978be1-fb13-4b73-a071-6c70d39a4261",
+            "kind": "NOTICE",
+            "text": "도영동은(는) 자신을 향한 공격을 알아차렸다."
+          },
+          {
+            "minute": 5,
+            "actorId": "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+            "kind": "AIM",
+            "objectId": "2556ac7a-a0f8-46c2-8a02-3d5faeb4a5e3",
+            "text": "김높별은(는) 돌을(를) 사용해 도영동의 머리을(를) 노렸다."
+          },
+          {
+            "minute": 5,
+            "actorId": "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+            "kind": "STRIKE",
+            "objectId": "2556ac7a-a0f8-46c2-8a02-3d5faeb4a5e3",
+            "text": "김높별은(는) 돌을(를) 손에 쥔 채 휘둘렀다."
+          },
+          {
+            "minute": 5,
+            "actorId": "35978be1-fb13-4b73-a071-6c70d39a4261",
+            "kind": "DEFEND",
+            "text": "도영동은(는) 몸을 빼 피하려 했다."
+          },
+          {
+            "minute": 5,
+            "actorId": "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+            "kind": "RESULT",
+            "text": "도영동은(는) 공격을 피했다. 새 부상은 없었다."
+          }
+        ],
+        "equipment": {
+          "id": "2556ac7a-a0f8-46c2-8a02-3d5faeb4a5e3",
+          "name": "돌",
+          "source": "ground",
+          "sourceId": "rock"
+        },
+        "exchange": {
+          "id": "58d27f6f-23dd-4ec9-ba13-3eafadf133eb",
+          "role": "unlinked"
+        },
+        "adjudication": {
+          "version": 1,
+          "fingerprint": "d813269aafa8008b51b3c0c6bd6c531cba5a043419b77f8e03dfc054a1fc2e2c",
+          "proposal": {
+            "actionId": "58d27f6f-23dd-4ec9-ba13-3eafadf133eb",
+            "outcome": "DODGED",
+            "reaction": "DODGE",
+            "basis": "피격자가 반사적으로 몸을 빼어 공격을 피함, 공격의 명중 확률이 낮음",
+            "injury": null
+          },
+          "exchange": {
+            "id": "58d27f6f-23dd-4ec9-ba13-3eafadf133eb",
+            "role": "unlinked"
+          },
+          "reaction": {
+            "kind": "DODGE",
+            "source": "reflex",
+            "reason": "상대와 맞부딪치기보다 몸을 빼 피해를 피하려 했다."
+          },
+          "provider": "openai",
+          "model": "gpt-4.1-mini",
+          "atMinute": 5
+        },
+        "combat": {
+          "method": "CONTACT",
+          "attackerId": "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+          "targetId": "35978be1-fb13-4b73-a071-6c70d39a4261",
+          "tool": {
+            "id": "2556ac7a-a0f8-46c2-8a02-3d5faeb4a5e3",
+            "name": "돌",
+            "source": "ground",
+            "sourceId": "rock"
+          },
+          "toolAfter": {
+            "kind": "agent",
+            "id": "29d07a0a-9a01-4214-93a3-b525b75e75d6"
+          },
+          "aimedPart": "HEAD",
+          "reaction": {
+            "kind": "DODGE",
+            "source": "reflex",
+            "reason": "상대와 맞부딪치기보다 몸을 빼 피해를 피하려 했다."
+          },
+          "outcome": "DODGED",
+          "injuredPart": null,
+          "damage": 0,
+          "roll": 0.02040268573909998,
+          "hitChance": 0.1299999999999999
+        },
+        "witnesses": [
+          {
+            "actorId": "9519ebcd-e2e0-4091-996a-2eed9e45958d",
+            "concern": "self_safety",
+            "nextDecisionAt": 5
+          },
+          {
+            "actorId": "c43d4744-c821-4655-980c-7c94d4da7ff2",
+            "concern": "self_safety",
+            "nextDecisionAt": 5
+          },
+          {
+            "actorId": "c8e9abc6-7b41-4006-88af-04126c4ba3c8",
+            "concern": "self_safety",
+            "nextDecisionAt": 5
+          }
+        ]
+      },
+      "actionId": "58d27f6f-23dd-4ec9-ba13-3eafadf133eb"
+    }
+  ],
+  "chapter": {
+    "id": "day-7d2b9f8b-bf27-4912-b5cc-a058075006b0-1",
+    "seasonId": "7d2b9f8b-bf27-4912-b5cc-a058075006b0",
+    "worldDay": 1,
+    "timeStart": "00:05",
+    "timeEnd": "00:05",
+    "title": "DAY 1 · 진행 중인 하루",
+    "body": "00:05 · 중앙 공터\n\n김높별은 상대의 위협에서 벗어나려 했다. 김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 몸을 빼 피하려 했다. 도영동은 공격을 피했다. 새 부상은 없었다.",
+    "locationIds": [
+      "2aac92b0-8ac1-41e9-aa7b-8424660323a4"
+    ],
+    "agentIds": [
+      "29d07a0a-9a01-4214-93a3-b525b75e75d6",
+      "35978be1-fb13-4b73-a071-6c70d39a4261"
+    ],
+    "sourceEventIds": [
+      "a3e3b377-db77-4075-9578-094b274bde7c"
+    ],
+    "resolvedActionIds": [
+      "58d27f6f-23dd-4ec9-ba13-3eafadf133eb"
+    ],
+    "stateChanges": [
+      {
+        "field": "agent:35978be1-fb13-4b73-a071-6c70d39a4261:health",
+        "from": "0",
+        "to": "0"
+      },
+      {
+        "field": "agent:35978be1-fb13-4b73-a071-6c70d39a4261:injury",
+        "from": "0",
+        "to": "0"
+      },
+      {
+        "field": "agent:35978be1-fb13-4b73-a071-6c70d39a4261:status",
+        "from": "alive",
+        "to": "alive"
+      },
+      {
+        "field": "agent:29d07a0a-9a01-4214-93a3-b525b75e75d6:fatigue",
+        "from": "0",
+        "to": "1"
+      },
+      {
+        "field": "relationship:35978be1-fb13-4b73-a071-6c70d39a4261:29d07a0a-9a01-4214-93a3-b525b75e75d6:stance",
+        "from": "neutral",
+        "to": "hostile"
+      },
+      {
+        "field": "relationship:35978be1-fb13-4b73-a071-6c70d39a4261:29d07a0a-9a01-4214-93a3-b525b75e75d6:trust",
+        "from": "5",
+        "to": "2"
+      },
+      {
+        "field": "relationship:35978be1-fb13-4b73-a071-6c70d39a4261:29d07a0a-9a01-4214-93a3-b525b75e75d6:hostility",
+        "from": "0",
+        "to": "6"
+      }
+    ],
+    "importance": "notable",
+    "createdAt": "2026-09-24T18:04:48.883Z",
+    "kind": "DAY",
+    "completed": false
+  },
+  "mode": "확정 사건 기반 기본 서술",
+  "issue": null
+}

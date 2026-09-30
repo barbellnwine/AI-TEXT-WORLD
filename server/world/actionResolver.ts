@@ -15,6 +15,7 @@ const ACTION_TO_EVENT_TYPE: Record<ProposedAction['actionType'], WorldEvent['typ
   INTERACT: 'COOPERATION',
   WAIT: 'OBSERVATION',
   COOPERATE: 'COOPERATION',
+  STEAL: 'CONFLICT', ROB: 'CONFLICT', HIDE: 'DECISION',
   ATTACK: 'CONFLICT',
   REST: 'OBSERVATION', SLEEP: 'OBSERVATION', TAKE_ITEM: 'RESOURCE_CHANGE', EAT: 'RESOURCE_CHANGE', DRINK: 'RESOURCE_CHANGE', EXPLORE: 'DISCOVERY', SHARE_INFO: 'DIALOGUE',
 }
@@ -58,7 +59,7 @@ export function resolveAction(action: ProposedAction, validation: ActionValidati
     stateChanges: validation.approved ? deriveStateChanges(action, worldState) : [],
     importance: 'normal',
     relatedEventIds: [],
-    publicQuote: action.actionType === 'SPEAK' ? action.spokenText : undefined,
+    publicQuote: ['SPEAK','COOPERATE','GIVE_ITEM','ROB'].includes(action.actionType) ? action.spokenText : undefined,
     outcome: validation.approved ? 'CONFIRMED' : 'REJECTED',
   }
 }

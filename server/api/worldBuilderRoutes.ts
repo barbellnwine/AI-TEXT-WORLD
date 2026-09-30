@@ -1,3 +1,4 @@
+import { parseDispositions } from '../world/dispositions.ts'
 import type { DatabaseSync } from 'node:sqlite'
 import { Router, readJsonBody, sendJson, HttpError } from '../http.ts'
 import { requireAdminRole } from './userAuth.ts'
@@ -6,7 +7,7 @@ import {
   setPresetRules, RULE_CATEGORIES, type IncomingRule, type RuleCategory,
 } from '../domain/rulePresets.ts'
 import {
-  listDrafts, getDraft, createDraft, deleteDraft, setWizardStep, updateBasicInfo, updateRuleSelection, updateEnvironment,
+  listDrafts, getDraft, createDraft, deleteDraft, eraseWorldDesign, getDraftStatus, setWizardStep, updateBasicInfo, updateRuleSelection, updateEnvironment,
   replacePlacesAndConnections, createCharacter, updateCharacter, deleteCharacter, getCharacter, replaceRelationships,
   DEFAULT_HUMAN_STATE, DEFAULT_EMOTION,
   type CharacterInput, type IncomingPlace, type IncomingConnection, type IncomingRelationship,
@@ -16,10 +17,11 @@ import { validateDraftForStart } from '../world/builderValidation.ts'
 import { startWorldFromDraft } from '../domain/worldLaunch.ts'
 import { config } from '../config.ts'
 import { randomUUID } from 'node:crypto'
-import { saveStudio } from '../domain/studioStore.ts'
+import { saveStudio, copyWorldDesign } from '../domain/studioStore.ts'
 import { recommendStudio } from '../domain/studioRecommendations.ts'
 import { createTestIsland } from '../domain/studioExample.ts'
 import type { DraftDTO } from '../domain/worldDrafts.ts'
+import * as worldStore from '../domain/worldStore.ts'
 
 function num(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
@@ -35,6 +37,8 @@ function strArray(value: unknown): string[] {
 }
 
 function parseCharacterInput(body: Record<string, unknown>): CharacterInput {
+  let dispositions
+  try { dispositions = body.dispositions == null ? undefined : parseDispositions(body.dispositions) } catch { throw new HttpError(400, 'invalid_dispositions') }
   const hs = (typeof body.humanState === 'object' && body.humanState !== null ? body.humanState : {}) as Record<string, unknown>
   const emo = (typeof body.emotion === 'object' && body.emotion !== null ? body.emotion : {}) as Record<string, unknown>
   const clamp = (v: unknown, fallback: number) => {
@@ -45,7 +49,7 @@ function parseCharacterInput(body: Record<string, unknown>): CharacterInput {
     ? body.knowledge.map(k => ({ summary: str((k as Record<string, unknown>)?.summary) })).filter(k => k.summary.trim())
     : []
   return {
-    name: str(body.name), age: typeof body.age === 'number' ? body.age : null, gender: str(body.gender),
+    dispositions, name: str(body.name), age: typeof body.age === 'number' ? body.age : null, gender: str(body.gender),
     appearance: str(body.appearance), background: str(body.background), occupation: str(body.occupation),
     personality: str(body.personality), goal: str(body.goal), strengths: strArray(body.strengths), weaknesses: strArray(body.weaknesses),
     provider: str(body.provider, 'openai'), model: str(body.model),
@@ -150,9 +154,30 @@ export function registerWorldBuilderRoutes(router: Router, db: DatabaseSync): vo
     sendJson(ctx.res, 200, { draft: requireDraft(db, ctx.params.id) })
   })
 
+  router.post('/api/admin/world/drafts/:id/copy', ctx => {
+    if (!requireAdminRole(ctx, db)) return
+    sendJson(ctx.res, 201, { draft: copyWorldDesign(db, ctx.params.id) })
+  })
+
   router.delete('/api/admin/world/drafts/:id', ctx => {
     if (!requireAdminRole(ctx, db)) return
-    const result = deleteDraft(db, ctx.params.id)
+    const id = ctx.params.id
+    const status = getDraftStatus(db, id)
+    if (!status) throw new HttpError(404, 'draft_not_found')
+    let result: { ok: true } | { ok: false; error: string }
+    if (status === 'DRAFT' || status === 'READY') result = deleteDraft(db, id)
+    else if (worldStore.getSeason().id === id) result = worldStore.deleteCurrentWorld(db, id)
+    else if (worldStore.listSeasons().some(s => s.id === id)) result = worldStore.deleteArchivedSeason(db, id)
+    else {
+      worldStore.assertWorldIdle()
+      db.exec('SAVEPOINT delete_stored_world')
+      try {
+        db.prepare('DELETE FROM world_event_journal WHERE season_id=?').run(id)
+        eraseWorldDesign(db, id)
+        db.exec('RELEASE delete_stored_world')
+      } catch (error) { db.exec('ROLLBACK TO delete_stored_world; RELEASE delete_stored_world'); throw error }
+      result = { ok: true }
+    }
     if (!result.ok) throw new HttpError(result.error === 'draft_not_found' ? 404 : 409, result.error)
     sendJson(ctx.res, 200, { ok: true })
   })

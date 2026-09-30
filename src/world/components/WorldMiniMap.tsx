@@ -58,43 +58,60 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
   const AREA_LABELS: Record<string, string> = { SHORE: '해안', FOREST: '숲', HIGH_GROUND: '고지대', CAVE: '동굴', WATER: '물가', CAMP: '야영지' }
   const maxOccupantRadius = Math.max(10, placeVisualRadius * 0.62)
   const agents = [...state.agents].filter(agent => anchors.has(agent.publicState.locationId)).sort((a, b) => a.id.localeCompare(b.id))
+  // Stable per-character offsets never change when another character arrives or leaves.
+  const point = (agent: typeof agents[number], placeId: string, area?: string, position?: {x:number;y:number}) => {
+    const anchor = anchors.get(placeId)!
+    const seed = [...agent.id].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 0)
+    const angle = (seed % 360) * Math.PI / 180
+    const spread = Math.min(5, maxOccupantRadius / 4)
+    const areaAngle = AREA_ANGLES[area ?? 'CENTER']
+    const r = placeVisualRadius * .55
+    const cell=position && Number.isFinite(position.x)&&Number.isFinite(position.y) ? position : undefined
+    return { x: anchor.x + (areaAngle === undefined ? 0 : Math.cos(areaAngle) * r) + (cell ? (cell.x-.5)*placeVisualRadius*.38 : Math.cos(angle)*spread),
+      y: anchor.y + (areaAngle === undefined ? 0 : Math.sin(areaAngle) * r * .8) + (cell ? (cell.y-.5)*placeVisualRadius*.30 : Math.sin(angle)*spread) }
+  }
   const markers = agents.map(agent => {
-    const anchor = anchors.get(agent.publicState.locationId)!
-    const move = state.engine?.ongoingActions.find(a => a.proposal.actorId === agent.id && a.proposal.actionType === 'MOVE')
-    const destination = move?.proposal.destinationId ? anchors.get(move.proposal.destinationId) : null
-    if (move && destination && state.engine) {
-      const progress = Math.max(0, Math.min(1, (state.engine.minute - move.startedMinute) / (move.completesMinute - move.startedMinute)))
-      return { agent, x: anchor.x + (destination.x - anchor.x) * progress, y: anchor.y + (destination.y - anchor.y) * progress }
-    }
-    const area = agent.publicState.localArea
-    const areaAngle = area ? AREA_ANGLES[area] : undefined
-    if (areaAngle === undefined) {
-      // Unchanged from before areaHint existed: no known sub-area, so cluster around the place
-      // anchor itself by sorted occupant index.
-      const occupants = agents.filter(other => other.publicState.locationId === agent.publicState.locationId)
-      const index = occupants.findIndex(other => other.id === agent.id)
-      const angle = index * 2.399963229728653
-      const radius = occupants.length === 1 ? 0 : Math.min(maxOccupantRadius, (maxOccupantRadius / 2.2) * Math.sqrt(index + .5))
-      return { agent, x: anchor.x + Math.cos(angle) * radius, y: anchor.y + Math.sin(angle) * radius }
-    }
-    // A place can be a whole 2km island — a known sub-area moves the marker toward that real
-    // direction, and others sharing the same sub-area still spread out a little among themselves.
-    const baseRadius = placeVisualRadius * 0.55
-    const base = { x: anchor.x + Math.cos(areaAngle) * baseRadius, y: anchor.y + Math.sin(areaAngle) * baseRadius * .8 }
-    const sameSpot = agents.filter(other => other.publicState.locationId === agent.publicState.locationId && other.publicState.localArea === area)
-    const index = sameSpot.findIndex(other => other.id === agent.id)
-    const clusterMax = placeVisualRadius * 0.2
-    const clusterAngle = index * 2.399963229728653
-    const clusterRadius = sameSpot.length === 1 ? 0 : Math.min(clusterMax, (clusterMax / 2.2) * Math.sqrt(index + .5))
-    return { agent, x: base.x + Math.cos(clusterAngle) * clusterRadius, y: base.y + Math.sin(clusterAngle) * clusterRadius }
+    const origin = point(agent, agent.publicState.locationId, agent.publicState.localArea,agent.publicState.position)
+    const task = state.engine?.ongoingActions.find(a => a.proposal.actorId === agent.id)
+    const target = task?.proposal.actionType === 'MOVE' && task.proposal.destinationId && anchors.has(task.proposal.destinationId)
+      ? point(agent, task.proposal.destinationId,'CENTER',{x:.5,y:.5})
+      : task?.proposal.actionType === 'EXPLORE' && task.proposal.areaHint
+        ? point(agent, agent.publicState.locationId, task.proposal.areaHint,task.proposal.searchPoint) : origin
+    const progress = task && state.engine ? Math.max(0, Math.min(1, (state.engine.minute - task.startedMinute) / Math.max(1, task.completesMinute - task.startedMinute))) : 0
+    return { agent, x: origin.x + (target.x - origin.x) * progress, y: origin.y + (target.y - origin.y) * progress }
   })
   const selected = markers.find(marker => marker.agent.id === selectedAgentId)
+  const followed = selected ?? markers.find(m => m.agent.publicState.status !== 'deceased') ?? markers[0]
+  const [overview, setOverview] = useState(false)
+  const targetX = overview ? 205 : followed?.x ?? 205, targetY = overview ? 165 : followed?.y ?? 165
+  const targetWidth = overview ? 410 : 115
+  const [camera, setCamera] = useState({ x: targetX, y: targetY, width: targetWidth })
+  const cameraRef = useRef(camera)
+  useEffect(() => {
+    const from = cameraRef.current, start = performance.now()
+    let frame = 0
+    const tick = (now: number) => {
+      const t = reducedMotion ? 1 : Math.min(1, (now - start) / 900)
+      const ease = t * t * (3 - 2 * t)
+      const next = { x: from.x + (targetX - from.x) * ease, y: from.y + (targetY - from.y) * ease, width: from.width + (targetWidth - from.width) * ease }
+      cameraRef.current = next; setCamera(next)
+      if (t < 1) frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [targetX, targetY, targetWidth, reducedMotion])
+  useEffect(() => {
+    if (expanded && panRef.current) {
+      const el = panRef.current
+      el.scrollLeft = (984 - el.clientWidth) / 2; el.scrollTop = (792 - el.clientHeight) / 2
+    }
+  }, [expanded])
   const svgId = (suffix: string) => `${id}${suffix}`
   // The expanded view deliberately does NOT try to fit everything into one glance — it renders
   // the same map at ~2.4x the pixel size and lets the container scroll, so a busy multi-place
   // world stays legible and pannable instead of shrinking everyone down to fit.
   const mapSvg = (svgIdSuffix: string, large = false) => (
-    <svg viewBox="0 0 410 330" role="group" aria-label={t('map')} style={large ? { width: 410 * 2.4, height: 330 * 2.4, maxWidth: 'none' } : undefined}>
+    <svg viewBox={`${camera.x - camera.width / 2} ${camera.y - camera.width * 330 / 410 / 2} ${camera.width} ${camera.width * 330 / 410}`} role="group" aria-label={t('map')} style={large ? { width: 410 * 2.4, height: 330 * 2.4, maxWidth: 'none' } : undefined}>
       <defs>
         <radialGradient id={svgId(`${svgIdSuffix}-land`)}><stop stopColor="#50684b" /><stop offset="1" stopColor="#263f35" /></radialGradient>
         <clipPath id={svgId(`${svgIdSuffix}-clip`)}><path d={island} /></clipPath>
@@ -116,8 +133,9 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
         const p = anchors.get(place.id)!
         return <g key={place.id} aria-label={place.name}>
           <circle cx={p.x} cy={p.y} r={placeVisualRadius} fill={`url(#${svgId(`${svgIdSuffix}-land`)})`} stroke="#7c9b8a" />
+          {[.3, .6, .9].map(r => <circle key={r} cx={p.x} cy={p.y} r={placeVisualRadius * r} fill="none" stroke="#7c9b8a" strokeOpacity=".15" strokeWidth=".4" />)}
           {placeVisualRadius >= 60 && Object.entries(AREA_LABELS).map(([area, label]) => {
-            const a = AREA_ANGLES[area], r = placeVisualRadius * 0.85
+            const a = AREA_ANGLES[area], r = placeVisualRadius * 0.55
             return <text key={area} x={p.x + Math.cos(a) * r} y={p.y + Math.sin(a) * r * .8} textAnchor="middle" className="map-area-label">{label}</text>
           })}
           <text x={p.x} y={p.y + placeVisualRadius + 17} textAnchor="middle" fill="currentColor" fontSize="11">{place.name}</text>
@@ -127,6 +145,9 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
         const group = markers.filter(m => m.agent.publicState.locationId === locationId && m.agent.publicState.status !== 'deceased')
         const lines = []
         for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
+          if ((group[i].agent.publicState.localArea ?? 'CENTER') !== (group[j].agent.publicState.localArea ?? 'CENTER')) continue
+          const a=group[i].agent.publicState.position,b=group[j].agent.publicState.position
+          if(a&&b&&Math.hypot(a.x-b.x,a.y-b.y)>.12)continue
           lines.push(<line key={`${group[i].agent.id}-${group[j].agent.id}`} x1={group[i].x} y1={group[i].y} x2={group[j].x} y2={group[j].y} className="map-meeting-line" />)
         }
         return lines
@@ -136,27 +157,13 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
         return points.length > 1 ? <polyline points={points.map(p => `${p.x},${p.y}`).join(' ')} className="map-trail" /> : null
       })()}
       {markers.map(({ agent, x, y }) => {
-        const wandering = agent.publicState.status !== 'deceased' && !reducedMotion
-        const seed = [...agent.id].reduce((n, c) => n + c.charCodeAt(0), 0)
-        // Amplitude scales with this place's own drawn radius so the wander can never carry a
-        // character outside the visible land it's supposed to be standing on. Two independent
-        // axes on coprime-ish periods so the combined path only repeats after ~2 minutes.
-        const amp = Math.max(3, Math.min(16, placeVisualRadius * 0.14))
-        // The hit target stays put (so click/hover/tests stay reliable on a stable area) —
-        // only the visible dot wanders, purely decorative, with pointer-events disabled.
         return <g key={agent.id} transform={`translate(${x} ${y})`} className={`map-character${agent.id === selectedAgentId ? ' is-selected' : ''}`} role="button" tabIndex={0} aria-label={agent.name} aria-pressed={agent.id === selectedAgentId} onClick={() => onSelectAgent(agent.id === selectedAgentId ? null : agent.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectAgent(agent.id === selectedAgentId ? null : agent.id) } }}>
           <title>{agent.name}</title>
-          <circle r="11" className="map-character-target" />
-          <g pointerEvents="none">
-            {wandering && <animateTransform attributeName="transform" type="translate" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1" keyTimes="0;0.22;0.48;0.74;1" dur={`${9 + (seed % 5)}s`} begin={`-${(seed % 47) / 10}s`} values={`0,0;${amp * .9},0;${-amp * .35},0;${-amp},0;0,0`} />}
-            <g pointerEvents="none">
-              {wandering && <animateTransform attributeName="transform" type="translate" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1" keyTimes="0;0.3;0.58;0.83;1" dur={`${11 + (seed % 6)}s`} begin={`-${(seed % 53) / 10}s`} values={`0,0;0,${-amp * .94};0,${amp * .53};0,${-amp * .53};0,0`} />}
-              <circle r="4.5" className="map-character-dot" />
-            </g>
-          </g>
+          <circle r={overview ? 11 : 4} className="map-character-target" />
+          <circle r={overview ? 4.5 : 1.8} className="map-character-dot" pointerEvents="none" />
         </g>
       })}
-      {selected && <g className="map-character-label" pointerEvents="none" aria-hidden="true"><rect x={selected.x - 49} y={selected.y - 36} width="98" height="22" rx="5" /><text x={selected.x} y={selected.y - 21} textAnchor="middle">{selected.agent.name}</text></g>}
+      {selected && <g className="map-character-label" transform={`translate(${selected.x} ${selected.y}) scale(${overview ? 1 : .35})`} pointerEvents="none" aria-hidden="true"><rect x={-49} y={-36} width="98" height="22" rx="5" /><text x={0} y={-21} textAnchor="middle">{selected.agent.name}</text></g>}
     </svg>
   )
   const legend = <div className="minimap-legend"><span><i />{t('characters')}</span><span><i className="selected-dot" />{t('selected')}</span>{selectedAgentId && <button type="button" onClick={() => onSelectAgent(null)}>{t('clearSelection')}</button>}</div>
@@ -167,7 +174,8 @@ export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
       {mapSvg('-small')}
     </div>
     {legend}
-    <p className="map-caption">{t('topology')}</p>
+    <div className="map-camera-controls"><button type="button" onClick={() => setOverview(!overview)}>{overview ? 'GPS 추적' : '전체 지도'}</button><select aria-label="추적할 캐릭터" value={followed?.agent.id ?? ''} onChange={e => { onSelectAgent(e.target.value); setOverview(false) }}>{markers.map(m => <option key={m.agent.id} value={m.agent.id}>{m.agent.name}</option>)}</select></div>
+    <p className="map-caption">{overview ? '전체 위치' : `${followed?.agent.name ?? '캐릭터'} 추적 중 · 실제 이동 기록 반영`} · 구역 지도</p>
     <dialog ref={dialog} className="world-dialog map-dialog" aria-label={t('expandMap')} onCancel={e => { e.preventDefault(); setExpanded(false) }} onClose={() => setExpanded(false)}>
       {expanded && <>
         <button type="button" className="world-dialog-close" onClick={() => setExpanded(false)} aria-label={t('close')}>✕</button>

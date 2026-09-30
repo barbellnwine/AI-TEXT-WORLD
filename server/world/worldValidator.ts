@@ -10,8 +10,6 @@ import { approve, reject, type ActionValidationResult, type ProposedAction, type
 export interface ValidationContext {
   worldState: WorldState
   allEventIds: Set<string>
-  // Recent actions by the same actor, most recent first — used for the repetition check.
-  recentActionsByActor?: ProposedAction[]
 }
 
   const NON_ACTIONABLE_STATUSES = new Set(['deceased', 'missing'])
@@ -77,7 +75,7 @@ export function validateAction(action: ProposedAction, ctx: ValidationContext, a
 
   if (action.actionType === 'SPEAK' && !action.spokenText?.trim()) { reasons.push('RULE_VIOLATION'); notes.push('SPEAK requires spokenText') }
 
-  for (const itemId of action.actionType === 'TAKE_ITEM' ? [] : action.usedItemIds ?? []) {
+  for (const itemId of ['TAKE_ITEM', 'STEAL', 'ROB'].includes(action.actionType) ? [] : action.usedItemIds ?? []) {
     if (!actor.inventory.includes(itemId)) {
       reasons.push('ITEM_NOT_OWNED')
       notes.push(`actor does not have '${itemId}'`)
@@ -96,13 +94,6 @@ export function validateAction(action: ProposedAction, ctx: ValidationContext, a
   if (action.claimedKnowledgeId && !agentKnowsFact(action.actorId, action.claimedKnowledgeId, worldState, allEvents)) {
     reasons.push('UNKNOWN_INFORMATION')
     notes.push(`actor has no basis to know '${action.claimedKnowledgeId}'`)
-  }
-
-  const repetitionLimit = 3
-  const recent = ctx.recentActionsByActor ?? []
-  if (recent.length >= repetitionLimit && recent.slice(0, repetitionLimit).every(r => r.actionType === action.actionType && r.intendedAction === action.intendedAction)) {
-    reasons.push('REPETITION_LIMIT')
-    notes.push(`same action repeated ${repetitionLimit}+ times in a row`)
   }
 
   return reasons.length > 0 ? reject([...new Set(reasons)], notes) : approve(notes)

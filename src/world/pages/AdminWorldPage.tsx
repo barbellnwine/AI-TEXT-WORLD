@@ -6,6 +6,9 @@ import { WorldFooter } from '../components/WorldFooter'
 import { formatDateTime } from '../format'
 import type { AdminWorldRuntime, Agent, OperatorLogEntry, Place, Season, WorldEvent } from '../types'
 import { Link } from '../../router/Link'
+import { CognitionEditor } from '../components/CognitionEditor'
+import { worldBuilderApi } from '../builderApi'
+import { navigate } from '../../router/navigation'
 
 export function AdminWorldPage() {
   const [runtime, setRuntime] = useState<AdminWorldRuntime | null>(null)
@@ -73,6 +76,26 @@ export function AdminWorldPage() {
     } finally { setBusy(false) }
   }
 
+  async function copyCurrentWorld() {
+    if (!season) return
+    setBusy(true)
+    try {
+      const result = await worldBuilderApi.copyDraft(season.id)
+      navigate(`/admin/world/builder/${result.draft.id}`)
+    } catch (err) { setMessage(err instanceof Error ? err.message : '설정 복사에 실패했습니다.') }
+    finally { setBusy(false) }
+  }
+
+  async function restartCurrentWorld() {
+    if (!season || !window.confirm(`"${season.name}"의 설정과 캐릭터를 복사해 DAY 1부터 새 시즌을 시작할까요? 현재 기록은 이전 세계로 보관되며 새 시즌에서는 API 비용이 발생할 수 있습니다.`)) return
+    await run(() => worldAdminApi.restartSeason(season.id), '같은 설정으로 새 시즌을 시작했습니다. 이전 기록은 보관함에서 삭제할 수 있습니다.')
+  }
+
+  async function removeCurrentWorld() {
+    if (!season || !window.confirm(`"${season.name}"의 현재 실행 기록과 세계 설정을 영구 삭제할까요? 되돌릴 수 없습니다.`)) return
+    await run(() => worldAdminApi.deleteCurrentWorld(season.id), '현재 세계를 삭제했습니다.')
+  }
+
   return (
     <>
       <main className="world-shell">
@@ -85,6 +108,7 @@ export function AdminWorldPage() {
             <Link to="/admin/world/rule-presets">WORLD RULE PRESET 관리 →</Link>
           </p>
         </header>
+        {runtime && <CognitionEditor paused={runtime.status === 'PAUSED'} />}
         {runtime?.mode === 'preview' && <section className="admin-panel">
           <h2>현재 화면은 예시 세계입니다</h2>
           <p>아래 목록은 관전·운영용입니다. 세계 편집기에서 새 WORLD를 만들면 이름, 성격, 직업, 장소를 빈 입력란에 자유롭게 작성할 수 있습니다. 저장한 설정은 START WORLD를 눌렀을 때 시뮬레이션에 적용됩니다.</p>
@@ -97,6 +121,16 @@ export function AdminWorldPage() {
 
         {runtime && season && (
           <>
+            {runtime.mode !== 'preview' && <section className="admin-panel">
+              <h2>세계 관리</h2>
+              <p className="world-micro">재시작은 현재 세계관·장소·캐릭터 설정을 복사해 처음부터 새 시즌을 시작합니다. 이전 기록은 보관함에 남습니다.</p>
+              <div className="admin-button-row">
+                <button disabled={busy || Boolean(runtime.lockHolder)} onClick={() => void restartCurrentWorld()}>같은 설정으로 다시 시작</button>
+                <button disabled={busy} onClick={() => void copyCurrentWorld()}>설정 복사 후 일부 수정</button>
+                <button className="danger" disabled={busy || Boolean(runtime.lockHolder)} onClick={() => void removeCurrentWorld()}>현재 세계 영구 삭제</button>
+              </div>
+              <p className="world-micro"><Link to="/archive">이전 세계 기록 관리 →</Link></p>
+            </section>}
             <section className="admin-panel">
               <h2>시즌 제어</h2>
               <p className="micro">
@@ -108,7 +142,7 @@ export function AdminWorldPage() {
                 <button onClick={() => run(worldAdminApi.start, '시즌 시작')}>시즌 시작</button>
                 <button onClick={() => run(worldAdminApi.pause, '일시정지')}>일시정지</button>
                 <button onClick={() => run(worldAdminApi.resume, '재개')}>재개</button>
-                <button className="danger" onClick={() => run(worldAdminApi.end, '시즌 종료')}>시즌 종료</button>
+                <button className="danger" onClick={() => run(worldAdminApi.end, '관리자 중지')}>관리자 중지</button>
               </div>
             </section>
 
@@ -122,9 +156,17 @@ export function AdminWorldPage() {
               {connection && <p className="world-micro">API 키: OpenAI {connection.providers.openai ? '등록됨' : '미등록'} · Anthropic {connection.providers.anthropic ? '등록됨' : '미등록'}</p>}
               {connection?.prepaidBudget.limitUsd != null && <p className="world-micro">충전 예산 ${connection.prepaidBudget.limitUsd.toFixed(2)} · 앱 누적 사용/예약 ${connection.prepaidBudget.committedUsd.toFixed(4)} · 여유분 제외 잔여 ${connection.prepaidBudget.remainingUsd?.toFixed(4)} (API 계정 전체 잔액과 별도)</p>}
               <p className="world-micro">세계 갱신 1회 = {runtime.worldMinutesPerTick}분 · WORLD 인원 한도 {runtime.maxActiveCharacters}명 · 진행 중 행동 {runtime.queuedEvents}개</p>
-              {runtime.decisionsPaused && <p role="status">새 AI 판단이 중지되었습니다 ({runtime.decisionStatus}). 세계 시간과 이미 진행 중인 행동은 계속됩니다. 예산·연결을 확인한 뒤 재개하세요.</p>}
-              <p className="world-micro">{runtime.mode === 'live' ? '실제 AI 실행 · 행동 제안과 규칙 판정은 각각 호출 예산을 사용합니다.' : runtime.mode === 'demo' ? '데모 실행 · AI 호출 없이 이동과 대기를 검증합니다. 서술형 규칙과 종료 조건 판정은 실제 AI 모드에서 적용됩니다.' : '샘플 세계 미리보기 · WORLD 생성에서 새 세계를 시작하세요.'}</p>
+              {runtime.decisionsPaused && <p role="status">{runtime.decisionStatus === 'WORLD_PROVIDER_HTTP_401' ? 'AI 서비스 인증에 실패해 새 판단이 중지되었습니다. Railway의 API 키를 확인하고 유효한 키로 교체·배포한 뒤 재개하세요. 충전 잔액과 별개인 인증 오류입니다.' : runtime.decisionStatus === 'COMBAT_ADJUDICATION_REJECTED' ? '전투 결과 검증에 실패했습니다. 해당 공격의 부상은 확정하지 않았습니다. 재개하면 보존된 공격을 다시 판정합니다.' : runtime.decisionStatus === 'WORLD_CONTEXT_TOO_LARGE' ? 'AI 판단 입력이 허용 크기를 초과했습니다. 최근 사건과 캐릭터 문맥 구성을 점검한 뒤 재개하세요.' : `새 AI 판단이 중지되었습니다 (${runtime.decisionStatus}). 예산·연결을 확인한 뒤 재개하세요.`} 세계 시간과 행동 진행도 일시정지됩니다. 이 상태는 이야기의 결말이 아닙니다.{runtime.decisionStatus === 'COMBAT_ADJUDICATION_REJECTED' && runtime.recentErrors.find(err => err.scope === 'combat-adjudication')?.message.includes(' · ') && <span> 최근 거부 사유: {runtime.recentErrors.find(err => err.scope === 'combat-adjudication')!.message.split(' · ')[1]}</span>}</p>}
+              <p className="world-micro">{runtime.mode === 'live' ? '실제 AI 실행 · 행동 제안과 규칙 판정은 각각 호출 예산을 사용합니다. 동시 전투는 묶어서 결과를 판정하며, 이후 출혈·회복 계산에는 추가 호출이 없습니다.' : runtime.mode === 'demo' ? '데모 실행 · AI 호출 없이 이동과 대기를 검증합니다. 종료는 구조화된 세계 규칙으로 엔진이 판정합니다.' : '샘플 세계 미리보기 · WORLD 생성에서 새 세계를 시작하세요.'}</p>
               <dl className="world-kv world-kv--inline">
+                {runtime.pipeline && Object.entries({
+                  'Brain 호출':runtime.pipeline.brainCalls, 'Planner 호출':runtime.pipeline.plannerCalls,
+                  'Grounding 성공':runtime.pipeline.groundingSuccesses, 'Grounding 실패':runtime.pipeline.groundingFailures,
+                  '검증 통과':runtime.pipeline.validationAccepted, '검증 거절':runtime.pipeline.validationRejected,
+                  '결과 판정 호출':runtime.pipeline.resultJudgmentCalls, '행동 시작':runtime.pipeline.acceptedActions,
+                  '행동 완료':runtime.pipeline.completedActions, 'WorldEvent':runtime.pipeline.worldEvents,
+                  'Provider 실패':runtime.pipeline.providerFailures,
+                }).map(([label,count])=><div key={label}><dt>{label}</dt><dd>{count}</dd></div>)}
                 <div><dt>tick 간격</dt><dd>{Math.round(runtime.tickIntervalMs / 1000)}초</dd></div>
                 <div><dt>최대 활성 에이전트</dt><dd>{runtime.maxActiveAgents}</dd></div>
                 <div><dt>호출 예산</dt><dd>{runtime.callBudget}</dd></div>
@@ -133,7 +175,12 @@ export function AdminWorldPage() {
                 <div><dt>실패한 작업</dt><dd>{runtime.failedJobs}</dd></div>
                 <div><dt>재시도 횟수</dt><dd>{runtime.retryCount}</dd></div>
                 <div><dt>lock 상태</dt><dd>{runtime.lockHolder ?? '보유자 없음'}</dd></div>
+                <div><dt>WORLD 상태</dt><dd>{runtime.status}</dd></div>
+                <div><dt>스케줄러 등록</dt><dd>{runtime.schedulerRegistered ? '등록됨' : '미등록'}</dd></div>
                 <div><dt>마지막 tick</dt><dd className="world-mono">{runtime.lastTickAt ? formatDateTime(runtime.lastTickAt) : '-'}</dd></div>
+                <div><dt>마지막 tick 시도</dt><dd className="world-mono">{runtime.lastTickAttemptAt ? formatDateTime(runtime.lastTickAttemptAt) : '-'}</dd></div>
+                <div><dt>마지막 tick 결과</dt><dd>{runtime.lastTickResult ?? '-'}</dd></div>
+                <div><dt>tick 대기·건너뜀 사유</dt><dd>{runtime.tickSkipReason ?? '-'}</dd></div>
                 <div><dt>다음 tick 예정</dt><dd className="world-mono">{runtime.nextTickAt ? formatDateTime(runtime.nextTickAt) : '-'}</dd></div>
               </dl>
               <h3>provider별 호출 수 · 예상 비용</h3>

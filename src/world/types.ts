@@ -75,6 +75,7 @@ export interface Relationship {
 
 export interface AgentPublicState {
   locationId: string
+  position?: {x:number;y:number}
   status: AgentStatus
   visibleGoal: string | null
   lastAction: string | null
@@ -95,6 +96,10 @@ export interface MovementLogEntry {
 }
 
 export interface Agent {
+  trauma?:import('../../server/world/trauma').TraumaState
+  observedPossessions?: Array<{ id: string; ownerId: string; name: string; kind: string; atMinute: number; sourceEventId: string }>
+  dispositions?: import('../../server/world/dispositions').Dispositions
+  motivations?: import('../../server/world/dispositions').MotivationState
   humanState?: { survival_need: number; fatigue: number; stress: number; sexual_desire: number; greed: number; ambition: number }
   emotion?: { mood: number; anger: number; fear: number }
   body?: { health: number; injury: number }
@@ -120,6 +125,10 @@ export interface StateChange {
 }
 
 export interface WorldEvent {
+  actionResult?: string
+  actionMotive?: string
+  actionContext?: string
+  actionId?: string
   sequence?: number
   worldMinute?: number
   worldTime?: string
@@ -163,6 +172,11 @@ export type SceneImportance = 'ordinary' | 'notable' | 'major'
 // A NARRATOR-produced scene: several WorldEvents folded into one readable passage. This is what
 // the main reading page renders — never a raw WorldEvent.
 export interface ChronicleEntry {
+  kind?: 'LIVE' | 'DAY'
+  completed?: boolean
+  corrections?: Array<{ at: string; reason: string; previousTitle: string; previousBody: string }>
+
+  resolvedActionIds?: string[]
   id: string
   seasonId: string
   worldDay: number
@@ -183,7 +197,7 @@ export interface WorldState {
   engine?: {
     minute: number
     connections: Array<{ fromPlaceId: string; toPlaceId: string; travelMinutes: number; blocked: boolean }>
-    ongoingActions: Array<{ id: string; startedMinute: number; completesMinute: number; proposal: { actorId: string; actionType: string; locationId: string; destinationId?: string } }>
+    ongoingActions: Array<{ id: string; startedMinute: number; completesMinute: number; proposal: { actorId: string; actionType: string; locationId: string; destinationId?: string; areaHint?: string; searchPoint?:{x:number;y:number} } }>
   }
   seasonId: string
   clock: WorldClock
@@ -241,6 +255,15 @@ export interface PublicWorldRuntime {
 }
 
 export interface AdminWorldRuntime extends PublicWorldRuntime {
+  schedulerRegistered?: boolean
+  lastTickAttemptAt?: string | null
+  lastTickResult?: string | null
+  tickSkipReason?: string | null
+  pipeline?: {
+    brainCalls: number; plannerCalls: number; groundingSuccesses: number; groundingFailures: number
+    validationAccepted: number; validationRejected: number; resultJudgmentCalls: number
+    acceptedActions: number; completedActions: number; worldEvents: number; providerFailures: number
+  }
   decisionsPaused?: boolean
   decisionStatus?: string
   maxActiveCharacters?: number

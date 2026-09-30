@@ -1,0 +1,546 @@
+[
+  {
+    "id": "be97fb9d-ed00-4eec-aae8-b1f42e482632",
+    "type": "RESOURCE_CHANGE",
+    "occurredAt": "2026-09-24T16:56:27.550Z",
+    "day": 1,
+    "worldTime": "08:02",
+    "worldMinute": 482,
+    "placeId": "aaa17585-b9b3-4f31-8b6b-f1b99583b8fb",
+    "agentIds": [
+      "dbf4646e-e1f1-4951-915c-707bdede5124"
+    ],
+    "summary": "도영동은 식수를 마시려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 도영동이 식수 1개를 소비했다.",
+    "title": "도영동은 식수를 마시려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 도영동이 식수 1개를 소비했다.",
+    "stateChanges": [
+      {
+        "field": "place:aaa17585-b9b3-4f31-8b6b-f1b99583b8fb:water",
+        "from": "3",
+        "to": "2"
+      },
+      {
+        "field": "agent:dbf4646e-e1f1-4951-915c-707bdede5124:thirst",
+        "from": "7",
+        "to": "5"
+      },
+      {
+        "field": "agent:dbf4646e-e1f1-4951-915c-707bdede5124:survival_need",
+        "from": "2",
+        "to": "0"
+      }
+    ],
+    "phase": "COMPLETED",
+    "actionResult": "도영동이 식수 1개를 소비했다.",
+    "actionMotive": "심한 갈증을 먼저 가라앉히려 했다.",
+    "actionContext": "도영동은 식수를 마시려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다.",
+    "actionType": "DRINK",
+    "attemptedAction": "식수를 마신다",
+    "engineVerdict": "COMPLETED",
+    "importance": "normal",
+    "relatedEventIds": [
+      "13d6cfb0-cbdf-4871-8848-be01395834fa"
+    ],
+    "outcome": "CONFIRMED",
+    "cause": "action:DRINK",
+    "witnessIds": [
+      "dbf4646e-e1f1-4951-915c-707bdede5124",
+      "90016c22-c50f-40b6-9800-8f5053e46b45",
+      "5ddbada4-8d97-4c4e-89bf-2905dff80506",
+      "413edca3-1625-4504-af0d-56257eae7379",
+      "a6537957-057b-4299-b695-f0eb22192f28"
+    ],
+    "detail": {
+      "version": 1,
+      "startedMinute": 480,
+      "endedMinute": 482,
+      "intent": "심한 갈증을 먼저 가라앉히려 했다.",
+      "steps": [
+        {
+          "minute": 482,
+          "actorId": "dbf4646e-e1f1-4951-915c-707bdede5124",
+          "kind": "CONSUME",
+          "text": "도영동이 식수 1개를 소비했다."
+        },
+        {
+          "minute": 482,
+          "actorId": "90016c22-c50f-40b6-9800-8f5053e46b45",
+          "kind": "WITNESS",
+          "text": "김높별은(는) 도영동이(가) 자원을 사용하는 것을 보았다."
+        },
+        {
+          "minute": 482,
+          "actorId": "5ddbada4-8d97-4c4e-89bf-2905dff80506",
+          "kind": "WITNESS",
+          "text": "최형대은(는) 도영동이(가) 자원을 사용하는 것을 보았다."
+        },
+        {
+          "minute": 482,
+          "actorId": "413edca3-1625-4504-af0d-56257eae7379",
+          "kind": "WITNESS",
+          "text": "김기업은(는) 도영동이(가) 자원을 사용하는 것을 보았다."
+        },
+        {
+          "minute": 482,
+          "actorId": "a6537957-057b-4299-b695-f0eb22192f28",
+          "kind": "WITNESS",
+          "text": "권치현은(는) 도영동이(가) 자원을 사용하는 것을 보았다."
+        }
+      ],
+      "resource": {
+        "key": "water",
+        "quantity": 1,
+        "sourcePlaceId": "aaa17585-b9b3-4f31-8b6b-f1b99583b8fb",
+        "discovererId": null
+      },
+      "witnesses": [
+        {
+          "actorId": "90016c22-c50f-40b6-9800-8f5053e46b45",
+          "concern": "resource_availability",
+          "nextDecisionAt": 480
+        },
+        {
+          "actorId": "5ddbada4-8d97-4c4e-89bf-2905dff80506",
+          "concern": "resource_availability",
+          "nextDecisionAt": 482
+        },
+        {
+          "actorId": "413edca3-1625-4504-af0d-56257eae7379",
+          "concern": "resource_availability",
+          "nextDecisionAt": 482
+        },
+        {
+          "actorId": "a6537957-057b-4299-b695-f0eb22192f28",
+          "concern": "resource_availability",
+          "nextDecisionAt": 482
+        }
+      ]
+    },
+    "actionId": "c28a8ae9-8db1-45fe-9985-d913624e2f68"
+  },
+  {
+    "id": "660ac5c7-0ae8-4c61-910d-1aa74f24596c",
+    "type": "DIALOGUE",
+    "occurredAt": "2026-09-24T16:56:27.552Z",
+    "day": 1,
+    "worldTime": "08:04",
+    "worldMinute": 484,
+    "placeId": "aaa17585-b9b3-4f31-8b6b-f1b99583b8fb",
+    "agentIds": [
+      "90016c22-c50f-40b6-9800-8f5053e46b45",
+      "dbf4646e-e1f1-4951-915c-707bdede5124"
+    ],
+    "summary": "김높별은 도영동에게 말을 건네려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별이 말을 건넸다.",
+    "title": "김높별은 도영동에게 말을 건네려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별이 말을 건넸다.",
+    "stateChanges": [],
+    "phase": "COMPLETED",
+    "actionResult": "김높별이 말을 건넸다.",
+    "actionMotive": "자신도 목이 말라 남은 식수를 함께 나누려 했다.",
+    "actionContext": "김높별은 도영동에게 말을 건네려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다.",
+    "actionType": "SPEAK",
+    "attemptedAction": "식수를 남겨 달라고 부탁한다",
+    "engineVerdict": "COMPLETED",
+    "importance": "normal",
+    "relatedEventIds": [
+      "4e252c80-73d3-422e-8232-1460512a8c94"
+    ],
+    "outcome": "CONFIRMED",
+    "cause": "action:SPEAK",
+    "witnessIds": [
+      "90016c22-c50f-40b6-9800-8f5053e46b45",
+      "dbf4646e-e1f1-4951-915c-707bdede5124",
+      "5ddbada4-8d97-4c4e-89bf-2905dff80506",
+      "413edca3-1625-4504-af0d-56257eae7379",
+      "a6537957-057b-4299-b695-f0eb22192f28"
+    ],
+    "detail": {
+      "version": 1,
+      "startedMinute": 483,
+      "endedMinute": 484,
+      "intent": "자신도 목이 말라 남은 식수를 함께 나누려 했다.",
+      "steps": [
+        {
+          "minute": 484,
+          "actorId": "90016c22-c50f-40b6-9800-8f5053e46b45",
+          "kind": "RESULT",
+          "text": "김높별이 말을 건넸다."
+        }
+      ],
+      "speech": {
+        "speakerAge": null,
+        "listenerAge": null,
+        "relation": "unknown",
+        "tone": "polite",
+        "anger": 2,
+        "fear": 0
+      }
+    },
+    "actionId": "03b71e7c-a34e-4ac0-b22b-c839059776e9",
+    "publicQuote": "도영동 씨, 저도 목이 마릅니다. 남은 물은 나눠 마십시다."
+  },
+  {
+    "id": "d1c76b31-924c-4ab7-99cf-16f99208f27e",
+    "type": "DIALOGUE",
+    "occurredAt": "2026-09-24T16:56:27.552Z",
+    "day": 1,
+    "worldTime": "08:07",
+    "worldMinute": 487,
+    "placeId": "aaa17585-b9b3-4f31-8b6b-f1b99583b8fb",
+    "agentIds": [
+      "dbf4646e-e1f1-4951-915c-707bdede5124",
+      "90016c22-c50f-40b6-9800-8f5053e46b45"
+    ],
+    "summary": "도영동은 김높별에게 말을 건네려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 도영동이 말을 건넸다.",
+    "title": "도영동은 김높별에게 말을 건네려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 도영동이 말을 건넸다.",
+    "stateChanges": [],
+    "phase": "COMPLETED",
+    "actionResult": "도영동이 말을 건넸다.",
+    "actionMotive": "자신의 안전을 위해 상대와 거리를 두려 했다.",
+    "actionContext": "도영동은 김높별에게 말을 건네려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다.",
+    "actionType": "SPEAK",
+    "attemptedAction": "다가오지 말라고 경고한다",
+    "engineVerdict": "COMPLETED",
+    "importance": "normal",
+    "relatedEventIds": [
+      "f19e20f1-31bb-44d5-af40-b62501d5adc5",
+      "be97fb9d-ed00-4eec-aae8-b1f42e482632"
+    ],
+    "outcome": "CONFIRMED",
+    "cause": "action:SPEAK",
+    "witnessIds": [
+      "90016c22-c50f-40b6-9800-8f5053e46b45",
+      "dbf4646e-e1f1-4951-915c-707bdede5124",
+      "5ddbada4-8d97-4c4e-89bf-2905dff80506",
+      "413edca3-1625-4504-af0d-56257eae7379",
+      "a6537957-057b-4299-b695-f0eb22192f28"
+    ],
+    "detail": {
+      "version": 1,
+      "startedMinute": 486,
+      "endedMinute": 487,
+      "intent": "자신의 안전을 위해 상대와 거리를 두려 했다.",
+      "steps": [
+        {
+          "minute": 487,
+          "actorId": "dbf4646e-e1f1-4951-915c-707bdede5124",
+          "kind": "RESULT",
+          "text": "도영동이 말을 건넸다."
+        }
+      ],
+      "speech": {
+        "speakerAge": null,
+        "listenerAge": null,
+        "relation": "unknown",
+        "tone": "polite",
+        "anger": 2,
+        "fear": 0
+      }
+    },
+    "actionId": "5320ec87-501d-4e91-bcf7-d9206bd49902",
+    "publicQuote": "더 다가오지 마세요. 지금은 가까이 오지 않았으면 합니다."
+  },
+  {
+    "id": "778da56c-db7f-4361-a3ca-b08e9dc926d9",
+    "type": "CONFLICT",
+    "occurredAt": "2026-09-24T16:56:27.554Z",
+    "day": 1,
+    "worldTime": "08:15",
+    "worldMinute": 495,
+    "placeId": "aaa17585-b9b3-4f31-8b6b-f1b99583b8fb",
+    "agentIds": [
+      "90016c22-c50f-40b6-9800-8f5053e46b45",
+      "dbf4646e-e1f1-4951-915c-707bdede5124"
+    ],
+    "summary": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 팔을 들어 막으려 했다. 김높별의 공격이 도영동의 팔에 닿아 가벼운 부상을 남겼다.",
+    "title": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 팔을 들어 막으려 했다. 김높별의 공격이 도영동의 팔에 닿아 가벼운 부상을 남겼다.",
+    "stateChanges": [
+      {
+        "field": "agent:dbf4646e-e1f1-4951-915c-707bdede5124:health",
+        "from": "0",
+        "to": "1"
+      },
+      {
+        "field": "agent:dbf4646e-e1f1-4951-915c-707bdede5124:injury",
+        "from": "0",
+        "to": "1"
+      },
+      {
+        "field": "agent:dbf4646e-e1f1-4951-915c-707bdede5124:status",
+        "from": "alive",
+        "to": "injured"
+      },
+      {
+        "field": "agent:90016c22-c50f-40b6-9800-8f5053e46b45:fatigue",
+        "from": "0",
+        "to": "1"
+      },
+      {
+        "field": "relationship:dbf4646e-e1f1-4951-915c-707bdede5124:90016c22-c50f-40b6-9800-8f5053e46b45:stance",
+        "from": "neutral",
+        "to": "hostile"
+      },
+      {
+        "field": "relationship:dbf4646e-e1f1-4951-915c-707bdede5124:90016c22-c50f-40b6-9800-8f5053e46b45:trust",
+        "from": "5",
+        "to": "2"
+      },
+      {
+        "field": "relationship:dbf4646e-e1f1-4951-915c-707bdede5124:90016c22-c50f-40b6-9800-8f5053e46b45:hostility",
+        "from": "0",
+        "to": "6"
+      }
+    ],
+    "phase": "COMPLETED",
+    "actionResult": "김높별은 발이 닿는 곳의 돌을 집어 들었다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 돌을 사용해 도영동의 머리를 노렸다. 김높별은 돌을 손에 쥔 채 휘둘렀다. 도영동은 팔을 들어 막으려 했다. 김높별의 공격이 도영동의 팔에 닿아 가벼운 부상을 남겼다.",
+    "actionMotive": "상대의 경고를 위협으로 받아들여 물러서게 만들려 했다.",
+    "actionContext": "김높별은 도영동를 공격하려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다.",
+    "actionType": "ATTACK",
+    "attemptedAction": "돌로 공격을 시도한다",
+    "engineVerdict": "COMPLETED",
+    "importance": "high",
+    "relatedEventIds": [
+      "8c28efaf-9684-4fb9-8beb-ecfdd16c3e31",
+      "660ac5c7-0ae8-4c61-910d-1aa74f24596c"
+    ],
+    "outcome": "CONFIRMED",
+    "cause": "action:ATTACK",
+    "witnessIds": [
+      "90016c22-c50f-40b6-9800-8f5053e46b45",
+      "dbf4646e-e1f1-4951-915c-707bdede5124",
+      "5ddbada4-8d97-4c4e-89bf-2905dff80506",
+      "413edca3-1625-4504-af0d-56257eae7379",
+      "a6537957-057b-4299-b695-f0eb22192f28"
+    ],
+    "detail": {
+      "version": 1,
+      "startedMinute": 490,
+      "endedMinute": 495,
+      "intent": "상대의 경고를 위협으로 받아들여 물러서게 만들려 했다.",
+      "steps": [
+        {
+          "minute": 490,
+          "actorId": "90016c22-c50f-40b6-9800-8f5053e46b45",
+          "kind": "PICK_UP",
+          "objectId": "eda887f7-13cd-4cfb-96e0-47e59e004bc8",
+          "text": "김높별은(는) 발이 닿는 곳의 돌을(를) 집어 들었다."
+        },
+        {
+          "minute": 495,
+          "actorId": "dbf4646e-e1f1-4951-915c-707bdede5124",
+          "kind": "NOTICE",
+          "text": "도영동은(는) 자신을 향한 공격을 알아차렸다."
+        },
+        {
+          "minute": 495,
+          "actorId": "90016c22-c50f-40b6-9800-8f5053e46b45",
+          "kind": "AIM",
+          "objectId": "eda887f7-13cd-4cfb-96e0-47e59e004bc8",
+          "text": "김높별은(는) 돌을(를) 사용해 도영동의 머리을(를) 노렸다."
+        },
+        {
+          "minute": 495,
+          "actorId": "90016c22-c50f-40b6-9800-8f5053e46b45",
+          "kind": "STRIKE",
+          "objectId": "eda887f7-13cd-4cfb-96e0-47e59e004bc8",
+          "text": "김높별은(는) 돌을(를) 손에 쥔 채 휘둘렀다."
+        },
+        {
+          "minute": 495,
+          "actorId": "dbf4646e-e1f1-4951-915c-707bdede5124",
+          "kind": "DEFEND",
+          "text": "도영동은(는) 팔을 들어 막으려 했다."
+        },
+        {
+          "minute": 495,
+          "actorId": "90016c22-c50f-40b6-9800-8f5053e46b45",
+          "kind": "RESULT",
+          "text": "김높별의 공격이 도영동의 팔에 닿아 가벼운 부상을 남겼다."
+        },
+        {
+          "minute": 495,
+          "actorId": "5ddbada4-8d97-4c4e-89bf-2905dff80506",
+          "kind": "WITNESS",
+          "text": "최형대은(는) 충돌을 목격하고 자신의 안전을 살필 필요를 느꼈다."
+        },
+        {
+          "minute": 495,
+          "actorId": "413edca3-1625-4504-af0d-56257eae7379",
+          "kind": "WITNESS",
+          "text": "김기업은(는) 충돌을 목격하고 자신의 안전을 살필 필요를 느꼈다."
+        },
+        {
+          "minute": 495,
+          "actorId": "a6537957-057b-4299-b695-f0eb22192f28",
+          "kind": "WITNESS",
+          "text": "권치현은(는) 충돌을 목격하고 자신의 안전을 살필 필요를 느꼈다."
+        }
+      ],
+      "equipment": {
+        "id": "eda887f7-13cd-4cfb-96e0-47e59e004bc8",
+        "name": "돌",
+        "source": "ground",
+        "sourceId": "test-stone"
+      },
+      "combat": {
+        "method": "CONTACT",
+        "attackerId": "90016c22-c50f-40b6-9800-8f5053e46b45",
+        "targetId": "dbf4646e-e1f1-4951-915c-707bdede5124",
+        "tool": {
+          "id": "eda887f7-13cd-4cfb-96e0-47e59e004bc8",
+          "name": "돌",
+          "source": "ground",
+          "sourceId": "test-stone"
+        },
+        "toolAfter": {
+          "kind": "agent",
+          "id": "90016c22-c50f-40b6-9800-8f5053e46b45"
+        },
+        "aimedPart": "HEAD",
+        "reaction": {
+          "kind": "BLOCK",
+          "source": "chosen_action",
+          "reason": "상대가 접근하면 몸을 지키려 했다."
+        },
+        "outcome": "HIT",
+        "injuredPart": "ARM",
+        "damage": 1,
+        "roll": 0.23606797284446657,
+        "hitChance": 0.6799999999999999
+      },
+      "witnesses": [
+        {
+          "actorId": "5ddbada4-8d97-4c4e-89bf-2905dff80506",
+          "concern": "self_safety",
+          "nextDecisionAt": 482
+        },
+        {
+          "actorId": "413edca3-1625-4504-af0d-56257eae7379",
+          "concern": "self_safety",
+          "nextDecisionAt": 482
+        },
+        {
+          "actorId": "a6537957-057b-4299-b695-f0eb22192f28",
+          "concern": "self_safety",
+          "nextDecisionAt": 482
+        }
+      ]
+    },
+    "actionId": "673832e1-ed08-48a7-a31b-e87687bfa2ec"
+  },
+  {
+    "id": "b9dad89b-feb5-49b4-b1cd-c8cf214ec608",
+    "type": "DIALOGUE",
+    "occurredAt": "2026-09-24T16:56:27.555Z",
+    "day": 1,
+    "worldTime": "08:16",
+    "worldMinute": 496,
+    "placeId": "aaa17585-b9b3-4f31-8b6b-f1b99583b8fb",
+    "agentIds": [
+      "5ddbada4-8d97-4c4e-89bf-2905dff80506",
+      "90016c22-c50f-40b6-9800-8f5053e46b45"
+    ],
+    "summary": "최형대는 김높별에게 말을 건네려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 최형대가 말을 건넸다.",
+    "title": "최형대는 김높별에게 말을 건네려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 최형대가 말을 건넸다.",
+    "stateChanges": [],
+    "phase": "COMPLETED",
+    "actionResult": "최형대가 말을 건넸다.",
+    "actionMotive": "충돌을 목격한 뒤 자신까지 위험해지지 않도록 거리를 확보하려 했다.",
+    "actionContext": "최형대는 김높별에게 말을 건네려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다.",
+    "actionType": "SPEAK",
+    "attemptedAction": "더 다가오지 말라고 경고한다",
+    "engineVerdict": "COMPLETED",
+    "importance": "normal",
+    "relatedEventIds": [
+      "f04a8210-6e3d-472c-9492-607c19e08517"
+    ],
+    "outcome": "CONFIRMED",
+    "cause": "action:SPEAK",
+    "witnessIds": [
+      "90016c22-c50f-40b6-9800-8f5053e46b45",
+      "dbf4646e-e1f1-4951-915c-707bdede5124",
+      "5ddbada4-8d97-4c4e-89bf-2905dff80506",
+      "413edca3-1625-4504-af0d-56257eae7379",
+      "a6537957-057b-4299-b695-f0eb22192f28"
+    ],
+    "detail": {
+      "version": 1,
+      "startedMinute": 495,
+      "endedMinute": 496,
+      "intent": "충돌을 목격한 뒤 자신까지 위험해지지 않도록 거리를 확보하려 했다.",
+      "steps": [
+        {
+          "minute": 496,
+          "actorId": "5ddbada4-8d97-4c4e-89bf-2905dff80506",
+          "kind": "RESULT",
+          "text": "최형대가 말을 건넸다."
+        }
+      ],
+      "speech": {
+        "speakerAge": null,
+        "listenerAge": null,
+        "relation": "unknown",
+        "tone": "polite",
+        "anger": 2,
+        "fear": 0
+      }
+    },
+    "actionId": "361b1980-5fb6-467d-a8ac-651678b38870",
+    "publicQuote": "김높별 씨, 멈추세요. 제 쪽으로는 오지 마세요."
+  },
+  {
+    "id": "0be925b4-8a2f-44fb-87a0-bfd04ea7f5b7",
+    "type": "RESOURCE_CHANGE",
+    "occurredAt": "2026-09-24T16:56:27.555Z",
+    "day": 1,
+    "worldTime": "08:23",
+    "worldMinute": 503,
+    "placeId": "aaa17585-b9b3-4f31-8b6b-f1b99583b8fb",
+    "agentIds": [
+      "90016c22-c50f-40b6-9800-8f5053e46b45"
+    ],
+    "summary": "김높별은 돌을 내려놓으려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별이 돌을 내려놓았다.",
+    "title": "김높별은 돌을 내려놓으려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다. 김높별이 돌을 내려놓았다.",
+    "stateChanges": [
+      {
+        "field": "object:eda887f7-13cd-4cfb-96e0-47e59e004bc8:holder",
+        "from": "90016c22-c50f-40b6-9800-8f5053e46b45",
+        "to": "place:aaa17585-b9b3-4f31-8b6b-f1b99583b8fb"
+      }
+    ],
+    "phase": "COMPLETED",
+    "actionResult": "김높별이 돌을 내려놓았다.",
+    "actionMotive": "주변의 경계를 더 자극하지 않으려 했다.",
+    "actionContext": "김높별은 돌을 내려놓으려 했다. 당시 그 행동을 선택한 구체적인 이유는 기록되지 않았다.",
+    "actionType": "DROP_ITEM",
+    "attemptedAction": "들고 있던 돌을 내려놓는다",
+    "engineVerdict": "COMPLETED",
+    "importance": "normal",
+    "relatedEventIds": [
+      "20466124-7967-4b0b-bab8-64878d756e29",
+      "778da56c-db7f-4361-a3ca-b08e9dc926d9"
+    ],
+    "outcome": "CONFIRMED",
+    "cause": "action:DROP_ITEM",
+    "witnessIds": [
+      "90016c22-c50f-40b6-9800-8f5053e46b45",
+      "dbf4646e-e1f1-4951-915c-707bdede5124",
+      "5ddbada4-8d97-4c4e-89bf-2905dff80506",
+      "413edca3-1625-4504-af0d-56257eae7379",
+      "a6537957-057b-4299-b695-f0eb22192f28"
+    ],
+    "detail": {
+      "version": 1,
+      "startedMinute": 498,
+      "endedMinute": 503,
+      "intent": "주변의 경계를 더 자극하지 않으려 했다.",
+      "steps": [
+        {
+          "minute": 503,
+          "actorId": "90016c22-c50f-40b6-9800-8f5053e46b45",
+          "kind": "RESULT",
+          "text": "김높별이 돌을 내려놓았다."
+        }
+      ]
+    },
+    "actionId": "ce000eda-44e7-464f-951c-3274b2bd4b9f"
+  }
+]

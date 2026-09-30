@@ -61,6 +61,7 @@ export const worldApi = {
     return getJson<EventListResponse>(`/api/world/events?${params.toString()}`, signal)
   },
   event: (id: string) => getJson<{ event: WorldEvent }>(`/api/world/events/${encodeURIComponent(id)}`),
+  days: (query: { before?: string; importantOnly?: boolean; limit?: number } = {}) => getJson<SceneListResponse>('/api/world/days').then(result => ({ ...result, items: result.items.filter(s => (!query.before || s.createdAt < query.before) && (!query.importantOnly || s.importance !== 'ordinary')) })),
   scenes: (query: { before?: string; importantOnly?: boolean; limit?: number }, signal?: AbortSignal) => {
     const params = new URLSearchParams()
     if (query.before) params.set('before', query.before)
@@ -80,6 +81,8 @@ export const worldApi = {
 }
 
 export const worldAdminApi = {
+  cognition: () => adminRequest<{ actors: Array<{ id: string; name: string; dispositions: import('../../server/world/dispositions').Dispositions; motivations?: import('../../server/world/dispositions').MotivationState }> }>('/api/admin/world/cognition', 'GET'),
+  setDispositions: (id: string, dispositions: import('../../server/world/dispositions').Dispositions) => adminRequest(`/api/admin/world/cognition/${encodeURIComponent(id)}`, 'PUT', { dispositions }),
   tick: () => adminRequest<{ runtime: AdminWorldRuntime }>('/api/admin/world/tick', 'POST'),
   runtime: () => adminRequest<{ runtime: AdminWorldRuntime; season: Season; operatorLog: OperatorLogEntry[]; prepaidBudget: { limitUsd: number | null; thresholdUsd: number | null; committedUsd: number; remainingUsd: number | null }; providers: { openai: boolean; anthropic: boolean }; actionAudit: Array<WorldEvent & { outcome?: string; provenance?: { validation?: { reasons: string[] } } }> }>('/api/admin/world/runtime', 'GET'),
   start: () => adminRequest<{ runtime: AdminWorldRuntime }>('/api/admin/world/start', 'POST'),
@@ -93,4 +96,6 @@ export const worldAdminApi = {
     adminRequest<{ event: WorldEvent } | { error: string; details: string[] }>('/api/admin/world/events', 'POST', body),
   operatorLog: () => adminRequest<{ entries: OperatorLogEntry[] }>('/api/admin/world/operator-log', 'GET'),
   deleteSeason: (id: string) => adminRequest<{ ok: true }>(`/api/admin/world/seasons/${encodeURIComponent(id)}`, 'DELETE'),
+  restartSeason: (id: string) => adminRequest<{ ok: true; seasonId: string; previousSeasonId: string }>(`/api/admin/world/seasons/${encodeURIComponent(id)}/restart`, 'POST'),
+  deleteCurrentWorld: (id: string) => adminRequest<{ ok: true }>(`/api/admin/world/current/${encodeURIComponent(id)}`, 'DELETE'),
 }

@@ -11,7 +11,7 @@ export const RELATIONS = { stranger: '모르는 사이', acquaintance: '지인',
 export type RelationKind = keyof typeof RELATIONS
 export const RELATION_VALUES: Record<RelationKind, [number, number, number, number]> = { stranger: [2, 1, 0, 0], acquaintance: [4, 3, 0, 0], friend: [7, 7, 0, 0], lover: [9, 9, 0, 0], rival: [3, 2, 3, 7], hostile: [0, 0, 9, 5] }
 export interface StudioCharacter { orientation: '이성애' | '동성애'; health: number; energy: number; hunger: number; thirst: number; loneliness: number }
-export interface StudioItem { id: string; name: string; kind: 'item' | 'food' | 'water' | 'medicine' | 'tool' | 'fuel'; quantity: number; holderKind: 'place' | 'agent'; holderId: string }
+export interface StudioItem { physical?:import('../world/engineTypes.ts').PhysicalProperties; materials?:string[]; form?:string; mass?:number; localArea?:string; id: string; name: string; kind: 'item' | 'food' | 'water' | 'medicine' | 'tool' | 'fuel'; quantity: number; holderKind: 'place' | 'agent'; holderId: string }
 export interface StudioEvent { id: string; name: string; description: string; day: number; time: string; placeId: string; visibility: 'public' | 'private'; effect: 'power_off' | 'power_on' | 'flood' | 'resource' | 'goal' | 'notice'; resourceKey: string; amount: number; goalId: string }
 export interface StudioTruth { id: string; summary: string; placeId: string; itemId: string; eventId: string; discoverable: boolean; knownBy: string[]; revealedPlaceId: string }
 export interface EndRule { id: string; type: 'day' | 'survivors' | 'place' | 'goal' | 'event' | 'all_dead'; value: number; ref: string }

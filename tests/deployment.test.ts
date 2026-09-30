@@ -23,7 +23,8 @@ test('production build serves mobile assets and preserves community data across 
         AI_COMMUNITY_DB_PATH: join(directory, 'community.sqlite'), AI_COMMUNITY_ADMIN_TOKEN: token,
         AI_COMMUNITY_ENABLED: 'false', AI_COMMUNITY_DEMO_MODE: 'true',
         AI_COMMUNITY_COOLDOWN_MS: '0', AI_COMMUNITY_TICK_INTERVAL_MS: '3600000',
-        OPENAI_API_KEY: '', ANTHROPIC_API_KEY: '' },
+        OPENAI_API_KEY: '', ANTHROPIC_API_KEY: '',
+        ADMIN_SEED_USERNAME: '', ADMIN_SEED_PASSWORD: '' },
       windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
     })
     let output = ''

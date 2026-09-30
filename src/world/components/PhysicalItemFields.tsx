@@ -1,0 +1,9 @@
+import type {StudioConfig} from '../../../server/domain/studioConfig'
+type Item=StudioConfig['items'][number]
+export function PhysicalItemFields({item,onChange}:{item:Item;onChange:(p:Partial<Item>)=>void}){
+ const p=item.physical
+ return <fieldset><legend>환경 요소 · 물리적 사용</legend><p>설정한 위치에만 존재합니다. 이름이나 세계 소개만으로 물건이 생기지는 않습니다.</p><label>용도<select value={p?.material??''} onChange={e=>onChange({physical:e.target.value?{material:e.target.value as NonNullable<Item['physical']>['material'],portable:e.target.value!=='terrain',attackPower:e.target.value==='stone'?1:e.target.value==='wood'?1:0,cover:e.target.value==='terrain'?2:0}:undefined})}><option value="">일반 물품 (공격 효과 없음)</option><option value="stone">돌</option><option value="wood">나뭇가지 / 목재</option><option value="sand">모래</option><option value="terrain">지형지물 / 엄폐물</option><option value="other">직접 설정</option></select></label>
+ {item.holderKind==='place'&&<label>접근 가능한 구역<select value={item.localArea??'CENTER'} onChange={e=>onChange({localArea:e.target.value})}>{Object.entries({CENTER:'중심부',SHORE:'해안',FOREST:'숲',HIGH_GROUND:'고지대',CAVE:'동굴 구역',WATER:'물가',CAMP:'야영지'}).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>}
+ {p&&<><label><input type="checkbox" checked={p.portable} onChange={e=>onChange({physical:{...p,portable:e.target.checked}})}/>집어 들 수 있음</label><label>타격 보정 (0–2)<input type="number" min="0" max="2" step="1" value={p.attackPower} onChange={e=>onChange({physical:{...p,attackPower:Number(e.target.value)}})}/></label><label>날 구분<select value={p.edge??'blunt'} onChange={e=>onChange({physical:{...p,edge:e.target.value as 'sharp'|'blunt'}})}><option value="blunt">둔한 면</option><option value="sharp">날카로운 면</option></select></label><label>엄폐 효과 (0–2)<input type="number" min="0" max="2" step="1" value={p.cover} onChange={e=>onChange({physical:{...p,cover:Number(e.target.value)}})}/></label></>}
+ </fieldset>
+}

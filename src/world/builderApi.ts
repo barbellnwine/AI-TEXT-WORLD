@@ -25,6 +25,7 @@ export const worldBuilderApi = {
   listDrafts: () => adminRequest<{ drafts: DraftSummary[] }>('/api/admin/world/drafts', 'GET'),
   createDraft: (name?: string) => adminRequest<{ draft: DraftDTO }>('/api/admin/world/drafts', 'POST', { name }),
   getDraft: (id: string) => adminRequest<{ draft: DraftDTO }>(`/api/admin/world/drafts/${encodeURIComponent(id)}`, 'GET'),
+  copyDraft: (id: string) => adminRequest<{ draft: DraftDTO }>(`/api/admin/world/drafts/${encodeURIComponent(id)}/copy`, 'POST'),
   deleteDraft: (id: string) => adminRequest<{ ok: true }>(`/api/admin/world/drafts/${encodeURIComponent(id)}`, 'DELETE'),
   setStep: (id: string, step: number) => adminRequest<{ ok: true }>(`/api/admin/world/drafts/${encodeURIComponent(id)}/step`, 'PUT', { step }),
 

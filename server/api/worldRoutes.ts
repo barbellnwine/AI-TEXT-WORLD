@@ -3,6 +3,7 @@ import type { DatabaseSync } from 'node:sqlite'
 import { requireAdminRole } from './userAuth.ts'
 import * as store from '../domain/worldStore.ts'
 import type { WorldEvent } from '../domain/worldTypes.ts'
+import { storyEvent } from '../domain/storyComposition.ts'
 
 function num(value: string | null, fallback: number): number {
   if (value === null) return fallback
@@ -10,7 +11,7 @@ function num(value: string | null, fallback: number): number {
   return Number.isFinite(n) ? n : fallback
 }
 
-import { toPublicAgent, toPublicEvent, toPublicWorld } from '../world/publicView.ts'
+import { toPublicAgent, toPublicEvent, toPublicScene, toPublicWorld } from '../world/publicView.ts'
 
 export function registerWorldRoutes(router: Router, db?: DatabaseSync): void {
   const get = (path: string, handler: Parameters<Router['get']>[1]) => router.get(path, ctx => {
@@ -53,7 +54,7 @@ export function registerWorldRoutes(router: Router, db?: DatabaseSync): void {
 
   get('/api/world/events/:id', ctx => {
     const event = store.getEvent(ctx.params.id)
-    if (!event || event.outcome === 'REJECTED' || event.visibility === 'private') throw new HttpError(404, 'event_not_found')
+    if (!event || !storyEvent(event)) throw new HttpError(404, 'event_not_found')
     sendJson(ctx.res, 200, { event: toPublicEvent(event) })
   })
 
@@ -65,6 +66,10 @@ export function registerWorldRoutes(router: Router, db?: DatabaseSync): void {
 
   // Scene-level narrative feed — this is what the main reading page renders. Cursor-paginated by
   // createdAt so "이전 기록 불러오기" can page backwards through history.
+  get('/api/world/days', ctx => {
+    sendJson(ctx.res, 200, { items: store.listDayStories(), hasMore: false })
+  })
+
   get('/api/world/scenes', ctx => {
     const limit = paginationNumber(ctx.query.get('limit'), 2, 1, 50)
     const { items, hasMore } = store.listScenes({
@@ -72,13 +77,13 @@ export function registerWorldRoutes(router: Router, db?: DatabaseSync): void {
       importantOnly: ctx.query.get('importantOnly') === 'true',
       limit,
     })
-    sendJson(ctx.res, 200, { items, hasMore })
+    sendJson(ctx.res, 200, { items: items.map(scene => toPublicScene(scene, scene.sourceEventIds.map(id => store.getEvent(id)).filter((e): e is WorldEvent => Boolean(e)))), hasMore })
   })
 
   get('/api/world/scenes/:id', ctx => {
     const scene = store.getScene(ctx.params.id)
     if (!scene) throw new HttpError(404, 'scene_not_found')
-    sendJson(ctx.res, 200, { scene })
+    sendJson(ctx.res, 200, { scene: toPublicScene(scene, scene.sourceEventIds.map(id => store.getEvent(id)).filter((e): e is WorldEvent => Boolean(e))) })
   })
 
   get('/api/world/places', ctx => {
@@ -88,7 +93,7 @@ export function registerWorldRoutes(router: Router, db?: DatabaseSync): void {
   get('/api/world/places/:id', ctx => {
     const place = toPublicWorld(store.getWorldState()).places.find(p => p.id === ctx.params.id)
     if (!place) throw new HttpError(404, 'place_not_found')
-    const recentEvents = place.recentEventIds.map(id => store.getEvent(id)).filter((e): e is WorldEvent => Boolean(e && e.visibility !== 'private' && e.outcome !== 'REJECTED')).map(toPublicEvent)
+    const recentEvents = place.recentEventIds.map(id => store.getEvent(id)).filter((e): e is WorldEvent => Boolean(e && e.phase !== 'STARTED' && e.visibility !== 'private' && e.outcome !== 'REJECTED')).map(toPublicEvent)
     sendJson(ctx.res, 200, { place, recentEvents })
   })
 
@@ -99,7 +104,7 @@ export function registerWorldRoutes(router: Router, db?: DatabaseSync): void {
   get('/api/world/agents/:id', ctx => {
     const agentRecord = store.getAgent(ctx.params.id)
     if (!agentRecord) throw new HttpError(404, 'agent_not_found')
-    const keyEvents = agentRecord.keyEventIds.map(id => store.getEvent(id)).filter((e): e is WorldEvent => Boolean(e && e.visibility !== 'private' && e.outcome !== 'REJECTED')).map(toPublicEvent)
+    const keyEvents = agentRecord.keyEventIds.map(id => store.getEvent(id)).filter((e): e is WorldEvent => Boolean(e && e.phase !== 'STARTED' && e.visibility !== 'private' && e.outcome !== 'REJECTED')).map(toPublicEvent)
     sendJson(ctx.res, 200, { agent: toPublicAgent(agentRecord), keyEvents })
   })
 
@@ -108,7 +113,7 @@ export function registerWorldRoutes(router: Router, db?: DatabaseSync): void {
   })
 
   get('/api/world/chronicle', ctx => {
-    sendJson(ctx.res, 200, { chapters: store.listChapters() })
+    sendJson(ctx.res, 200, { chapters: store.listDayStories().map(s => ({ id: s.id, day: s.worldDay, title: s.title, summary: s.body, agentIds: s.agentIds, changes: [], eventIds: s.sourceEventIds, status: s.completed ? 'COMPLETED' : 'IN_PROGRESS' })) })
   })
 
   get('/api/world/seasons', ctx => {

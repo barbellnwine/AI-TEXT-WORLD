@@ -32,6 +32,7 @@ export function applyStateChange(worldState: WorldState, change: StateChange): v
       // A move to a different place leaves any prior sub-area behind — the new area is
       // unspecified until the next action names one.
       agentRecord.publicState.localArea = undefined
+      agentRecord.publicState.position = {x:.5,y:.5}
       for (const place of worldState.places) {
         place.currentAgentIds = place.currentAgentIds.filter(id => id !== agentId)
         if (place.id === change.to) place.currentAgentIds.push(agentId)

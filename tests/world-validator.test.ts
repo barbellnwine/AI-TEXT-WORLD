@@ -63,15 +63,15 @@ test('using an item the actor does not own is rejected with ITEM_NOT_OWNED', () 
   assert.ok(result.reasons.includes('ITEM_NOT_OWNED'))
 })
 
-test('the same action repeated past the limit is rejected with REPETITION_LIMIT', () => {
+test('legacy three-action array cannot override the V2 semantic repetition policy', () => {
   const worldState = freshWorld()
   const action: ProposedAction = {
     actorId: 'yu-rian', actionType: 'OBSERVE', targetIds: [], locationId: 'living-quarters', intendedAction: '조용히 지켜본다',
   }
   const recentActionsByActor = [action, action, action]
-  const result = validateAction(action, { worldState, allEventIds: new Set(), recentActionsByActor })
-  assert.equal(result.approved, false)
-  assert.ok(result.reasons.includes('REPETITION_LIMIT'))
+  const result = validateAction(action, { worldState, allEventIds: new Set(), recentActionsByActor } as Parameters<typeof validateAction>[1])
+  assert.equal(result.approved, true)
+  assert.ok(!result.reasons.includes('REPETITION_LIMIT'))
 })
 
 test('resolveAction records CONFIRMED for an approved action and REJECTED for a rejected one', () => {

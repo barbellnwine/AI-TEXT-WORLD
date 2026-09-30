@@ -1,4 +1,8 @@
 import { randomUUID } from 'node:crypto'
+import { stablePoint } from './spatialWorld.ts'
+import { koreanParticles } from '../domain/eventProse.ts'
+import { meaningfulChanges, conditionSummary } from './stateThresholds.ts'
+import { suggestEnvironmentItems } from '../domain/environmentItems.ts'
 import type { DraftDTO } from '../domain/worldDrafts.ts'
 import type { WorldState, WorldEvent, StateChange, Agent } from '../domain/worldTypes.ts'
 import { defaultCharacter, RELATION_VALUES, RELATIONS, WEATHERS, type StudioConfig, type RelationKind } from '../domain/studioConfig.ts'
@@ -23,6 +27,7 @@ function exposureLine(name: string, changes: StateChange[], outside: boolean): s
   return `${name}의 몸 상태가 날씨의 영향으로 조금씩 변해갔다.`
 }
 export function engineEvent(world: WorldState, summary: string, changes: StateChange[], placeId = '', agentIds: string[] = []): WorldEvent {
+  summary = koreanParticles(summary)
   return { id: randomUUID(), type: 'SYSTEM', occurredAt: new Date().toISOString(), day: world.clock.day, worldTime: world.clock.time, worldMinute: world.engine!.minute, phase: 'STATE_UPDATE', outcome: 'CONFIRMED', title: summary, summary, placeId, agentIds, stateChanges: changes, importance: 'normal', relatedEventIds: [], witnessIds: world.agents.filter(a => !placeId || a.publicState.locationId === placeId).map(a => a.id) }
 }
 export function initializeStudio(world: WorldState, draft: DraftDTO) {
@@ -47,11 +52,11 @@ export function initializeStudio(world: WorldState, draft: DraftDTO) {
     a.relationships = a.relationships.filter(r => r.otherAgentId !== to)
     a.relationships.push({ agentId:from, otherAgentId:to, trust, affection, hostility, rivalry, label:r.kind, interactions:r.kind === 'lover' ? 8 : 0, stance: trust >= 7 ? 'friendly' : hostility >= 7 ? 'hostile' : 'neutral' })
   }
-  for (const item of config.items) {
-    world.engine!.objects.push({ id:item.id, name:item.name, kind:item.kind, quantity:item.quantity, condition:'intact', location:{kind:item.holderKind,id:item.holderId} })
+  for (const item of [...config.items,...suggestEnvironmentItems(draft.places,config.items)]) {
+    world.engine!.objects.push({ id:item.id, name:item.name, kind:item.kind, physical:item.physical?structuredClone(item.physical):undefined,materials:item.materials??(item.physical?.material?[item.physical.material]:undefined),form:item.form,mass:item.mass,localArea:item.localArea??'CENTER',position:item.holderKind==='place'?stablePoint(item.id):undefined, quantity:item.quantity, condition:'intact', location:{kind:item.holderKind,id:item.holderId} })
     if(item.holderKind==='agent') world.agents.find(a=>a.id===item.holderId)?.inventory.push(item.id)
   }
-  world.engine!.truths = config.truths.map(t=>({id:t.id,summary:t.summary,placeId:t.discoverable?t.placeId||null:null,revealedPlaceId:t.revealedPlaceId||undefined,discoveredBy:[...t.knownBy],itemId:t.itemId,eventId:t.eventId}))
+  world.engine!.truths = config.truths.map(t=>({id:t.id,summary:t.summary,placeId:t.discoverable?t.placeId||null:null,localArea:world.engine!.objects.find(o=>o.id===t.itemId)?.localArea??'CENTER',position:t.itemId?undefined:stablePoint(t.id),revealedPlaceId:t.revealedPlaceId||undefined,discoveredBy:[...t.knownBy],itemId:t.itemId,eventId:t.eventId}))
   for(const t of config.truths) for(const id of t.knownBy) world.agents.find(a=>a.id===id)?.knowledge.push({id:randomUUID(),summary:t.summary,truthId:t.id,learnedAt:new Date().toISOString(),acquisition:'initial',verified:true})
   const initial = draft.startWeather === 'random' ? chooseWeather(world) : draft.startWeather
   updateWeather(world, initial, true)
@@ -115,7 +120,7 @@ export function processStudio(world:WorldState):WorldEvent[] {
       if(p.flooded&&w.currentWeather==='clear'){p.flooded=false;p.accessible=true;changes.push({field:`place:${p.id}:flooded`,from:'true',to:'false'})}
       for(const r of p.resources){const loss=(r.key==='food'&&(p.outdoor&&w.rainfall>=70||w.temperature>=35))?0.1:(r.key==='fuel'&&w.temperature<0&&p.power)?0.1:0;if(loss&&r.level>0){const from=r.level;r.level=Math.max(0,Math.round((r.level-loss)*100)/100);changes.push({field:`place:${p.id}:${r.key}`,from:String(from),to:String(r.level)})}}
       for(const obj of engine.objects.filter(o=>o.location.kind==='place'&&o.location.id===p.id&&o.quantity>0)){if(p.outdoor&&w.rainfall>=70&&obj.kind==='food'){const from=obj.quantity;obj.quantity=Math.max(0,obj.quantity-1);if(!obj.quantity)obj.condition='destroyed';changes.push({field:`object:${obj.id}:quantity`,from:String(from),to:String(obj.quantity)})}}
-      if(changes.length)results.push(engineEvent(world,`${p.name}의 환경과 자원이 날씨의 영향을 받았다.`,changes,p.id))
+      if(changes.length){const ev=engineEvent(world,`${p.name}의 환경과 자원이 날씨의 영향을 받았다.`,changes,p.id);ev.visibility=meaningfulChanges(changes).length?'public':'private';results.push(ev)}
     }
     for(const a of world.agents.filter(a=>a.publicState.status!=='deceased')){const x=a.exposure!,p=world.places.find(p=>p.id===a.publicState.locationId);const outside=p?.outdoor&&s.config.climate!=='실내 통제 환경';const before=structuredClone(x);const changes:StateChange[]=[]
       if(outside){if(x.lastExposureDay!==world.clock.day){x.weatherExposureDays++;x.lastExposureDay=world.clock.day}x.wetness=cap(x.wetness+(w.rainfall>0?1:-0.2));x.coldExposure=cap(x.coldExposure+(w.temperature<5?0.4:-0.2));x.heatExposure=cap(x.heatExposure+(w.temperature>=35?0.4:-0.2))}else{x.wetness=cap(x.wetness-0.3);x.coldExposure=cap(x.coldExposure-0.2);x.heatExposure=cap(x.heatExposure-0.2)}
@@ -123,9 +128,11 @@ export function processStudio(world:WorldState):WorldEvent[] {
       if(x.skinCondition<5)x.infectionRisk=cap(x.infectionRisk+0.1)
       for(const k of ['wetness','coldExposure','heatExposure','weatherExposureDays','skinCondition','infectionRisk'] as const)if(before[k]!==x[k])changes.push({field:`agent:${a.id}:${k}`,from:String(before[k]),to:String(x[k])})
       if(outside&&(w.rainfall||w.temperature<0||w.temperature>=35)){const from=a.humanState!.fatigue;a.humanState!.fatigue=cap(from+0.2);changes.push({field:`agent:${a.id}:fatigue`,from:String(from),to:String(a.humanState!.fatigue)})}
-      if(x.coldExposure>=8||x.skinCondition<4){const from=a.body!.injury;a.body!.injury=cap(from+0.1);a.publicState.status='injured';changes.push({field:`agent:${a.id}:injury`,from:String(from),to:String(a.body!.injury)})}
+      if(x.coldExposure>=8||x.skinCondition<4){const from=a.body!.injury;a.body!.injury=cap(from+0.1);if(a.publicState.status!=='injured')changes.push({field:`agent:${a.id}:status`,from:a.publicState.status,to:'injured'});a.publicState.status='injured';changes.push({field:`agent:${a.id}:injury`,from:String(from),to:String(a.body!.injury)})}
+      const beforeVitals={hunger:a.vitals!.hunger,thirst:a.vitals!.thirst}
       const v=a.vitals!;v.energy=cap(10-a.humanState!.fatigue);v.hunger=cap(v.hunger+0.2);v.thirst=cap(v.thirst+(outside&&w.temperature>=35?0.5:0.2));v.health=cap(10-a.body!.health);v.loneliness=cap(v.loneliness+(world.agents.some(b=>b.id!==a.id&&b.publicState.locationId===a.publicState.locationId)?-0.1:0.1));a.humanState!.survival_need=Math.max(v.hunger,v.thirst)
-      if(changes.length){const ev=engineEvent(world,exposureLine(a.name,changes,Boolean(outside)),changes,a.publicState.locationId,[a.id]);ev.cause='environment_exposure';results.push(ev)}
+      for(const k of ['hunger','thirst'] as const)if(beforeVitals[k]!==v[k])changes.push({field:`agent:${a.id}:${k}`,from:String(beforeVitals[k]),to:String(v[k])})
+      if(changes.length){const significant=meaningfulChanges(changes);const ev=engineEvent(world,significant.length?conditionSummary(a.name,significant):exposureLine(a.name,changes,Boolean(outside)),changes,a.publicState.locationId,[a.id]);ev.cause='environment_exposure';ev.visibility=significant.length?'public':'private';results.push(ev)}
     }
   }
   const rules=s.config.endings

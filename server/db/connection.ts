@@ -18,4 +18,6 @@ export function openDatabase(path: string): DatabaseSync {
 export function migrate(db: DatabaseSync): void {
   const schema = readFileSync(join(here, 'schema.sql'), 'utf8')
   db.exec(schema)
+  const columns = db.prepare('PRAGMA table_info(draft_characters)').all() as Array<{ name: string }>
+  if (!columns.some(c => c.name === 'dispositions_json')) db.exec('ALTER TABLE draft_characters ADD COLUMN dispositions_json TEXT')
 }

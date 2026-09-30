@@ -36,7 +36,7 @@ export function ArchivePage() {
   }, [load])
 
   async function handleDelete(season: Season) {
-    if (!window.confirm(`"${season.name}" 시즌 기록을 완전히 삭제할까요? 되돌릴 수 없습니다.`)) return
+    if (!window.confirm(`"${season.name}"의 지난 실행 기록과 연결된 세계 설정을 영구 삭제할까요? 되돌릴 수 없습니다.`)) return
     setDeletingId(season.id)
     setMessage('')
     try {

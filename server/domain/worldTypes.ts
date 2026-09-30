@@ -85,6 +85,7 @@ export interface Relationship {
 
 export interface AgentPublicState {
   locationId: string
+  position?: import('../world/spatialWorld.ts').Point
   status: AgentStatus
   visibleGoal: string | null
   lastAction: string | null
@@ -95,6 +96,9 @@ export interface AgentPublicState {
 }
 
 export interface AgentKnowledgeEntry {
+  kind?: 'world'|'self_state'
+  confidence?: number
+  sourceFactId?: string
   acquisition?: 'initial' | 'witness' | 'experience' | 'report' | 'discovery' | 'inference'
   sourceAgentId?: string
   truthId?: string
@@ -112,6 +116,14 @@ export interface MovementLogEntry {
 }
 
 export interface Agent {
+  v2?: import('../world/agentV2State.ts').AgentV2State
+  age?: number|null
+  wounds?: Array<{eventId:string;part:string;damage:number;minute:number}>
+  trauma?: import('../world/trauma.ts').TraumaState
+  observedPossessions?: Array<{ id: string; ownerId: string; name: string; kind: string; atMinute: number; sourceEventId: string }>
+  observedObjects?: Array<{ id: string; name: string; kind: import('../world/engineTypes.ts').WorldObject['kind']; placeId: string; localArea: string; position?: import('../world/spatialWorld.ts').Point; atMinute: number }>
+  dispositions?: import('../world/dispositions.ts').Dispositions
+  motivations?: import('../world/dispositions.ts').MotivationState
   profile?: { gender: string; orientation: string }
   vitals?: { health: number; energy: number; hunger: number; thirst: number; loneliness: number }
   exposure?: import('../world/studioEngine.ts').ExposureState
@@ -145,6 +157,11 @@ export interface StateChange {
 }
 
 export interface WorldEvent {
+  perceptions?: Array<{ agentId: string; sense: 'participant' | 'sight' | 'hearing'; area: string; position: import('../world/spatialWorld.ts').Point }>
+  detail?: import('../world/engineTypes.ts').ActionDetail
+  actionResult?: string
+  actionMotive?: string
+  actionContext?: string
   sequence?: number
   worldMinute?: number
   worldTime?: string
@@ -181,6 +198,7 @@ export interface WorldEvent {
 // Per-call bookkeeping for a future real AGENT/GM/NARRATOR call. Never sent to the public API —
 // see server/api/worldRoutes.ts, which strips this field before responding.
 export interface ModelCallProvenance {
+  snapshotMinute?: number
   provider?: string
   model?: string
   promptVersionId?: string
@@ -212,6 +230,11 @@ export type SceneImportance = 'ordinary' | 'notable' | 'major'
 // the main reading page renders — never a raw WorldEvent. See server/domain/narrator.ts for the
 // (currently mock) adapter that produces these.
 export interface ChronicleEntry {
+  kind?: 'LIVE' | 'DAY'
+  completed?: boolean
+  corrections?: Array<{ at: string; reason: string; previousTitle: string; previousBody: string }>
+
+  resolvedActionIds?: string[]
   id: string
   seasonId: string
   worldDay: number
@@ -278,6 +301,15 @@ export interface OperatorLogEntry {
 }
 
 export interface WorldRuntime {
+    schedulerRegistered?: boolean
+    lastTickAttemptAt?: string | null
+    lastTickResult?: string | null
+    tickSkipReason?: string | null
+    pipeline?: {
+      brainCalls: number; plannerCalls: number; groundingSuccesses: number; groundingFailures: number
+      validationAccepted: number; validationRejected: number; resultJudgmentCalls: number
+      acceptedActions: number; completedActions: number; worldEvents: number; providerFailures: number
+    }
   maxActiveCharacters?: number
   worldMinutesPerTick?: number
   decisionsPaused?: boolean

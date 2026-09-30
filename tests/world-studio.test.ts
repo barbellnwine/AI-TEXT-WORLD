@@ -1,11 +1,12 @@
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
+import { composeDay, storyEvent } from '../server/domain/storyComposition.ts'
 process.env.AI_WORLD_DEMO_MODE='true'
 const {migrate}=await import('../server/db/connection.ts')
 const {seedDefaultRulePreset}=await import('../server/domain/rulePresets.ts')
 const {createTestIsland}=await import('../server/domain/studioExample.ts')
-const {saveStudio}=await import('../server/domain/studioStore.ts')
+const {saveStudio,copyWorldDesign}=await import('../server/domain/studioStore.ts')
 const {getDraft}=await import('../server/domain/worldDrafts.ts')
 const {startWorldFromDraft}=await import('../server/domain/worldLaunch.ts')
 const {advanceEngine,beginAction,validateEngineAction,selectDecisionAgents}=await import('../server/world/worldEngine.ts')
@@ -16,12 +17,51 @@ const store=await import('../server/domain/worldStore.ts')
 after(()=>store.stopSimulationTimerForTests())
 function fixture(){const db=new DatabaseSync(':memory:');migrate(db);seedDefaultRulePreset(db);const draft=createTestIsland(db);assert.equal(startWorldFromDraft(db,draft).ok,true);store.stopSimulationTimerForTests();return{db,draft,world:store.getWorldState()}}
 
+test('ten real exposed bodies remain audited without publishing ten wetness stories',()=>{
+ const {db,world}=fixture();try{
+   const template=world.agents[0], outside=world.places.find(p=>p.name==='외부')!
+   world.agents=Array.from({length:10},(_,i)=>({...structuredClone(template),id:`rain-${i}`,name:`Rain${i}`}))
+   for(const a of world.agents){a.publicState.locationId=outside.id;a.vitals!.hunger=0;a.vitals!.thirst=0;a.humanState!.fatigue=0}
+   const events=advanceEngine(world,60)
+   assert.ok(world.agents.every(a=>a.exposure!.wetness>0))
+   const exposure=events.filter(e=>e.cause==='environment_exposure')
+   assert.equal(new Set(exposure.flatMap(e=>e.agentIds)).size,10)
+   assert.ok(exposure.every(e=>!storyEvent(e)))
+   assert.equal(composeDay(1,world.seasonId,exposure,new Map(world.places.map(p=>[p.id,p])),new Map(world.agents.map(a=>[a.id,a])),false),null)
+ }finally{db.close()}
+})
+
 test('studio saves references atomically, keeps existing drafts and separates population from active count',()=>{
  const db=new DatabaseSync(':memory:');migrate(db);seedDefaultRulePreset(db)
  try{const draft=createTestIsland(db),before=getDraft(db,draft.id)!;assert.equal(before.characters.length,5);assert.equal(before.studio!.activeLimit,3);assert.equal(before.studio!.items[0].holderId,before.characters[0].id)
  draft.name='수정';draft.studio!.activeLimit=2;const saved=saveStudio(db,draft.id,draft);assert.equal(saved.name,'수정');assert.equal(saved.characters[0].id,before.characters[0].id)
  const bad=structuredClone(saved);bad.name='저장되면 안 됨';bad.studio!.items[0].holderId='missing';assert.throws(()=>saveStudio(db,draft.id,bad));assert.equal(getDraft(db,draft.id)!.name,'수정');migrate(db);assert.equal(getDraft(db,draft.id)!.name,'수정')
  }finally{db.close()}
+})
+
+test('world settings copy starts a fresh season while preserving character design and old records',async()=>{
+ const db=new DatabaseSync(':memory:');migrate(db);seedDefaultRulePreset(db);store.initializeWorldRuntime(db)
+ try{
+  const original=createTestIsland(db)
+  assert.equal(startWorldFromDraft(db,original).ok,true);store.stopSimulationTimerForTests()
+  const copy=copyWorldDesign(db,original.id)
+  assert.notEqual(copy.id,original.id)
+  assert.deepEqual(copy.characters.map(c=>[c.name,c.age,c.personality,c.goal]),original.characters.map(c=>[c.name,c.age,c.personality,c.goal]))
+  assert.deepEqual(copy.places.map(p=>p.name),original.places.map(p=>p.name))
+  assert.ok(copy.characters.every(c=>!original.characters.some(o=>o.id===c.id)))
+  assert.equal(startWorldFromDraft(db,copy).ok,true);store.stopSimulationTimerForTests()
+  assert.equal(store.getSeason().id,copy.id)
+  assert.ok(store.listSeasons().some(s=>s.id===original.id))
+  assert.equal(store.getWorldState().clock.day,copy.startDay)
+  assert.equal(store.getWorldState().agents.length,copy.characters.length)
+  assert.deepEqual(store.deleteArchivedSeason(db,original.id),{ok:true})
+  assert.equal(getDraft(db,original.id),undefined)
+  assert.equal(store.getSeason().id,copy.id)
+  assert.deepEqual(store.deleteCurrentWorld(db,copy.id),{ok:true})
+  assert.equal(getDraft(db,copy.id),undefined)
+  assert.equal(store.getAdminRuntime().mode,'preview')
+  assert.equal((db.prepare('SELECT COUNT(*) as n FROM world_runtime_checkpoint').get() as {n:number}).n,0)
+ }finally{await store.shutdownWorldRuntime();db.close()}
 })
 test('test island initializes real generator state, inventory, private truth and three active characters',()=>{
  const {db,draft,world}=fixture();try{

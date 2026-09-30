@@ -1,0 +1,933 @@
+{
+  "label": "Codex 직접 작성 시안 — 실제 API 출력 아님",
+  "apiCalls": 0,
+  "promptSha256": "a059d3b4e883ae8d63779839b031c021d6edc063661a4ffdb05a7117cdcb158d",
+  "sourceActionIds": [
+    "51b8c40f-d8a6-4df7-9964-34edc2324715",
+    "0e62b37f-c2ee-4aa7-9958-2cffe661fd87"
+  ],
+  "original": [
+    {
+      "id": "23ede29f-12d3-4633-a9a3-f7e249b710b1",
+      "type": "DISCOVERY",
+      "occurredAt": "2026-09-24T17:33:49.560Z",
+      "day": 1,
+      "worldTime": "04:10",
+      "worldMinute": 250,
+      "placeId": "7df3123c-e230-49ef-a86e-3f995a80c9d9",
+      "agentIds": [
+        "669e3cb4-6fcf-4984-9959-4e000a1844e6"
+      ],
+      "summary": "직접 확인한 탐색 결과를 고려해 다른 구역에서 쓸 수 있는 것을 찾으려 했다. 다른 구역에서 쓸 수 있는 식량을 찾으려 탐색을 시도한다. 김기업은 고지대에 도착했다. 김기업이 탐색을 마쳤지만 새로운 발견은 없었다.",
+      "title": "직접 확인한 탐색 결과를 고려해 다른 구역에서 쓸 수 있는 것을 찾으려 했다. 다른 구역에서 쓸 수 있는 식량을 찾으려 탐색을 시도한다. 김기업은 고지대에 도착했다. 김기업이 탐색을 마쳤지만 새로운 발견은 없었다.",
+      "stateChanges": [
+        {
+          "field": "agent:669e3cb4-6fcf-4984-9959-4e000a1844e6:localArea",
+          "from": "CENTER",
+          "to": "HIGH_GROUND"
+        }
+      ],
+      "phase": "COMPLETED",
+      "actionResult": "김기업은 고지대에 도착했다. 김기업이 탐색을 마쳤지만 새로운 발견은 없었다.",
+      "actionMotive": "직접 확인한 탐색 결과를 고려해 다른 구역에서 쓸 수 있는 것을 찾으려 했다.",
+      "actionContext": "직접 확인한 탐색 결과를 고려해 다른 구역에서 쓸 수 있는 것을 찾으려 했다. 다른 구역에서 쓸 수 있는 식량을 찾으려 탐색을 시도한다.",
+      "actionType": "EXPLORE",
+      "engineVerdict": "COMPLETED",
+      "importance": "normal",
+      "relatedEventIds": [
+        "51463bce-eb01-4d71-b096-9a279a961f8f",
+        "23792119-6801-4685-90ef-138cedbed039"
+      ],
+      "outcome": "CONFIRMED",
+      "cause": "action:EXPLORE",
+      "witnessIds": [
+        "669e3cb4-6fcf-4984-9959-4e000a1844e6"
+      ],
+      "detail": {
+        "version": 1,
+        "startedMinute": 240,
+        "endedMinute": 250,
+        "intent": "직접 확인한 탐색 결과를 고려해 다른 구역에서 쓸 수 있는 것을 찾으려 했다.",
+        "steps": [
+          {
+            "minute": 250,
+            "actorId": "669e3cb4-6fcf-4984-9959-4e000a1844e6",
+            "kind": "RESULT",
+            "text": "김기업은 고지대에 도착했다. 김기업이 탐색을 마쳤지만 새로운 발견은 없었다."
+          }
+        ]
+      },
+      "actionId": "9fdaba22-8a8a-45d3-bb8d-1a30e976451d",
+      "sequence": 55
+    },
+    {
+      "id": "a514c609-d8e2-4c46-9e70-6a90fb610417",
+      "type": "CONFLICT",
+      "occurredAt": "2026-09-24T17:33:49.554Z",
+      "day": 1,
+      "worldTime": "04:05",
+      "worldMinute": 245,
+      "placeId": "7df3123c-e230-49ef-a86e-3f995a80c9d9",
+      "agentIds": [
+        "fd1b97dc-a690-4364-bbe7-a998156c4108",
+        "a504e099-defc-4429-b628-439fb90dc8f0"
+      ],
+      "summary": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 눈앞의 위협을 공격하여 자신의 안전을 확보했다. 김높별은 자신을 향한 공격을 알아차렸다. 도영동은 맨손으로 김높별의 몸통을 노렸다. 도영동은 주먹을 뻗었다. 김높별은 이미 선택한 반격으로 맞서려 했다. 도영동의 공격이 김높별의 몸통에 닿아 가벼운 부상을 남겼다.",
+      "title": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 눈앞의 위협을 공격하여 자신의 안전을 확보했다. 김높별은 자신을 향한 공격을 알아차렸다. 도영동은 맨손으로 김높별의 몸통을 노렸다. 도영동은 주먹을 뻗었다. 김높별은 이미 선택한 반격으로 맞서려 했다. 도영동의 공격이 김높별의 몸통에 닿아 가벼운 부상을 남겼다.",
+      "stateChanges": [
+        {
+          "field": "agent:a504e099-defc-4429-b628-439fb90dc8f0:health",
+          "from": "0",
+          "to": "1"
+        },
+        {
+          "field": "agent:a504e099-defc-4429-b628-439fb90dc8f0:injury",
+          "from": "1",
+          "to": "2"
+        },
+        {
+          "field": "agent:a504e099-defc-4429-b628-439fb90dc8f0:status",
+          "from": "alive",
+          "to": "injured"
+        },
+        {
+          "field": "agent:fd1b97dc-a690-4364-bbe7-a998156c4108:fatigue",
+          "from": "2.5999999999999996",
+          "to": "4"
+        },
+        {
+          "field": "relationship:a504e099-defc-4429-b628-439fb90dc8f0:fd1b97dc-a690-4364-bbe7-a998156c4108:stance",
+          "from": "hostile",
+          "to": "hostile"
+        },
+        {
+          "field": "relationship:a504e099-defc-4429-b628-439fb90dc8f0:fd1b97dc-a690-4364-bbe7-a998156c4108:trust",
+          "from": "0",
+          "to": "0"
+        },
+        {
+          "field": "relationship:a504e099-defc-4429-b628-439fb90dc8f0:fd1b97dc-a690-4364-bbe7-a998156c4108:hostility",
+          "from": "9",
+          "to": "10"
+        },
+        {
+          "field": "agent:a504e099-defc-4429-b628-439fb90dc8f0:trauma",
+          "from": "null",
+          "to": "{\"version\":1,\"lastMinute\":245,\"bloodLoss\":0,\"pain\":2,\"functions\":{\"vision\":0,\"mobility\":0.3,\"dexterity\":0,\"attention\":0},\"injuries\":[{\"part\":\"TORSO\",\"type\":\"contusion\",\"site\":\"general\",\"severity\":1,\"bleeding\":0,\"pain\":2,\"healingHours\":24,\"effects\":[{\"function\":\"mobility\",\"degree\":0.3,\"mechanism\":\"pain\"}],\"id\":\"64ae0e1a-18f0-4b9f-979a-422135faedc5\",\"sourceEventId\":\"a514c609-d8e2-4c46-9e70-6a90fb610417\",\"onset\":245,\"treatedAt\":null,\"healed\":false}]}"
+        }
+      ],
+      "phase": "COMPLETED",
+      "actionResult": "김높별은 자신을 향한 공격을 알아차렸다. 도영동은 맨손으로 김높별의 몸통을 노렸다. 도영동은 주먹을 뻗었다. 김높별은 이미 선택한 반격으로 맞서려 했다. 도영동의 공격이 김높별의 몸통에 닿아 가벼운 부상을 남겼다. 김높별의 상처에는 출혈은 없으며, 이동에 제약이 생겼다.",
+      "actionMotive": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다.",
+      "actionContext": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 눈앞의 위협을 공격하여 자신의 안전을 확보했다.",
+      "actionType": "ATTACK",
+      "engineVerdict": "COMPLETED",
+      "importance": "high",
+      "relatedEventIds": [
+        "ad0ea6f6-e1c4-40ce-a78c-47537d16abe4",
+        "017f25e5-5825-42a5-b604-b144d64959d7"
+      ],
+      "outcome": "CONFIRMED",
+      "cause": "action:ATTACK",
+      "witnessIds": [
+        "fd1b97dc-a690-4364-bbe7-a998156c4108",
+        "a504e099-defc-4429-b628-439fb90dc8f0",
+        "d4e0b410-0016-4f77-ac7f-12a037d4740d",
+        "c1cf2b33-0a34-406c-84bc-2fec3c615866"
+      ],
+      "detail": {
+        "version": 1,
+        "startedMinute": 240,
+        "endedMinute": 245,
+        "intent": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다.",
+        "steps": [
+          {
+            "minute": 245,
+            "actorId": "a504e099-defc-4429-b628-439fb90dc8f0",
+            "kind": "NOTICE",
+            "text": "김높별은(는) 자신을 향한 공격을 알아차렸다."
+          },
+          {
+            "minute": 245,
+            "actorId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+            "kind": "AIM",
+            "text": "도영동은(는) 맨손으로 김높별의 몸통을(를) 노렸다."
+          },
+          {
+            "minute": 245,
+            "actorId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+            "kind": "STRIKE",
+            "text": "도영동은(는) 주먹을 뻗었다."
+          },
+          {
+            "minute": 245,
+            "actorId": "a504e099-defc-4429-b628-439fb90dc8f0",
+            "kind": "DEFEND",
+            "text": "김높별은(는) 이미 선택한 반격으로 맞서려 했다."
+          },
+          {
+            "minute": 245,
+            "actorId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+            "kind": "RESULT",
+            "text": "도영동의 공격이 김높별의 몸통에 닿아 가벼운 부상을 남겼다."
+          },
+          {
+            "minute": 245,
+            "actorId": "d4e0b410-0016-4f77-ac7f-12a037d4740d",
+            "kind": "WITNESS",
+            "text": "최형대은(는) 충돌을 목격하고 가까운 사람의 안전을 살필 필요를 느꼈다."
+          },
+          {
+            "minute": 245,
+            "actorId": "c1cf2b33-0a34-406c-84bc-2fec3c615866",
+            "kind": "WITNESS",
+            "text": "권치현은(는) 충돌을 목격하고 가까운 사람의 안전을 살필 필요를 느꼈다."
+          },
+          {
+            "minute": 245,
+            "actorId": "a504e099-defc-4429-b628-439fb90dc8f0",
+            "kind": "RESULT",
+            "text": "김높별의 상처에는 출혈은 없으며, 이동에 제약이 생겼다."
+          }
+        ],
+        "adjudication": {
+          "version": 1,
+          "fingerprint": "898b97af387fe8687a488c5f6fd14b5e98ad0198e7b7a01d5f8d75f6139479ec",
+          "proposal": {
+            "actionId": "51b8c40f-d8a6-4df7-9964-34edc2324715",
+            "outcome": "HIT",
+            "reaction": "COUNTER",
+            "basis": "",
+            "injury": {
+              "part": "TORSO",
+              "type": "contusion",
+              "site": "general",
+              "severity": 1,
+              "bleeding": 0,
+              "pain": 2,
+              "healingHours": 24,
+              "effects": [
+                {
+                  "function": "mobility",
+                  "degree": 0.3,
+                  "mechanism": "pain"
+                }
+              ]
+            }
+          },
+          "reaction": {
+            "kind": "COUNTER",
+            "source": "chosen_action",
+            "reason": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다."
+          },
+          "provider": "openai",
+          "model": "gpt-4.1-mini",
+          "atMinute": 245
+        },
+        "combat": {
+          "method": "CONTACT",
+          "attackerId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+          "targetId": "a504e099-defc-4429-b628-439fb90dc8f0",
+          "tool": {
+            "id": null,
+            "name": "맨손",
+            "source": "unarmed"
+          },
+          "toolAfter": null,
+          "aimedPart": "TORSO",
+          "reaction": {
+            "kind": "COUNTER",
+            "source": "chosen_action",
+            "reason": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다."
+          },
+          "outcome": "HIT",
+          "injuredPart": "TORSO",
+          "damage": 1,
+          "roll": 0.7306252322159708,
+          "hitChance": 0.699
+        },
+        "witnesses": [
+          {
+            "actorId": "d4e0b410-0016-4f77-ac7f-12a037d4740d",
+            "concern": "ally_safety",
+            "nextDecisionAt": 175
+          },
+          {
+            "actorId": "c1cf2b33-0a34-406c-84bc-2fec3c615866",
+            "concern": "ally_safety",
+            "nextDecisionAt": 8
+          }
+        ]
+      },
+      "actionId": "51b8c40f-d8a6-4df7-9964-34edc2324715",
+      "sequence": 54
+    },
+    {
+      "id": "f7230aac-3031-4c22-b275-612197b0912b",
+      "type": "CONFLICT",
+      "occurredAt": "2026-09-24T17:33:49.548Z",
+      "day": 1,
+      "worldTime": "04:05",
+      "worldMinute": 245,
+      "placeId": "7df3123c-e230-49ef-a86e-3f995a80c9d9",
+      "agentIds": [
+        "a504e099-defc-4429-b628-439fb90dc8f0",
+        "fd1b97dc-a690-4364-bbe7-a998156c4108"
+      ],
+      "summary": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 맨손으로 도영동의 몸통을 노렸다. 김높별은 주먹을 뻗었다. 도영동은 이미 선택한 반격으로 맞서려 했다. 김높별의 공격이 도영동의 몸통에 닿아 가벼운 부상을 남겼다.",
+      "title": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 맨손으로 도영동의 몸통을 노렸다. 김높별은 주먹을 뻗었다. 도영동은 이미 선택한 반격으로 맞서려 했다. 김높별의 공격이 도영동의 몸통에 닿아 가벼운 부상을 남겼다.",
+      "stateChanges": [
+        {
+          "field": "agent:fd1b97dc-a690-4364-bbe7-a998156c4108:health",
+          "from": "0",
+          "to": "1"
+        },
+        {
+          "field": "agent:fd1b97dc-a690-4364-bbe7-a998156c4108:injury",
+          "from": "1",
+          "to": "2"
+        },
+        {
+          "field": "agent:fd1b97dc-a690-4364-bbe7-a998156c4108:status",
+          "from": "alive",
+          "to": "injured"
+        },
+        {
+          "field": "agent:a504e099-defc-4429-b628-439fb90dc8f0:fatigue",
+          "from": "2.5999999999999996",
+          "to": "4"
+        },
+        {
+          "field": "relationship:fd1b97dc-a690-4364-bbe7-a998156c4108:a504e099-defc-4429-b628-439fb90dc8f0:stance",
+          "from": "hostile",
+          "to": "hostile"
+        },
+        {
+          "field": "relationship:fd1b97dc-a690-4364-bbe7-a998156c4108:a504e099-defc-4429-b628-439fb90dc8f0:trust",
+          "from": "0",
+          "to": "0"
+        },
+        {
+          "field": "relationship:fd1b97dc-a690-4364-bbe7-a998156c4108:a504e099-defc-4429-b628-439fb90dc8f0:hostility",
+          "from": "9",
+          "to": "10"
+        },
+        {
+          "field": "agent:fd1b97dc-a690-4364-bbe7-a998156c4108:trauma",
+          "from": "null",
+          "to": "{\"version\":1,\"lastMinute\":245,\"bloodLoss\":0,\"pain\":2,\"functions\":{\"vision\":0,\"mobility\":0.3,\"dexterity\":0,\"attention\":0},\"injuries\":[{\"part\":\"TORSO\",\"type\":\"contusion\",\"site\":\"general\",\"severity\":1,\"bleeding\":0,\"pain\":2,\"healingHours\":24,\"effects\":[{\"function\":\"mobility\",\"degree\":0.3,\"mechanism\":\"pain\"}],\"id\":\"c2606219-776c-43f3-84a9-11bd61244b3c\",\"sourceEventId\":\"f7230aac-3031-4c22-b275-612197b0912b\",\"onset\":245,\"treatedAt\":null,\"healed\":false}]}"
+        }
+      ],
+      "phase": "COMPLETED",
+      "actionResult": "도영동은 자신을 향한 공격을 알아차렸다. 김높별은 맨손으로 도영동의 몸통을 노렸다. 김높별은 주먹을 뻗었다. 도영동은 이미 선택한 반격으로 맞서려 했다. 김높별의 공격이 도영동의 몸통에 닿아 가벼운 부상을 남겼다. 도영동의 상처에는 출혈은 없으며, 이동에 제약이 생겼다.",
+      "actionMotive": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다.",
+      "actionContext": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다.",
+      "actionType": "ATTACK",
+      "engineVerdict": "COMPLETED",
+      "importance": "high",
+      "relatedEventIds": [
+        "ff29725e-fe8f-40d9-8f4e-b6d1fee4ea04",
+        "5227138b-70aa-4092-aa80-8e265b2de210"
+      ],
+      "outcome": "CONFIRMED",
+      "cause": "action:ATTACK",
+      "witnessIds": [
+        "a504e099-defc-4429-b628-439fb90dc8f0",
+        "fd1b97dc-a690-4364-bbe7-a998156c4108",
+        "d4e0b410-0016-4f77-ac7f-12a037d4740d",
+        "c1cf2b33-0a34-406c-84bc-2fec3c615866"
+      ],
+      "detail": {
+        "version": 1,
+        "startedMinute": 240,
+        "endedMinute": 245,
+        "intent": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다.",
+        "steps": [
+          {
+            "minute": 245,
+            "actorId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+            "kind": "NOTICE",
+            "text": "도영동은(는) 자신을 향한 공격을 알아차렸다."
+          },
+          {
+            "minute": 245,
+            "actorId": "a504e099-defc-4429-b628-439fb90dc8f0",
+            "kind": "AIM",
+            "text": "김높별은(는) 맨손으로 도영동의 몸통을(를) 노렸다."
+          },
+          {
+            "minute": 245,
+            "actorId": "a504e099-defc-4429-b628-439fb90dc8f0",
+            "kind": "STRIKE",
+            "text": "김높별은(는) 주먹을 뻗었다."
+          },
+          {
+            "minute": 245,
+            "actorId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+            "kind": "DEFEND",
+            "text": "도영동은(는) 이미 선택한 반격으로 맞서려 했다."
+          },
+          {
+            "minute": 245,
+            "actorId": "a504e099-defc-4429-b628-439fb90dc8f0",
+            "kind": "RESULT",
+            "text": "김높별의 공격이 도영동의 몸통에 닿아 가벼운 부상을 남겼다."
+          },
+          {
+            "minute": 245,
+            "actorId": "d4e0b410-0016-4f77-ac7f-12a037d4740d",
+            "kind": "WITNESS",
+            "text": "최형대은(는) 충돌을 목격하고 자신의 안전을 살필 필요를 느꼈다."
+          },
+          {
+            "minute": 245,
+            "actorId": "c1cf2b33-0a34-406c-84bc-2fec3c615866",
+            "kind": "WITNESS",
+            "text": "권치현은(는) 충돌을 목격하고 자신의 안전을 살필 필요를 느꼈다."
+          },
+          {
+            "minute": 245,
+            "actorId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+            "kind": "RESULT",
+            "text": "도영동의 상처에는 출혈은 없으며, 이동에 제약이 생겼다."
+          }
+        ],
+        "adjudication": {
+          "version": 1,
+          "fingerprint": "4e47c1c002e17bad56ec4d861e50bedd73be375e2db0b42e447465eba7fce6d9",
+          "proposal": {
+            "actionId": "0e62b37f-c2ee-4aa7-9958-2cffe661fd87",
+            "outcome": "HIT",
+            "reaction": "COUNTER",
+            "basis": "",
+            "injury": {
+              "part": "TORSO",
+              "type": "contusion",
+              "site": "general",
+              "severity": 1,
+              "bleeding": 0,
+              "pain": 2,
+              "healingHours": 24,
+              "effects": [
+                {
+                  "function": "mobility",
+                  "degree": 0.3,
+                  "mechanism": "pain"
+                }
+              ]
+            }
+          },
+          "reaction": {
+            "kind": "COUNTER",
+            "source": "chosen_action",
+            "reason": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다."
+          },
+          "provider": "openai",
+          "model": "gpt-4.1-mini",
+          "atMinute": 245
+        },
+        "combat": {
+          "method": "CONTACT",
+          "attackerId": "a504e099-defc-4429-b628-439fb90dc8f0",
+          "targetId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+          "tool": {
+            "id": null,
+            "name": "맨손",
+            "source": "unarmed"
+          },
+          "toolAfter": null,
+          "aimedPart": "TORSO",
+          "reaction": {
+            "kind": "COUNTER",
+            "source": "chosen_action",
+            "reason": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다."
+          },
+          "outcome": "HIT",
+          "injuredPart": "TORSO",
+          "damage": 1,
+          "roll": 0.10326999868266284,
+          "hitChance": 0.744
+        },
+        "witnesses": [
+          {
+            "actorId": "d4e0b410-0016-4f77-ac7f-12a037d4740d",
+            "concern": "self_safety",
+            "nextDecisionAt": 175
+          },
+          {
+            "actorId": "c1cf2b33-0a34-406c-84bc-2fec3c615866",
+            "concern": "self_safety",
+            "nextDecisionAt": 8
+          }
+        ]
+      },
+      "actionId": "0e62b37f-c2ee-4aa7-9958-2cffe661fd87",
+      "sequence": 53
+    }
+  ],
+  "projected": [
+    {
+      "id": "a514c609-d8e2-4c46-9e70-6a90fb610417",
+      "type": "CONFLICT",
+      "occurredAt": "2026-09-24T17:33:49.554Z",
+      "day": 1,
+      "worldTime": "04:05",
+      "worldMinute": 245,
+      "placeId": "7df3123c-e230-49ef-a86e-3f995a80c9d9",
+      "agentIds": [
+        "fd1b97dc-a690-4364-bbe7-a998156c4108",
+        "a504e099-defc-4429-b628-439fb90dc8f0"
+      ],
+      "summary": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 눈앞의 위협을 공격하여 자신의 안전을 확보했다. 김높별은 자신을 향한 공격을 알아차렸다. 도영동은 맨손으로 김높별의 몸통을 노렸다. 도영동은 주먹을 뻗었다. 김높별은 이미 선택한 반격으로 맞서려 했다. 도영동의 공격이 김높별의 몸통에 닿아 가벼운 부상을 남겼다.",
+      "title": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 눈앞의 위협을 공격하여 자신의 안전을 확보했다. 김높별은 자신을 향한 공격을 알아차렸다. 도영동은 맨손으로 김높별의 몸통을 노렸다. 도영동은 주먹을 뻗었다. 김높별은 이미 선택한 반격으로 맞서려 했다. 도영동의 공격이 김높별의 몸통에 닿아 가벼운 부상을 남겼다.",
+      "stateChanges": [
+        {
+          "field": "agent:a504e099-defc-4429-b628-439fb90dc8f0:health",
+          "from": "0",
+          "to": "1"
+        },
+        {
+          "field": "agent:a504e099-defc-4429-b628-439fb90dc8f0:injury",
+          "from": "1",
+          "to": "2"
+        },
+        {
+          "field": "agent:a504e099-defc-4429-b628-439fb90dc8f0:status",
+          "from": "alive",
+          "to": "injured"
+        },
+        {
+          "field": "agent:fd1b97dc-a690-4364-bbe7-a998156c4108:fatigue",
+          "from": "2.5999999999999996",
+          "to": "4"
+        },
+        {
+          "field": "relationship:a504e099-defc-4429-b628-439fb90dc8f0:fd1b97dc-a690-4364-bbe7-a998156c4108:stance",
+          "from": "hostile",
+          "to": "hostile"
+        },
+        {
+          "field": "relationship:a504e099-defc-4429-b628-439fb90dc8f0:fd1b97dc-a690-4364-bbe7-a998156c4108:trust",
+          "from": "0",
+          "to": "0"
+        },
+        {
+          "field": "relationship:a504e099-defc-4429-b628-439fb90dc8f0:fd1b97dc-a690-4364-bbe7-a998156c4108:hostility",
+          "from": "9",
+          "to": "10"
+        },
+        {
+          "field": "agent:a504e099-defc-4429-b628-439fb90dc8f0:trauma",
+          "from": "null",
+          "to": "{\"version\":1,\"lastMinute\":245,\"bloodLoss\":0,\"pain\":2,\"functions\":{\"vision\":0,\"mobility\":0.3,\"dexterity\":0,\"attention\":0},\"injuries\":[{\"part\":\"TORSO\",\"type\":\"contusion\",\"site\":\"general\",\"severity\":1,\"bleeding\":0,\"pain\":2,\"healingHours\":24,\"effects\":[{\"function\":\"mobility\",\"degree\":0.3,\"mechanism\":\"pain\"}],\"id\":\"64ae0e1a-18f0-4b9f-979a-422135faedc5\",\"sourceEventId\":\"a514c609-d8e2-4c46-9e70-6a90fb610417\",\"onset\":245,\"treatedAt\":null,\"healed\":false}]}"
+        }
+      ],
+      "phase": "COMPLETED",
+      "actionResult": "도영동은 눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 김높별은 자신을 향한 공격을 알아차렸다. 도영동은 맨손으로 김높별의 몸통을 노렸다. 도영동은 주먹을 뻗었다. 도영동의 공격이 김높별의 몸통에 닿아 가벼운 부상을 남겼다. 김높별의 상처에는 출혈은 없으며, 이동에 제약이 생겼다.",
+      "actionMotive": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다.",
+      "actionContext": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 눈앞의 위협을 공격하여 자신의 안전을 확보했다.",
+      "actionType": "ATTACK",
+      "engineVerdict": "COMPLETED",
+      "importance": "high",
+      "relatedEventIds": [
+        "ad0ea6f6-e1c4-40ce-a78c-47537d16abe4",
+        "017f25e5-5825-42a5-b604-b144d64959d7"
+      ],
+      "outcome": "CONFIRMED",
+      "cause": "action:ATTACK",
+      "witnessIds": [
+        "fd1b97dc-a690-4364-bbe7-a998156c4108",
+        "a504e099-defc-4429-b628-439fb90dc8f0",
+        "d4e0b410-0016-4f77-ac7f-12a037d4740d",
+        "c1cf2b33-0a34-406c-84bc-2fec3c615866"
+      ],
+      "detail": {
+        "version": 1,
+        "startedMinute": 240,
+        "endedMinute": 245,
+        "intent": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다.",
+        "steps": [
+          {
+            "minute": 245,
+            "actorId": "a504e099-defc-4429-b628-439fb90dc8f0",
+            "kind": "NOTICE",
+            "text": "김높별은(는) 자신을 향한 공격을 알아차렸다."
+          },
+          {
+            "minute": 245,
+            "actorId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+            "kind": "AIM",
+            "text": "도영동은(는) 맨손으로 김높별의 몸통을(를) 노렸다."
+          },
+          {
+            "minute": 245,
+            "actorId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+            "kind": "STRIKE",
+            "text": "도영동은(는) 주먹을 뻗었다."
+          },
+          {
+            "minute": 245,
+            "actorId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+            "kind": "RESULT",
+            "text": "도영동의 공격이 김높별의 몸통에 닿아 가벼운 부상을 남겼다."
+          },
+          {
+            "minute": 245,
+            "actorId": "a504e099-defc-4429-b628-439fb90dc8f0",
+            "kind": "RESULT",
+            "text": "김높별의 상처에는 출혈은 없으며, 이동에 제약이 생겼다."
+          }
+        ],
+        "adjudication": {
+          "version": 1,
+          "fingerprint": "898b97af387fe8687a488c5f6fd14b5e98ad0198e7b7a01d5f8d75f6139479ec",
+          "proposal": {
+            "actionId": "51b8c40f-d8a6-4df7-9964-34edc2324715",
+            "outcome": "HIT",
+            "reaction": "COUNTER",
+            "basis": "",
+            "injury": {
+              "part": "TORSO",
+              "type": "contusion",
+              "site": "general",
+              "severity": 1,
+              "bleeding": 0,
+              "pain": 2,
+              "healingHours": 24,
+              "effects": [
+                {
+                  "function": "mobility",
+                  "degree": 0.3,
+                  "mechanism": "pain"
+                }
+              ]
+            }
+          },
+          "reaction": {
+            "kind": "COUNTER",
+            "source": "chosen_action",
+            "reason": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다."
+          },
+          "provider": "openai",
+          "model": "gpt-4.1-mini",
+          "atMinute": 245
+        },
+        "combat": {
+          "method": "CONTACT",
+          "attackerId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+          "targetId": "a504e099-defc-4429-b628-439fb90dc8f0",
+          "tool": {
+            "id": null,
+            "name": "맨손",
+            "source": "unarmed"
+          },
+          "toolAfter": null,
+          "aimedPart": "TORSO",
+          "reaction": {
+            "kind": "CONTINUE_ATTACK",
+            "source": "chosen_action",
+            "reason": "상대의 별도 공격은 기록되었지만 대응 인지의 근거는 남아 있지 않다."
+          },
+          "outcome": "HIT",
+          "injuredPart": "TORSO",
+          "damage": 1,
+          "roll": 0.7306252322159708,
+          "hitChance": 0.699
+        },
+        "witnesses": [
+          {
+            "actorId": "d4e0b410-0016-4f77-ac7f-12a037d4740d",
+            "concern": "ally_safety",
+            "nextDecisionAt": 175
+          },
+          {
+            "actorId": "c1cf2b33-0a34-406c-84bc-2fec3c615866",
+            "concern": "ally_safety",
+            "nextDecisionAt": 8
+          }
+        ]
+      },
+      "actionId": "51b8c40f-d8a6-4df7-9964-34edc2324715",
+      "sequence": 54
+    },
+    {
+      "id": "f7230aac-3031-4c22-b275-612197b0912b",
+      "type": "CONFLICT",
+      "occurredAt": "2026-09-24T17:33:49.548Z",
+      "day": 1,
+      "worldTime": "04:05",
+      "worldMinute": 245,
+      "placeId": "7df3123c-e230-49ef-a86e-3f995a80c9d9",
+      "agentIds": [
+        "a504e099-defc-4429-b628-439fb90dc8f0",
+        "fd1b97dc-a690-4364-bbe7-a998156c4108"
+      ],
+      "summary": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 맨손으로 도영동의 몸통을 노렸다. 김높별은 주먹을 뻗었다. 도영동은 이미 선택한 반격으로 맞서려 했다. 김높별의 공격이 도영동의 몸통에 닿아 가벼운 부상을 남겼다.",
+      "title": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 맨손으로 도영동의 몸통을 노렸다. 김높별은 주먹을 뻗었다. 도영동은 이미 선택한 반격으로 맞서려 했다. 김높별의 공격이 도영동의 몸통에 닿아 가벼운 부상을 남겼다.",
+      "stateChanges": [
+        {
+          "field": "agent:fd1b97dc-a690-4364-bbe7-a998156c4108:health",
+          "from": "0",
+          "to": "1"
+        },
+        {
+          "field": "agent:fd1b97dc-a690-4364-bbe7-a998156c4108:injury",
+          "from": "1",
+          "to": "2"
+        },
+        {
+          "field": "agent:fd1b97dc-a690-4364-bbe7-a998156c4108:status",
+          "from": "alive",
+          "to": "injured"
+        },
+        {
+          "field": "agent:a504e099-defc-4429-b628-439fb90dc8f0:fatigue",
+          "from": "2.5999999999999996",
+          "to": "4"
+        },
+        {
+          "field": "relationship:fd1b97dc-a690-4364-bbe7-a998156c4108:a504e099-defc-4429-b628-439fb90dc8f0:stance",
+          "from": "hostile",
+          "to": "hostile"
+        },
+        {
+          "field": "relationship:fd1b97dc-a690-4364-bbe7-a998156c4108:a504e099-defc-4429-b628-439fb90dc8f0:trust",
+          "from": "0",
+          "to": "0"
+        },
+        {
+          "field": "relationship:fd1b97dc-a690-4364-bbe7-a998156c4108:a504e099-defc-4429-b628-439fb90dc8f0:hostility",
+          "from": "9",
+          "to": "10"
+        },
+        {
+          "field": "agent:fd1b97dc-a690-4364-bbe7-a998156c4108:trauma",
+          "from": "null",
+          "to": "{\"version\":1,\"lastMinute\":245,\"bloodLoss\":0,\"pain\":2,\"functions\":{\"vision\":0,\"mobility\":0.3,\"dexterity\":0,\"attention\":0},\"injuries\":[{\"part\":\"TORSO\",\"type\":\"contusion\",\"site\":\"general\",\"severity\":1,\"bleeding\":0,\"pain\":2,\"healingHours\":24,\"effects\":[{\"function\":\"mobility\",\"degree\":0.3,\"mechanism\":\"pain\"}],\"id\":\"c2606219-776c-43f3-84a9-11bd61244b3c\",\"sourceEventId\":\"f7230aac-3031-4c22-b275-612197b0912b\",\"onset\":245,\"treatedAt\":null,\"healed\":false}]}"
+        }
+      ],
+      "phase": "COMPLETED",
+      "actionResult": "김높별은 눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 도영동은 자신을 향한 공격을 알아차렸다. 김높별은 맨손으로 도영동의 몸통을 노렸다. 김높별은 주먹을 뻗었다. 김높별의 공격이 도영동의 몸통에 닿아 가벼운 부상을 남겼다. 도영동의 상처에는 출혈은 없으며, 이동에 제약이 생겼다.",
+      "actionMotive": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다.",
+      "actionContext": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다. 눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다.",
+      "actionType": "ATTACK",
+      "engineVerdict": "COMPLETED",
+      "importance": "high",
+      "relatedEventIds": [
+        "ff29725e-fe8f-40d9-8f4e-b6d1fee4ea04",
+        "5227138b-70aa-4092-aa80-8e265b2de210"
+      ],
+      "outcome": "CONFIRMED",
+      "cause": "action:ATTACK",
+      "witnessIds": [
+        "a504e099-defc-4429-b628-439fb90dc8f0",
+        "fd1b97dc-a690-4364-bbe7-a998156c4108",
+        "d4e0b410-0016-4f77-ac7f-12a037d4740d",
+        "c1cf2b33-0a34-406c-84bc-2fec3c615866"
+      ],
+      "detail": {
+        "version": 1,
+        "startedMinute": 240,
+        "endedMinute": 245,
+        "intent": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다.",
+        "steps": [
+          {
+            "minute": 245,
+            "actorId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+            "kind": "NOTICE",
+            "text": "도영동은(는) 자신을 향한 공격을 알아차렸다."
+          },
+          {
+            "minute": 245,
+            "actorId": "a504e099-defc-4429-b628-439fb90dc8f0",
+            "kind": "AIM",
+            "text": "김높별은(는) 맨손으로 도영동의 몸통을(를) 노렸다."
+          },
+          {
+            "minute": 245,
+            "actorId": "a504e099-defc-4429-b628-439fb90dc8f0",
+            "kind": "STRIKE",
+            "text": "김높별은(는) 주먹을 뻗었다."
+          },
+          {
+            "minute": 245,
+            "actorId": "a504e099-defc-4429-b628-439fb90dc8f0",
+            "kind": "RESULT",
+            "text": "김높별의 공격이 도영동의 몸통에 닿아 가벼운 부상을 남겼다."
+          },
+          {
+            "minute": 245,
+            "actorId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+            "kind": "RESULT",
+            "text": "도영동의 상처에는 출혈은 없으며, 이동에 제약이 생겼다."
+          }
+        ],
+        "adjudication": {
+          "version": 1,
+          "fingerprint": "4e47c1c002e17bad56ec4d861e50bedd73be375e2db0b42e447465eba7fce6d9",
+          "proposal": {
+            "actionId": "0e62b37f-c2ee-4aa7-9958-2cffe661fd87",
+            "outcome": "HIT",
+            "reaction": "COUNTER",
+            "basis": "",
+            "injury": {
+              "part": "TORSO",
+              "type": "contusion",
+              "site": "general",
+              "severity": 1,
+              "bleeding": 0,
+              "pain": 2,
+              "healingHours": 24,
+              "effects": [
+                {
+                  "function": "mobility",
+                  "degree": 0.3,
+                  "mechanism": "pain"
+                }
+              ]
+            }
+          },
+          "reaction": {
+            "kind": "COUNTER",
+            "source": "chosen_action",
+            "reason": "눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다."
+          },
+          "provider": "openai",
+          "model": "gpt-4.1-mini",
+          "atMinute": 245
+        },
+        "combat": {
+          "method": "CONTACT",
+          "attackerId": "a504e099-defc-4429-b628-439fb90dc8f0",
+          "targetId": "fd1b97dc-a690-4364-bbe7-a998156c4108",
+          "tool": {
+            "id": null,
+            "name": "맨손",
+            "source": "unarmed"
+          },
+          "toolAfter": null,
+          "aimedPart": "TORSO",
+          "reaction": {
+            "kind": "CONTINUE_ATTACK",
+            "source": "chosen_action",
+            "reason": "상대의 별도 공격은 기록되었지만 대응 인지의 근거는 남아 있지 않다."
+          },
+          "outcome": "HIT",
+          "injuredPart": "TORSO",
+          "damage": 1,
+          "roll": 0.10326999868266284,
+          "hitChance": 0.744
+        },
+        "witnesses": [
+          {
+            "actorId": "d4e0b410-0016-4f77-ac7f-12a037d4740d",
+            "concern": "self_safety",
+            "nextDecisionAt": 175
+          },
+          {
+            "actorId": "c1cf2b33-0a34-406c-84bc-2fec3c615866",
+            "concern": "self_safety",
+            "nextDecisionAt": 8
+          }
+        ]
+      },
+      "actionId": "0e62b37f-c2ee-4aa7-9958-2cffe661fd87",
+      "sequence": 53
+    },
+    {
+      "id": "23ede29f-12d3-4633-a9a3-f7e249b710b1",
+      "type": "DISCOVERY",
+      "occurredAt": "2026-09-24T17:33:49.560Z",
+      "day": 1,
+      "worldTime": "04:10",
+      "worldMinute": 250,
+      "placeId": "7df3123c-e230-49ef-a86e-3f995a80c9d9",
+      "agentIds": [
+        "669e3cb4-6fcf-4984-9959-4e000a1844e6"
+      ],
+      "summary": "직접 확인한 탐색 결과를 고려해 다른 구역에서 쓸 수 있는 것을 찾으려 했다. 다른 구역에서 쓸 수 있는 식량을 찾으려 탐색을 시도한다. 김기업은 고지대에 도착했다. 김기업이 탐색을 마쳤지만 새로운 발견은 없었다.",
+      "title": "직접 확인한 탐색 결과를 고려해 다른 구역에서 쓸 수 있는 것을 찾으려 했다. 다른 구역에서 쓸 수 있는 식량을 찾으려 탐색을 시도한다. 김기업은 고지대에 도착했다. 김기업이 탐색을 마쳤지만 새로운 발견은 없었다.",
+      "stateChanges": [
+        {
+          "field": "agent:669e3cb4-6fcf-4984-9959-4e000a1844e6:localArea",
+          "from": "CENTER",
+          "to": "HIGH_GROUND"
+        }
+      ],
+      "phase": "COMPLETED",
+      "actionResult": "김기업은 직접 확인한 탐색 결과를 고려해 다른 구역에서 쓸 수 있는 것을 찾으려 했다. 김기업은 고지대에 도착했다. 김기업이 탐색을 마쳤지만 새로운 발견은 없었다.",
+      "actionMotive": "직접 확인한 탐색 결과를 고려해 다른 구역에서 쓸 수 있는 것을 찾으려 했다.",
+      "actionContext": "직접 확인한 탐색 결과를 고려해 다른 구역에서 쓸 수 있는 것을 찾으려 했다. 다른 구역에서 쓸 수 있는 식량을 찾으려 탐색을 시도한다.",
+      "actionType": "EXPLORE",
+      "engineVerdict": "COMPLETED",
+      "importance": "normal",
+      "relatedEventIds": [
+        "51463bce-eb01-4d71-b096-9a279a961f8f",
+        "23792119-6801-4685-90ef-138cedbed039"
+      ],
+      "outcome": "CONFIRMED",
+      "cause": "action:EXPLORE",
+      "witnessIds": [
+        "669e3cb4-6fcf-4984-9959-4e000a1844e6"
+      ],
+      "detail": {
+        "version": 1,
+        "startedMinute": 240,
+        "endedMinute": 250,
+        "intent": "직접 확인한 탐색 결과를 고려해 다른 구역에서 쓸 수 있는 것을 찾으려 했다.",
+        "steps": [
+          {
+            "minute": 250,
+            "actorId": "669e3cb4-6fcf-4984-9959-4e000a1844e6",
+            "kind": "RESULT",
+            "text": "김기업은 고지대에 도착했다. 김기업이 탐색을 마쳤지만 새로운 발견은 없었다."
+          }
+        ]
+      },
+      "actionId": "9fdaba22-8a8a-45d3-bb8d-1a30e976451d",
+      "sequence": 55
+    }
+  ],
+  "sceneUnits": [
+    {
+      "sceneId": "1:7df3123c-e230-49ef-a86e-3f995a80c9d9:245:a504e099-defc-4429-b628-439fb90dc8f0:fd1b97dc-a690-4364-bbe7-a998156c4108",
+      "eventIds": [
+        "a514c609-d8e2-4c46-9e70-6a90fb610417",
+        "f7230aac-3031-4c22-b275-612197b0912b"
+      ]
+    },
+    {
+      "sceneId": "23ede29f-12d3-4633-a9a3-f7e249b710b1",
+      "eventIds": [
+        "23ede29f-12d3-4633-a9a3-f7e249b710b1"
+      ]
+    }
+  ],
+  "codexDraft": {
+    "author": "Codex 직접 작성 시안 — 실제 API 출력 아님",
+    "paragraphs": [
+      {
+        "eventIds": [
+          "a514c609-d8e2-4c46-9e70-6a90fb610417",
+          "f7230aac-3031-4c22-b275-612197b0912b"
+        ],
+        "text": "김높별과 도영동은 서로를 자신의 안전과 목표를 위협하는 상대로 여기고 있었다. 두 사람 모두 맨손으로 상대의 몸통을 겨누었다."
+      },
+      {
+        "eventIds": [
+          "a514c609-d8e2-4c46-9e70-6a90fb610417",
+          "f7230aac-3031-4c22-b275-612197b0912b"
+        ],
+        "text": "두 주먹이 각기 상대의 몸통에 닿았다. 도영동과 김높별에게 각각 가벼운 타박상이 남았다. 출혈은 없었지만 통증 때문에 움직임이 불편해졌다. 두 사람이 서로에게 품은 적대감은 충돌 뒤 더 커졌다."
+      },
+      {
+        "eventIds": [
+          "23ede29f-12d3-4633-a9a3-f7e249b710b1"
+        ],
+        "text": "그 뒤 김기업은 고지대에 도착해 탐색을 마쳤다. 새로운 발견은 없었다."
+      }
+    ]
+  },
+  "codeValidation": "passed; not an AI review or a general proof of prose truth",
+  "engineFallback": "04:05 ? 무인도\n\n도영동과 김높별은 각자 눈앞의 위협 또는 경쟁 상대를 공격해 자신의 안전과 목표를 지키려 했다.\n\n같은 시각, 두 사람은 서로의 몸통을 겨누고 각자 주먹을 한 번씩 뻗었다.\n\n김높별은 몸통에 타박상을 입었다. 출혈은 없었다. 움직임에 불편이 남았다. 도영동은 몸통에 타박상을 입었다. 출혈은 없었다. 움직임에 불편이 남았다.\n\n? ? ?\n\n04:10 ? 무인도\n\n김기업은 직접 확인한 탐색 결과를 고려해 다른 구역에서 쓸 수 있는 것을 찾으려 했다. 김기업은 고지대에 도착했다. 김기업이 탐색을 마쳤지만 새로운 발견은 없었다."
+}

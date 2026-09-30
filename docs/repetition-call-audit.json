@@ -1,0 +1,40 @@
+{
+  "runs": [
+    {
+      "case": 1,
+      "calls": 2,
+      "tokens": 9261,
+      "elapsedMs": 5959,
+      "mode": "AI 생성·코드 사실 검사·근거 검토 통과",
+      "issue": null
+    },
+    {
+      "case": 2,
+      "calls": 2,
+      "tokens": 11285,
+      "elapsedMs": 13745,
+      "mode": "확정 사건 기반 기본 서술",
+      "issue": "No recorded response linkage supports a counterattack claim. Describe the two recorded strikes once without a counterattack or failed-counterattack claim."
+    },
+    {
+      "case": 3,
+      "calls": 2,
+      "tokens": 9315,
+      "elapsedMs": 6034,
+      "mode": "AI 생성·코드 사실 검사·근거 검토 통과",
+      "issue": null
+    },
+    {
+      "case": 4,
+      "calls": 1,
+      "tokens": 1654,
+      "elapsedMs": 1652,
+      "mode": "확정 사건 기반 기본 서술",
+      "issue": null
+    }
+  ],
+  "totalCalls": 7,
+  "totalTokens": 31515,
+  "totalElapsedMs": 27390,
+  "note": "첫 통과 응답도 수동 검토에서 주어 혼동이 발견되어 추가 코드 검사를 도입했다. 운영 틱은 실행하지 않았다."
+}

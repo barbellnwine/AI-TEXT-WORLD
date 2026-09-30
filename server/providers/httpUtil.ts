@@ -11,7 +11,7 @@ export class ProviderCallError extends Error {
 
 // Bounded timeout + bounded retries. Never retries indefinitely: at most `config.maxRetries`
 // extra attempts, only for network/5xx failures (not for 4xx / malformed-content errors).
-export async function fetchWithLimits(url: string, init: RequestInit, maxRetries = config.maxRetries): Promise<Response> {
+export async function fetchWithLimits(url: string, init: RequestInit, maxRetries = config.maxRetries, timeoutMs = config.requestTimeoutMs): Promise<Response> {
   if (!['https://api.openai.com/v1/chat/completions', 'https://api.anthropic.com/v1/messages'].includes(url)) {
     throw new ProviderCallError('INVALID_ENDPOINT', 'unapproved provider endpoint')
   }
@@ -21,13 +21,13 @@ export async function fetchWithLimits(url: string, init: RequestInit, maxRetries
   let lastError: unknown
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), config.requestTimeoutMs)
+    const timer = setTimeout(() => controller.abort(), Math.min(120_000, timeoutMs))
     try {
       const response = await fetch(url, { ...init, redirect: 'error', signal: controller.signal })
       const chunks: Uint8Array[] = []
       let bytes = 0
       if (response.body) {
-        for await (const chunk of response.body) {
+        for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
           bytes += chunk.byteLength
           if (bytes > 256_000) {
             controller.abort()

@@ -1,0 +1,38 @@
+{
+  "source": "Read-only production snapshot; private text redacted; offline request construction, no API calls or ticks",
+  "clock": {
+    "day": 1,
+    "time": "06:00",
+    "timeOfDay": "dawn",
+    "weather": "clear",
+    "temperatureC": 20
+  },
+  "limit": 20000,
+  "results": [
+    {
+      "name": "김높별",
+      "requestBytes": 19991,
+      "promptBytes": 16477
+    },
+    {
+      "name": "도영동",
+      "requestBytes": 19931,
+      "promptBytes": 16403
+    },
+    {
+      "name": "최형대",
+      "requestBytes": 19605,
+      "promptBytes": 16194
+    },
+    {
+      "name": "김기업",
+      "requestBytes": 19991,
+      "promptBytes": 16405
+    },
+    {
+      "name": "권치현",
+      "requestBytes": 19637,
+      "promptBytes": 16147
+    }
+  ]
+}

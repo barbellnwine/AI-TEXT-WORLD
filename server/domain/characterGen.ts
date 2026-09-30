@@ -1,3 +1,4 @@
+import { generatedDispositions } from '../world/dispositions.ts'
 // CHARACTER AUTO GENERATE (MODE A) + regenerate-one (MODE C). Structured JSON output only —
 // see section 45 of the builder spec. Real provider calls are OFF by default (config.worldDemoMode)
 // so a fresh checkout never spends money; the deterministic mock keeps AI AUTO fully usable and
@@ -28,7 +29,7 @@ export function contextFromDraft(draft: { name: string; genre: string; backgroun
 
 export type GeneratedCharacter = Pick<CharacterInput,
   'name' | 'age' | 'gender' | 'appearance' | 'background' | 'occupation' | 'personality' | 'goal' | 'strengths' | 'weaknesses'
-> & { humanState: HumanState; emotion: Emotion }
+> & { dispositions?: import('../world/dispositions.ts').Dispositions; humanState: HumanState; emotion: Emotion }
 
 const NAME_POOL = [
   '김서준', '이하윤', '박지민', '최도윤', '정예린', '한소율', '오세인', '임하늘', '강태오', '나윤재',
@@ -57,6 +58,7 @@ function mockCharacter(index: number, existingNames: Set<string>): GeneratedChar
   const age = 22 + ((index * 7) % 40)
   const gender = index % 2 === 0 ? '여성' : '남성'
   return {
+    dispositions: generatedDispositions(name + traitA),
     name, age, gender,
     appearance: `평범한 체격에 ${gender === '여성' ? '단발' : '짧은 머리'}를 한 ${age}세.`,
     background: `${occupation}으로 일해왔으며, 평소 ${traitA}한 인상을 준다.`,
@@ -89,6 +91,7 @@ export function validateGeneratedCharacter(raw: unknown): { ok: true; character:
   return {
     ok: true,
     character: {
+      dispositions: generatedDispositions(str('name') + str('personality')),
       name: str('name').trim(), age, gender: str('gender'), appearance: str('appearance'), background: str('background'),
       occupation: str('occupation'), personality: str('personality'), goal: str('goal'), strengths: arr('strengths'), weaknesses: arr('weaknesses'),
       humanState: {

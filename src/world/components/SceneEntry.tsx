@@ -37,6 +37,7 @@ export function SceneEntry({ scene, placesById, agentsById, onOpenDetail, regist
     <article className="reader-scene" data-scene-id={scene.id} ref={el => registerRef(scene.id, el)}>
       <p className="reader-scene-meta world-mono">DAY {scene.worldDay} · {locale === 'ko-KR' ? formatKoreanClock(scene.timeEnd) : scene.timeEnd}</p>
       <h2 className="reader-scene-title">{scene.title}</h2>
+      {!!scene.corrections?.length && <details className="reader-details"><summary>기록 정정 · 원문과 사유 보기</summary>{scene.corrections.map((c, i) => <div key={i}><p>{c.at} · {c.reason}</p><h3>{c.previousTitle}</h3><p style={{ whiteSpace: 'pre-wrap' }}>{c.previousBody}</p></div>)}</details>}
       <div className="reader-scene-body">
         {scene.body.split('\n\n').map((paragraph, i) => (
           <p key={i}>{paragraph}</p>

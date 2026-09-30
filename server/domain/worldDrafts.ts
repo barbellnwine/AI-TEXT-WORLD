@@ -1,3 +1,4 @@
+import { parseDispositions, type Dispositions } from '../world/dispositions.ts'
 import type { DatabaseSync } from 'node:sqlite'
 import { randomUUID } from 'node:crypto'
 import { config } from '../config.ts'
@@ -38,6 +39,7 @@ interface ConnectionRow {
 }
 
 interface CharacterRow {
+  dispositions_json: string | null
   id: string; draft_id: string; name: string; age: number | null; gender: string; appearance: string; background: string
   occupation: string; personality: string; goal: string; strengths_json: string; weaknesses_json: string
   provider: string; model: string; human_state_json: string; emotion_json: string; knowledge_json: string
@@ -69,6 +71,7 @@ export interface ConnectionDTO {
 }
 
 export interface CharacterDTO {
+  dispositions?: Dispositions
   id: string; name: string; age: number | null; gender: string; appearance: string; background: string
   occupation: string; personality: string; goal: string; strengths: string[]; weaknesses: string[]
   provider: string; model: string; humanState: HumanState; emotion: Emotion; knowledge: DraftKnowledgeItem[]
@@ -126,6 +129,7 @@ function connectionDTO(row: ConnectionRow): ConnectionDTO {
 function characterDTO(row: CharacterRow): CharacterDTO {
   return {
     id: row.id, name: row.name, age: row.age, gender: row.gender, appearance: row.appearance, background: row.background,
+    dispositions: parseDispositions(row.dispositions_json ? JSON.parse(row.dispositions_json) : null),
     occupation: row.occupation, personality: row.personality, goal: row.goal,
     strengths: JSON.parse(row.strengths_json), weaknesses: JSON.parse(row.weaknesses_json),
     provider: row.provider, model: row.model, humanState: JSON.parse(row.human_state_json), emotion: JSON.parse(row.emotion_json),
@@ -185,14 +189,24 @@ export function createDraft(db: DatabaseSync, name?: string): DraftDTO {
 export function deleteDraft(db: DatabaseSync, id: string): { ok: true } | { ok: false; error: string } {
   const status = getDraftStatus(db, id)
   if (!status) return { ok: false, error: 'draft_not_found' }
-  if (status !== 'DRAFT') return { ok: false, error: 'only_draft_status_can_be_deleted' }
+  if (status !== 'DRAFT' && status !== 'READY') return { ok: false, error: 'only_editable_draft_can_be_deleted' }
+  eraseWorldDesign(db, id)
+  return { ok: true }
+}
+
+export function eraseWorldDesign(db: DatabaseSync, id: string): void {
+  db.exec('SAVEPOINT delete_world_draft')
+  try {
+  db.prepare('DELETE FROM world_studio_config WHERE draft_id = ?').run(id)
+  db.prepare('DELETE FROM draft_discoverable_truths WHERE draft_id = ?').run(id)
   db.prepare('DELETE FROM draft_relationships WHERE draft_id = ?').run(id)
   db.prepare('DELETE FROM draft_characters WHERE draft_id = ?').run(id)
   db.prepare('DELETE FROM draft_place_connections WHERE draft_id = ?').run(id)
   db.prepare('DELETE FROM draft_places WHERE draft_id = ?').run(id)
   db.prepare('DELETE FROM season_rule_snapshots WHERE draft_id = ?').run(id)
   db.prepare('DELETE FROM world_drafts WHERE id = ?').run(id)
-  return { ok: true }
+  db.exec('RELEASE delete_world_draft')
+  } catch (error) { db.exec('ROLLBACK TO delete_world_draft; RELEASE delete_world_draft'); throw error }
 }
 
 function touch(db: DatabaseSync, id: string): void {
@@ -314,6 +328,7 @@ export function replacePlacesAndConnections(db: DatabaseSync, draftId: string, p
 // --- STEP 6/7: characters -----------------------------------------------------
 
 export interface CharacterInput {
+  dispositions?: Dispositions
   name: string; age: number | null; gender: string; appearance: string; background: string; occupation: string
   personality: string; goal: string; strengths: string[]; weaknesses: string[]; provider: string; model: string
   humanState: HumanState; emotion: Emotion; knowledge: DraftKnowledgeItem[]; privateInfo: string
@@ -322,18 +337,19 @@ export interface CharacterInput {
 
 export function createCharacter(db: DatabaseSync, draftId: string, input: CharacterInput, source: CharacterSource): CharacterDTO | undefined {
   if (!draftExists(db, draftId)) return undefined
+  const dispositions = parseDispositions(input.dispositions)
   const id = randomUUID()
   const count = (db.prepare('SELECT COUNT(*) as n FROM draft_characters WHERE draft_id = ?').get(draftId) as { n: number }).n
   db.prepare(`
     INSERT INTO draft_characters (id, draft_id, name, age, gender, appearance, background, occupation, personality, goal,
       strengths_json, weaknesses_json, provider, model, human_state_json, emotion_json, knowledge_json, private_info,
-      inventory_json, initial_place_id, source, sort_order)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      inventory_json, initial_place_id, source, sort_order, dispositions_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, draftId, input.name, input.age, input.gender, input.appearance, input.background, input.occupation, input.personality, input.goal,
     JSON.stringify(input.strengths), JSON.stringify(input.weaknesses), input.provider, input.model,
     JSON.stringify(input.humanState), JSON.stringify(input.emotion), JSON.stringify(input.knowledge), input.privateInfo,
-    JSON.stringify(input.inventory), input.initialPlaceId, source, count,
+    JSON.stringify(input.inventory), input.initialPlaceId, source, count, JSON.stringify(dispositions),
   )
   touch(db, draftId)
   return characterDTO(db.prepare('SELECT * FROM draft_characters WHERE id = ?').get(id) as unknown as CharacterRow)
@@ -342,17 +358,18 @@ export function createCharacter(db: DatabaseSync, draftId: string, input: Charac
 export function updateCharacter(db: DatabaseSync, draftId: string, charId: string, input: CharacterInput): CharacterDTO | undefined {
   const current = db.prepare('SELECT * FROM draft_characters WHERE id = ? AND draft_id = ?').get(charId, draftId) as CharacterRow | undefined
   if (!current) return undefined
+  const dispositions = parseDispositions(input.dispositions, parseDispositions(current.dispositions_json ? JSON.parse(current.dispositions_json) : null))
   const nextSource: CharacterSource = current.source === 'AI_AUTO' ? 'AI_EDITED' : current.source
   db.prepare(`
     UPDATE draft_characters SET name=?, age=?, gender=?, appearance=?, background=?, occupation=?, personality=?, goal=?,
       strengths_json=?, weaknesses_json=?, provider=?, model=?, human_state_json=?, emotion_json=?, knowledge_json=?,
-      private_info=?, inventory_json=?, initial_place_id=?, source=?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+      private_info=?, inventory_json=?, initial_place_id=?, source=?, dispositions_json=?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
     WHERE id = ?
   `).run(
     input.name, input.age, input.gender, input.appearance, input.background, input.occupation, input.personality, input.goal,
     JSON.stringify(input.strengths), JSON.stringify(input.weaknesses), input.provider, input.model,
     JSON.stringify(input.humanState), JSON.stringify(input.emotion), JSON.stringify(input.knowledge), input.privateInfo,
-    JSON.stringify(input.inventory), input.initialPlaceId, nextSource, charId,
+    JSON.stringify(input.inventory), input.initialPlaceId, nextSource, JSON.stringify(dispositions), charId,
   )
   touch(db, draftId)
   return characterDTO(db.prepare('SELECT * FROM draft_characters WHERE id = ?').get(charId) as unknown as CharacterRow)

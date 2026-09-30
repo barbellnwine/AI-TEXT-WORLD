@@ -9,7 +9,7 @@ import type { WorldEvent } from '../domain/worldTypes.ts'
 import type { AgentKnowledgeView } from '../world/knowledgeFilter.ts'
 import { WORLD_RULES_TEXT } from './worldRules.ts'
 
-export const AGENT_PROMPT_VERSION = '3.0.0'
+export const AGENT_PROMPT_VERSION = '3.1.0'
 
 export const AGENT_PROMPT_INSTRUCTIONS = [
   '당신은 이 세계 속 한 명의 캐릭터입니다.',
@@ -19,17 +19,27 @@ export const AGENT_PROMPT_INSTRUCTIONS = [
 ].join('\n')
 
 export function buildAgentPrompt(view: AgentKnowledgeView, recentPublicEvents: WorldEvent[]): string {
+  const self={...view.self,trauma:view.self.trauma?{
+    pain:view.self.trauma.pain,bloodLoss:view.self.trauma.bloodLoss,functions:view.self.trauma.functions,
+    injuries:view.self.trauma.injuries.map(({part,type,site,severity,bleeding,pain,healingHours,onset,treatedAt,effects})=>({part,type,site,severity,bleeding,pain,healingHours,onset,treatedAt,effects:effects.map(({function:ability,degree,mechanism})=>({function:ability,degree,mechanism}))}))
+  }:undefined}
   const sections = [
     WORLD_RULES_TEXT,
     AGENT_PROMPT_INSTRUCTIONS,
     '[YOUR STATE]',
-    JSON.stringify(view.self),
+    JSON.stringify(self),
     '[YOUR CURRENT PLACE]',
     JSON.stringify(view.currentPlace),
     '[EXISTING OBJECTS HERE]',
     JSON.stringify(view.visibleObjects ?? []),
-    '[OTHERS PRESENT HERE]',
+    '[OBJECT LOCATIONS YOU PREVIOUSLY OBSERVED — MAY HAVE CHANGED]',
+    JSON.stringify(view.observedObjects ?? []),
+    '[VISIBLE PEOPLE — canContact=false means approach before speech or attack]',
     JSON.stringify(view.othersPresent),
+    '[POSSESSIONS YOU HAVE ACTUALLY OBSERVED — MAY HAVE CHANGED]',
+    JSON.stringify(view.observedPossessions ?? []),
+    '[VISIBLE THREATS]',
+    JSON.stringify({ threats: view.threats ?? [] }),
     '[YOUR RELATIONSHIPS]',
     JSON.stringify(view.relationships),
     '[WHAT YOU KNOW]',
@@ -38,8 +48,6 @@ export function buildAgentPrompt(view: AgentKnowledgeView, recentPublicEvents: W
     JSON.stringify(view.observedEvents),
     '[RECENT PUBLIC EVENTS NEAR YOU]',
     JSON.stringify(recentPublicEvents),
-    '[OUTPUT SCHEMA: ProposedAction]',
-    'actorId, actionType, targetIds, locationId, intendedAction, spokenText?, usedItemIds?, destinationId?, claimedKnowledgeId?, reasoningSummary?',
   ]
   return sections.join('\n\n')
 }

@@ -1,3 +1,4 @@
+import {listModelTraces,redactTrace} from '../domain/modelTrace.ts'
 import type { DatabaseSync } from 'node:sqlite'
 import { Router, sendJson, readJsonBody, HttpError, paginationNumber } from '../http.ts'
 import { requireAdminRole } from './userAuth.ts'
@@ -5,8 +6,34 @@ import * as store from '../domain/worldStore.ts'
 import { PROMPT_REGISTRY } from '../prompts/promptVersions.ts'
 import { config } from '../config.ts'
 import { getPrepaidBudget } from '../domain/budget.ts'
+import { copyWorldDesign } from '../domain/studioStore.ts'
+import { deleteDraft } from '../domain/worldDrafts.ts'
+import { startWorldFromDraft } from '../domain/worldLaunch.ts'
 
 export function registerWorldAdminRoutes(router: Router, db: DatabaseSync): void {
+  router.get('/api/admin/world/diagnostics',ctx=>{if(!requireAdminRole(ctx,db))return;sendJson(ctx.res,200,{traces:listModelTraces(),snapshot:redactTrace(store.diagnosticSnapshot())})})
+  router.post('/api/admin/world/narration/day/:day/correct',async ctx=>{
+    if(!requireAdminRole(ctx,db))return
+    const body=await readJsonBody<{seasonId?:string;reason?:string;paragraphs?:unknown}>(ctx.req)
+    if(typeof body.seasonId!=='string'||typeof body.reason!=='string')throw new HttpError(400,'correction_context_required')
+    store.correctDayNarration(Number(ctx.params.day),body.seasonId,{paragraphs:body.paragraphs},body.reason)
+    sendJson(ctx.res,200,{ok:true})
+  })
+  router.post('/api/admin/world/narration/rebuild', async ctx => {
+    if (!requireAdminRole(ctx, db)) return
+    await store.rebuildCurrentNarration()
+    sendJson(ctx.res,200,{ok:true})
+  })
+  router.get('/api/admin/world/cognition', ctx => {
+    if (!requireAdminRole(ctx, db)) return
+    sendJson(ctx.res, 200, { actors: store.listCognition() })
+  })
+  router.put('/api/admin/world/cognition/:actorId', async ctx => {
+    if (!requireAdminRole(ctx, db)) return
+    const body = await readJsonBody<{ dispositions?: unknown }>(ctx.req)
+    if (!body.dispositions) throw new HttpError(400, 'dispositions_required')
+    sendJson(ctx.res, 200, { actors: store.setActorDispositions(ctx.params.actorId, body.dispositions) })
+  })
   router.get('/api/admin/world/runtime', ctx => {
     if (!requireAdminRole(ctx, db)) return
     sendJson(ctx.res, 200, { runtime: store.getAdminRuntime(), season: store.getSeason(), operatorLog: store.listOperatorLog(), actionAudit: store.listActionAudit(), prepaidBudget: getPrepaidBudget(db), providers: { openai: Boolean(config.openaiApiKey), anthropic: Boolean(config.anthropicApiKey) } })
@@ -100,6 +127,27 @@ export function registerWorldAdminRoutes(router: Router, db: DatabaseSync): void
     if (!requireAdminRole(ctx, db)) return
     const result = store.deleteArchivedSeason(db, ctx.params.id)
     if (!result.ok) throw new HttpError(result.error === 'season_not_found' ? 404 : 409, result.error)
+    sendJson(ctx.res, 200, { ok: true })
+  })
+
+  router.post('/api/admin/world/seasons/:id/restart', ctx => {
+    if (!requireAdminRole(ctx, db)) return
+    store.assertWorldIdle()
+    if (store.getAdminRuntime().mode === 'preview' || store.getSeason().id !== ctx.params.id) throw new HttpError(409, 'current_world_changed')
+    const copy = copyWorldDesign(db, ctx.params.id)
+    const result = startWorldFromDraft(db, copy)
+    if (!result.ok) {
+      deleteDraft(db, copy.id)
+      sendJson(ctx.res, 422, { error: 'validation_failed', errors: result.errors })
+      return
+    }
+    sendJson(ctx.res, 200, { ok: true, seasonId: copy.id, previousSeasonId: ctx.params.id })
+  })
+
+  router.delete('/api/admin/world/current/:id', ctx => {
+    if (!requireAdminRole(ctx, db)) return
+    const result = store.deleteCurrentWorld(db, ctx.params.id)
+    if (!result.ok) throw new HttpError(409, result.error)
     sendJson(ctx.res, 200, { ok: true })
   })
 

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChronicleEntry, PublicWorldRuntime, WorldEvent, WorldState } from './types'
 
 interface StreamMessage {
-  type: 'event' | 'worldState' | 'runtime' | 'scene'
+  type: 'event' | 'worldState' | 'runtime' | 'scene' | 'sceneUpdated'
   payload: unknown
 }
 
@@ -36,7 +36,7 @@ export function useWorldStream(enabled: boolean, handlers: Handlers): { connecte
         if (message.type === 'event') handlersRef.current.onEvent?.(message.payload as WorldEvent)
         if (message.type === 'worldState') handlersRef.current.onWorldState?.(message.payload as WorldState)
         if (message.type === 'runtime') handlersRef.current.onRuntime?.(message.payload as PublicWorldRuntime)
-        if (message.type === 'scene') handlersRef.current.onScene?.(message.payload as ChronicleEntry)
+        if (message.type === 'scene' || message.type === 'sceneUpdated') handlersRef.current.onScene?.(message.payload as ChronicleEntry)
       } catch {
         /* ignore malformed frames */
       }

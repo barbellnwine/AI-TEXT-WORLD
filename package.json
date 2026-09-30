@@ -9,10 +9,11 @@
     "build": "tsc -b && vite build && node tool/check-public-secrets.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc -b && tsc -p tsconfig.server.json --noEmit",
-    "test": "node --experimental-strip-types --test tests/logic.test.ts tests/ai-community.test.ts tests/monthly-budget.test.ts tests/security.test.ts tests/world-validator.test.ts tests/auth.test.ts tests/world-builder.test.ts tests/world-runtime.test.ts tests/world-studio.test.ts",
+    "test": "node --experimental-strip-types --test tests/logic.test.ts tests/ai-community.test.ts tests/monthly-budget.test.ts tests/security.test.ts tests/world-validator.test.ts tests/auth.test.ts tests/world-builder.test.ts tests/world-runtime.test.ts tests/world-first-tick.test.ts tests/world-studio.test.ts tests/world-prose.test.ts tests/world-narrative-stage3.test.ts tests/world-motivations.test.ts tests/world-physical-scenes.test.ts tests/world-trauma.test.ts tests/world-repetition.test.ts tests/world-intent-conflict.test.ts tests/world-causality.test.ts tests/world-spatial-causality.test.ts tests/world-decision-v3.test.ts tests/world-objective-flow.test.ts tests/world-free-interaction.test.ts tests/world-mini-season.test.ts tests/world-offscreen-assault.test.ts tests/world-production-day1-regression.test.ts",
     "test:e2e": "playwright test",
     "start": "node --experimental-strip-types server/index.ts",
-    "test:deployment": "node --experimental-strip-types --test tests/deployment.test.ts"
+    "test:deployment": "node --experimental-strip-types --test tests/deployment.test.ts",
+    "test:narrative-final": "node --experimental-strip-types --test tests/world-narrative-final.test.ts tests/world-narrative-stage3.test.ts tests/world-production-day1-regression.test.ts"
   },
   "dependencies": {
     "react": "^19.1.0",
