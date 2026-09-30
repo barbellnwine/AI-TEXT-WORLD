@@ -6,6 +6,8 @@ import type { WorldObject } from '../engineTypes.ts'
 import type { CharacterIntent, GmResult, V4State } from './sceneTypes.ts'
 import { clockLabel, type SceneContext } from './scenePrompts.ts'
 import { hurtAgent, killAgent, LETHAL_BURDEN } from './mortality.ts'
+import { pointNear } from '../geo/geoBuild.ts'
+import { planTravel } from '../geo/movement.ts'
 
 const KINDS = new Set(['item', 'food', 'water', 'medicine', 'tool'])
 const text = (v: unknown, max: number) => typeof v === 'string' ? v.trim().slice(0, max) : ''
@@ -159,16 +161,15 @@ export function applyGmResult(world: WorldState, v4: V4State, seasonId: string, 
   }
   for (const m of o.moves.filter(m => !staysHere(ctx, m.to))) {
     const a = person(m.who), dest = ctx.neighbors.find(n => n.handle === m.to)?.place
-    if (!a || !dest || a.publicState.status === 'deceased') continue
-    const from = a.publicState.locationId
-    for (const p of world.places) p.currentAgentIds = p.currentAgentIds.filter(id => id !== a.id)
-    dest.currentAgentIds.push(a.id)
-    a.publicState.locationId = dest.id
-    a.publicState.position = undefined
-    a.publicState.localArea = undefined
-    a.movementLog = [...a.movementLog, { placeId: dest.id, arrivedAt: new Date().toISOString() }].slice(-50)
-    changes.push({ field: `agent:${a.id}:location`, from, to: dest.id })
+    if (!a || !dest || a.publicState.status === 'deceased' || !a.publicState.coord) continue
+    // A departure, not a teleport: the trip is a timed path the world advances tick by tick.
+    const geo = engine.geo!
+    a.publicState.travel = planTravel(geo, a.publicState.coord, pointNear(geo, dest.id, `${a.id}:${minute}`, 60), minute, dest.id)
+    changes.push({ field: `agent:${a.id}:travel`, from: `${a.publicState.coord.x},${a.publicState.coord.y}`, to: `${dest.id}@${a.publicState.travel.arriveMinute}` })
   }
+  // Encounters this scene narrated are no longer pending.
+  const castIds = new Set(ctx.cast.map(c => c.agent.id))
+  v4.encounters = (v4.encounters ?? []).filter(e => !e.ids.every(id => castIds.has(id)))
   const nowIso = new Date().toISOString()
   for (const c of ctx.cast) {
     const memory = o.memories.find(m => m.who === c.handle)?.text || intents.find(i => i.agentId === c.agent.id)?.action

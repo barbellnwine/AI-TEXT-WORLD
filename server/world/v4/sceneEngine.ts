@@ -8,6 +8,8 @@ import type { CharacterIntent, V4State } from './sceneTypes.ts'
 import { closedPlaceIds, ensureV4State } from './director.ts'
 import { buildCharacterPrompt, buildGmPrompt, buildSceneContext, CHARACTER_SCHEMA, GM_SCHEMA, type SceneContext } from './scenePrompts.ts'
 import { applyGmResult, gmIssues, parseGmResult, type AppliedScene } from './sceneApply.ts'
+import { dist, ensureGeo, regionAt } from '../geo/geoBuild.ts'
+import { aware } from '../geo/perception.ts'
 
 export const MAX_SCENE_CAST = 4
 
@@ -20,22 +22,34 @@ export interface SceneHooks {
 
 const alive = (a: Agent) => a.publicState.status === 'alive' || a.publicState.status === 'injured'
 
-// Whoever has waited longest gets the spotlight; an encounter counts as 90 extra minutes of
-// waiting, so meetings come first without starving a lone character. The same group can hold
-// the spotlight for at most three scenes in a row so everyone's story keeps moving.
+// Scene groups are people who actually perceive each other (real distance, terrain, light) —
+// never people who merely share a place name. Whoever has waited longest gets the spotlight; a
+// fresh mid-route encounter or a closing zone jumps the queue; a group of several counts as 90
+// extra minutes of waiting. The same group holds the spotlight at most three scenes in a row.
 export function selectSpotlight(world: WorldState, v4: V4State): { place: Place; agents: Agent[]; key: string } | null {
-  const minute = world.engine!.minute
+  const minute = world.engine!.minute, geo = world.engine!.geo
+  if (!geo) return null
+  const people = world.agents.filter(a => alive(a) && a.publicState.coord)
+  const root = new Map(people.map(a => [a.id, a.id]))
+  const find = (id: string): string => root.get(id) === id ? id : find(root.get(id)!)
+  for (let i = 0; i < people.length; i++) for (let j = i + 1; j < people.length; j++)
+    if (aware(world, geo, people[i], people[j])) root.set(find(people[i].id), find(people[j].id))
   const groups = new Map<string, Agent[]>()
-  for (const a of world.agents.filter(alive)) groups.set(a.publicState.locationId, [...(groups.get(a.publicState.locationId) ?? []), a])
+  for (const a of people) groups.set(find(a.id), [...(groups.get(find(a.id)) ?? []), a])
   const waited = (a: Agent) => minute - (v4.lastSceneMinute[a.id] ?? -100_000)
   // People standing in a closing or closed zone must get a chance to flee before it kills them.
   const endangered = new Set([...closedPlaceIds(v4, minute), ...v4.director.closures.map(c => c.placeId)])
-  const candidates = [...groups.entries()].flatMap(([placeId, members]) => {
-    const place = world.places.find(p => p.id === placeId)
+  const candidates = [...groups.values()].flatMap(members => {
+    // A crowd larger than a scene: the longest-waiting person and those nearest to them.
+    const lead = [...members].sort((a, b) => waited(b) - waited(a))[0]
+    const agents = [...members].sort((a, b) => dist(a.publicState.coord!, lead.publicState.coord!) - dist(b.publicState.coord!, lead.publicState.coord!)).slice(0, MAX_SCENE_CAST)
+    const place = world.places.find(p => p.id === regionAt(geo, lead.publicState.coord!).placeId)
     if (!place) return []
-    const agents = [...members].sort((a, b) => waited(b) - waited(a)).slice(0, MAX_SCENE_CAST)
-    const key = `${placeId}:${agents.map(a => a.id).sort().join(',')}`
-    const score = (endangered.has(placeId) ? 10_000 : 0) + (agents.length > 1 ? 90 : 0) + Math.max(...agents.map(waited)) - (key === v4.lastGroupKey && v4.repeatCount >= 3 ? 50_000 : 0)
+    const ids = agents.map(a => a.id)
+    const key = [...ids].sort().join(',')
+    const fresh = (v4.encounters ?? []).some(e => e.ids.every(id => ids.includes(id)))
+    const score = (agents.some(a => endangered.has(a.publicState.locationId)) ? 10_000 : 0) + (fresh ? 500 : 0) + (agents.length > 1 ? 90 : 0)
+      + Math.max(...agents.map(waited)) - (key === v4.lastGroupKey && v4.repeatCount >= 3 ? 50_000 : 0)
     return [{ place, agents, key, score }]
   })
   if (!candidates.length) return null
@@ -81,6 +95,7 @@ async function decide(world: WorldState, execution: WorldExecution, v4: V4State,
 
 export async function runScene(world: WorldState, execution: WorldExecution, seasonId: string, hooks: SceneHooks): Promise<AppliedScene | null> {
   const v4 = ensureV4State(world, execution)
+  ensureGeo(world, execution.draft)
   const spotlight = selectSpotlight(world, v4)
   if (!spotlight) return null
   const ctx = buildSceneContext(world, v4, spotlight.place, spotlight.agents)

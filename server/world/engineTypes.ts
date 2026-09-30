@@ -57,6 +57,7 @@ export interface EngineState {
   }
   context?: { genre: string; background: string }
   v4?: import('./v4/sceneTypes.ts').V4State
+  geo?: import('./geo/geoTypes.ts').WorldGeo
   studio?: import('./studioEngine.ts').StudioRuntime
   weather?: import('./studioEngine.ts').WeatherState
   version: 1

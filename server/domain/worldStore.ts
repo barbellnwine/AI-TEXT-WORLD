@@ -47,6 +47,7 @@ import { applyStateChanges } from '../world/stateTransition.ts'
 import { eraseWorldDesign } from './worldDrafts.ts'
 import { runScene } from '../world/v4/sceneEngine.ts'
 import { runDirector, ensureV4State } from '../world/v4/director.ts'
+import { advanceSpace } from '../world/v4/spatialTick.ts'
 
 const DEFAULT_TICK_MS = 5_000
 const MAX_EVENTS_KEPT = 500
@@ -1046,6 +1047,9 @@ async function performScene(): Promise<void> {
   if (shuttingDown || state.runtime.status !== 'RUNNING' || !state.execution || state.runtime.decisionsPaused) return
   const execution = state.execution
   const v4 = ensureV4State(state.worldState, execution)
+  // Continuous space first: travelers walk their paths to the current minute; meeting someone on
+  // the way stops both and queues an encounter scene.
+  advanceSpace(state.worldState, execution, v4)
   // Director pressure is deterministic and free; it runs every tick, independent of model cooldown.
   for (const e of runDirector(state.worldState, execution)) {
     pushEvent(e, true)

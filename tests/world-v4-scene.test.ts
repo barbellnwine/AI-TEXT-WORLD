@@ -53,7 +53,9 @@ test('v4 runs one scene: free character intents, GM prose published, crafted ite
     assert.match(gmPrompt, /\[수위\]/)
     assert.match(gmPrompt, /성폭력은[^\n]*묘사하거나 암시하지 않는다/, 'sexual content is excluded at every intensity')
     assert.match(gmPrompt, /생존자 5명/)
-    assert.match(gmPrompt, /한자리에서 마주치게/, 'people sharing a place meet on the page')
+    assert.doesNotMatch(gmPrompt, /한자리에서 마주치게/, 'no "same place = meet" rule survives')
+    assert.match(gmPrompt, /같은 이름의 장소에 있다는 것만으로 마주쳤다고 쓰지 않는다/)
+    assert.match(gmPrompt, /P\dm?까지 \d+m/, 'the GM sees real distances between the cast')
     const scene = store.listScenes({ limit: 5 }).items.find(s => s.id.startsWith('scene-v4-'))
     assert.ok(scene); assert.equal(scene.body, PROSE); assert.equal(scene.title, '의자 다리로 만든 창')
     const w = store.getWorldState()
@@ -63,7 +65,14 @@ test('v4 runs one scene: free character intents, GM prose published, crafted ite
     assert.ok(crafter.inventory.includes(spear.id))
     assert.equal(crafter.journal?.at(-1)?.text, '의자 다리를 깎아 창을 만들었다.')
     assert.equal((toPublicAgent(crafter) as { journal?: unknown }).journal, undefined, 'private journal never leaves the server')
-    assert.ok(w.agents.some(a => a.publicState.locationId !== 'place-0'), 'P2 walked to a connected place')
+    // A move is a departure along a timed path, not a teleport.
+    const walker = w.agents.find(a => a.publicState.travel)!
+    assert.ok(walker, 'P2 set off on a trip')
+    const start = { ...walker.publicState.coord! }, trip = walker.publicState.travel!
+    assert.ok(trip.arriveMinute > trip.startMinute)
+    assert.deepEqual(walker.publicState.coord, trip.from, 'still at the start the moment they leave')
+    await store.runWorldTick()
+    assert.notDeepEqual(walker.publicState.coord, start, 'the coordinate moves as world time passes')
     assert.ok(store.listDayStories()[0].body.includes(PROSE))
   } finally { await world.close() }
 })

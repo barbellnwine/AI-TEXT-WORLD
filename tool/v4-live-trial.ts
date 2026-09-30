@@ -74,13 +74,16 @@ for (let i = 0; i < scenes && store.getAdminRuntime().status === 'RUNNING'; i++)
   await store.runWorldTick()
   const fresh = store.listScenes({ limit: 200 }).items.slice(0, store.listScenes({ limit: 200 }).items.length - before).reverse()
   for (const s of fresh) console.log(`\n=== ${s.timeStart}~${s.timeEnd} · ${s.title}\n${s.body}`)
+  const w = store.getWorldState(), names = (id?: string | null) => w.places.find(p => p.id === id)?.name ?? '?'
+  console.log(`[t${i + 1} ${w.clock.time}] ` + w.agents.map(a => `${a.name}(${Math.round(a.publicState.coord?.x ?? -1)},${Math.round(a.publicState.coord?.y ?? -1)} ${names(a.publicState.locationId)}${a.publicState.travel ? '→' + names(a.publicState.travel.destinationPlaceId) : ''}${a.publicState.status === 'deceased' ? ' †' : ''})`).join(' '))
   if (!fresh.length) console.log(`\n(tick ${i + 1}: 새 장면 없음 · ${store.getAdminRuntime().recentErrors[0]?.message ?? store.getAdminRuntime().tickSkipReason ?? ''})`)
 }
 const runtime = store.getAdminRuntime(), world = store.getWorldState()
 const summary = {
   seconds: Math.round((Date.now() - started) / 1000), calls: runtime.callsUsed, estCostUsd: runtime.providerUsage.reduce((n, u) => n + u.estCostUsd, 0),
   errors: runtime.recentErrors.slice(0, 5), status: runtime.status, decisionStatus: runtime.decisionStatus,
-  agents: world.agents.map(a => ({ name: a.name, status: a.publicState.status, place: world.places.find(p => p.id === a.publicState.locationId)?.name, damage: a.body?.health,
+  encounters: world.engine!.v4?.encounters?.length ?? 0,
+  agents: world.agents.map(a => ({ name: a.name, coord: a.publicState.coord, status: a.publicState.status, place: world.places.find(p => p.id === a.publicState.locationId)?.name, damage: a.body?.health,
     items: world.engine!.objects.filter(o => o.location.kind === 'agent' && o.location.id === a.id && o.quantity > 0).map(o => o.name) })),
 }
 console.log('\n' + JSON.stringify(summary, null, 2))

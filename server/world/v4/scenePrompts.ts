@@ -6,11 +6,16 @@ import type { WorldExecution } from '../../domain/worldAgent.ts'
 import type { CharacterIntent, V4State } from './sceneTypes.ts'
 import { environmentHints } from './environment.ts'
 import { closedPlaceIds, isLastSurvivorWorld } from './director.ts'
+import type { Terrain } from '../geo/geoTypes.ts'
+import { dist, terrainAt } from '../geo/geoBuild.ts'
+import { direction, perceive } from '../geo/perception.ts'
+import { routeBetween, travelMinutes } from '../geo/movement.ts'
 
-export interface SceneCast { handle: string; agent: Agent; sinceMinute: number }
+export interface SceneCast { handle: string; agent: Agent; sinceMinute: number; terrain: Terrain }
 export interface SceneItem { handle: string; object: WorldObject; holder: string | null }
 export interface SceneResource { handle: string; resource: Resource }
-export interface SceneNeighbor { handle: string; place: Place; travelMinutes: number; danger: 'closed' | 'warned' | null }
+// A destination anywhere on the map, with its real distance and walking time from the scene.
+export interface SceneNeighbor { handle: string; place: Place; travelMinutes: number; distance: number; direction: string; danger: 'closed' | 'warned' | null }
 export interface SceneContext {
   minute: number
   place: Place
@@ -20,7 +25,11 @@ export interface SceneContext {
   neighbors: SceneNeighbor[]
   hints: string[]
   placeDanger: 'closed' | 'warned' | null
+  terrain: Terrain
 }
+
+export const TERRAIN_NAMES: Record<Terrain, string> = { GRASS: '풀밭', FOREST: '숲', BEACH: '모래사장', ROCK: '바위 지대', CLIFF: '절벽', WATER: '물', RIVER: '강', RUINS: '폐허', URBAN: '건물 지대' }
+const TERRAIN_HINTS: Partial<Record<Terrain, string[]>> = { FOREST: ['나무', '곧은 가지', '덩굴'], BEACH: ['모래', '조개', '떠밀려 온 나무'], ROCK: ['돌', '날카로운 돌조각'], RIVER: ['민물', '매끈한 돌'], GRASS: ['마른 풀'] }
 
 export function clockLabel(minute: number): string {
   const within = ((minute % 1440) + 1440) % 1440
@@ -34,21 +43,26 @@ export function dayPart(minute: number): string {
 }
 
 export function buildSceneContext(world: WorldState, v4: V4State, place: Place, agents: Agent[]): SceneContext {
-  const engine = world.engine!, minute = engine.minute
-  const cast = agents.map((agent, i) => ({ handle: `P${i + 1}`, agent, sinceMinute: v4.lastSceneMinute[agent.id] ?? minute - 60 }))
+  const engine = world.engine!, minute = engine.minute, geo = engine.geo!
+  const cast = agents.map((agent, i) => ({ handle: `P${i + 1}`, agent, sinceMinute: v4.lastSceneMinute[agent.id] ?? minute - 60, terrain: terrainAt(geo, agent.publicState.coord!) }))
   const castIds = new Set(agents.map(a => a.id))
+  // Things lying in the labeled areas where the cast stands (objects keep place-level locations).
+  const labels = new Set(agents.map(a => a.publicState.locationId))
   const usable = (o: WorldObject) => o.quantity > 0 && o.condition !== 'destroyed'
-  const objects = engine.objects.filter(o => usable(o) && (o.location.kind === 'agent' && castIds.has(o.location.id) || o.location.kind === 'place' && o.location.id === place.id && !o.concealedBy))
+  const objects = engine.objects.filter(o => usable(o) && (o.location.kind === 'agent' && castIds.has(o.location.id) || o.location.kind === 'place' && labels.has(o.location.id) && !o.concealedBy))
   const items = objects.map((object, i) => ({ handle: `I${i + 1}`, object, holder: object.location.kind === 'agent' ? cast.find(c => c.agent.id === object.location.id)!.handle : null }))
   const resources = place.resources.filter(r => r.level >= 1).map((resource, i) => ({ handle: `R${i + 1}`, resource }))
   const closed = closedPlaceIds(v4, minute), warned = new Set(v4.director.closures.map(c => c.placeId))
   const danger = (id: string) => closed.has(id) ? 'closed' as const : warned.has(id) ? 'warned' as const : null
-  const neighbors = engine.connections.filter(c => !c.blocked && (c.fromPlaceId === place.id || c.toPlaceId === place.id))
-    .map(c => ({ id: c.fromPlaceId === place.id ? c.toPlaceId : c.fromPlaceId, travelMinutes: c.travelMinutes }))
-    .filter((c, i, all) => all.findIndex(x => x.id === c.id) === i)
-    .map((c, i) => ({ handle: `L${i + 1}`, place: world.places.find(p => p.id === c.id)!, travelMinutes: c.travelMinutes, danger: danger(c.id) }))
-    .filter(n => n.place)
-  return { minute, place, cast, items, resources, neighbors, hints: environmentHints(place), placeDanger: danger(place.id) }
+  const origin = { x: agents.reduce((n, a) => n + a.publicState.coord!.x, 0) / agents.length, y: agents.reduce((n, a) => n + a.publicState.coord!.y, 0) / agents.length }
+  // Anywhere on the map is reachable on foot (water is routed around); nearest first.
+  const neighbors = geo.regions.filter(r => r.placeId !== place.id)
+    .map(r => ({ region: r, place: world.places.find(p => p.id === r.placeId)!, distance: Math.round(dist(origin, r.center)) }))
+    .filter(n => n.place).sort((a, b) => a.distance - b.distance).slice(0, 8)
+    .map((n, i) => ({ handle: `L${i + 1}`, place: n.place, distance: n.distance, direction: direction(origin, n.region.center),
+      travelMinutes: Math.max(1, Math.round(travelMinutes(geo, routeBetween(geo, origin, n.region.center)).at(-1)!)), danger: danger(n.place.id) }))
+  const terrain = terrainAt(geo, origin)
+  return { minute, place, cast, items, resources, neighbors, hints: [...new Set([...environmentHints(place), ...(TERRAIN_HINTS[terrain] ?? [])])], placeDanger: danger(place.id), terrain }
 }
 
 function level(value: number | undefined, words: [string, string, string, string]): string {
@@ -115,11 +129,11 @@ function journalText(agent: Agent, limit: number): string {
 function placeLines(ctx: SceneContext): string {
   const dangerText = (d: SceneNeighbor['danger']) => d === 'closed' ? ' [위험 구역]' : d === 'warned' ? ' [곧 위험 구역]' : ''
   return [
-    `${ctx.place.name}${dangerText(ctx.placeDanger)}: ${ctx.place.description}`,
+    `${ctx.place.name} 부근, 발밑은 ${TERRAIN_NAMES[ctx.terrain]}${dangerText(ctx.placeDanger)}: ${ctx.place.description}`,
     `이곳에서 자연스럽게 구할 수 있을 법한 것: ${ctx.hints.length ? ctx.hints.join(', ') : '장소 설명에서 판단'}`,
     `이곳에 놓인 물건: ${ctx.items.filter(i => !i.holder).map(i => i.object.name).join(', ') || '없음'}`,
     `이곳의 자원: ${ctx.resources.map(r => `${r.resource.label} ${r.resource.level}${r.resource.unit ?? ''}`).join(', ') || '없음'}`,
-    `이어진 장소: ${ctx.neighbors.map(n => `${n.place.name}(${n.travelMinutes}분)${dangerText(n.danger)}`).join(', ') || '없음'}`,
+    `갈 수 있는 곳(걸어서): ${ctx.neighbors.map(n => `${n.place.name}(${n.direction}쪽 ${n.distance}m, 약 ${n.travelMinutes}분)${dangerText(n.danger)}`).join(', ') || '없음'}`,
   ].join('\n')
 }
 
@@ -144,7 +158,18 @@ export function buildCharacterPrompt(world: WorldState, execution: WorldExecutio
     '[몸 상태]', bodyText(agent),
     '[소지품]', mine.join(', ') || '빈손',
     '[지금 있는 곳]', placeLines(ctx),
-    '[같은 곳에 있는 사람 — 지금 서로 보이는 거리에 있다]', others.length ? others.map(o => `${relationLine(agent, o.agent)} (${bodyText(o.agent).split(', ').pop()}, 들고 있는 것: ${ctx.items.filter(i => i.holder === o.handle).map(i => i.object.name).join(', ') || '보이지 않음'})`).join('\n') : '아무도 없다. 혼자다.',
+    '[내 이동]', agent.publicState.travel ? `${world.places.find(p => p.id === agent.publicState.travel!.destinationPlaceId)?.name ?? '목적지'}(으)로 가는 중, 약 ${Math.max(0, agent.publicState.travel.arriveMinute - ctx.minute)}분 남음` : '멈춰 있다',
+    // Only people this character actually perceives, by real distance — not everyone nearby.
+    '[보이거나 들리는 사람]', (() => {
+      const geo = world.engine!.geo!
+      const noticed = others.flatMap(o => { const sense = perceive(world, geo, agent, o.agent); return sense ? [{ o, sense }] : [] })
+      return noticed.length ? noticed.map(({ o, sense }) => {
+        const d = Math.round(dist(agent.publicState.coord!, o.agent.publicState.coord!)), dir = direction(agent.publicState.coord!, o.agent.publicState.coord!)
+        return sense === 'sight'
+          ? `${relationLine(agent, o.agent)} — ${dir}쪽 ${d}m, 눈에 보인다 (${bodyText(o.agent).split(', ').pop()}, 들고 있는 것: ${ctx.items.filter(i => i.holder === o.handle).map(i => i.object.name).join(', ') || '보이지 않음'})`
+          : `${dir}쪽 ${d}m쯤에서 누군가의 인기척이 들린다 (누구인지는 보이지 않는다)`
+      }).join('\n') : '아무도 보이지 않는다. 혼자다.'
+    })(),
     '[최근 방송]', v4.director.announcements.slice(-3).map(a => `- ${clockLabel(a.minute)} ${a.text}`).join('\n') || '- 없음',
     '[남은 사람]', pressure(world),
     '[내 기억]', journalText(agent, 20),
@@ -156,7 +181,7 @@ export function buildCharacterPrompt(world: WorldState, execution: WorldExecutio
       '- 설정과 장소에 자연스럽게 있을 법한 것(나무, 돌, 물, 물고기 등)은 활용할 수 있다. 소지품에 없는 특별한 물건은 없다.',
       '- 결과를 단정하지 말고 무엇을 어떻게 시도하는지 구체적으로 말하라. 성공 여부는 세계가 정한다.',
       '- 목표와 성격, 몸 상태, 기억에 따라 판단하라. 방금 한 일을 되풀이하지 말고 상황을 한 걸음 진전시켜라.',
-      '- thought는 속마음, action은 지금부터 할 행동, speech는 실제로 입 밖에 낼 말(없으면 null), targetName은 상대 이름(없으면 null), moveTo는 이어진 장소로 떠날 때 그 이름(아니면 null).',
+      '- thought는 속마음, action은 지금부터 할 행동, speech는 실제로 입 밖에 낼 말(없으면 null), targetName은 상대 이름(없으면 null), moveTo는 「갈 수 있는 곳」 중 한 곳으로 떠날 때 그 이름(아니면 null). 멀리 있는 사람에게 말을 걸거나 공격하려면 먼저 다가가야 한다.',
       '- 모든 값은 한국어로 쓴다.',
     ].join('\n'),
   ].filter(Boolean).join('\n\n')
@@ -195,6 +220,13 @@ export function buildGmPrompt(world: WorldState, execution: WorldExecution, v4: 
       몸: bodyText(c.agent), 소지품: ctx.items.filter(i => i.holder === c.handle).map(i => `${i.handle} ${i.object.name}`),
       관계: ctx.cast.filter(o => o.agent.id !== c.agent.id).map(o => relationLine(c.agent, o.agent)),
       지난장면이후: `${Math.max(0, ctx.minute - c.sinceMinute)}분`,
+      발밑: TERRAIN_NAMES[c.terrain],
+      // Real distances and who notices whom: the scene must respect these, not a shared place name.
+      다른인물: ctx.cast.filter(o => o.agent.id !== c.agent.id).map(o => {
+        const sense = perceive(world, world.engine!.geo!, c.agent, o.agent)
+        return `${o.handle}까지 ${Math.round(dist(c.agent.publicState.coord!, o.agent.publicState.coord!))}m (${sense === 'sight' ? '보임' : sense === 'hearing' ? '소리만 들림' : '알아채지 못함'})`
+      }),
+      이동중: c.agent.publicState.travel ? `${world.places.find(p => p.id === c.agent.publicState.travel!.destinationPlaceId)?.name ?? '목적지'}행, ${Math.max(0, c.agent.publicState.travel.arriveMinute - ctx.minute)}분 남음` : null,
       의도: intent ? { 속마음: intent.thought, 행동: intent.action, 대사: intent.speech, 대상: intent.targetName, 이동: intent.moveTo } : '정하지 못함' }
   })
   return [
@@ -221,8 +253,8 @@ export function buildGmPrompt(world: WorldState, execution: WorldExecution, v4: 
       '5. 사망은 치명적인 공격이나 극단적인 상황에서만 일어난다. 사망하면 deaths에 넣고 prose에도 분명히 쓴다.',
       '6. prose는 3인칭 소설체로 400~1500자. 감각, 표정, 속마음, 긴장을 살린다. 수치, 게임 용어, 보고서 문체는 쓰지 않는다. 직전 장면을 되풀이하지 않는다.',
       '7. 혼자 있는 인물은 지난 장면 이후 흐른 시간 동안 무엇을 했는지 자연스럽게 이어서 쓴다.',
-      '7-1. [인물과 의도]의 인물들은 모두 같은 장소, 서로 보이는 거리에 있다. 이들을 "다른 곳에서" 따로 움직이게 쓰지 말고 한자리에서 마주치게 한다. 누군가 몰래 빠져나가려 하면 들키는지 판정하고, 빠져나갔다면 moves에 넣는다. 숨어 있으려 하면 발견되는지 판정해 쓴다.',
-      '8. outcomes는 prose와 정확히 일치해야 한다. prose에 쓴 이동, 부상, 획득, 건넴, 소비, 사망은 모두 outcomes에 넣고, prose에 없는 결과는 넣지 않는다. 함께 이동한 사람도 한 명씩 모두 moves에 넣는다. 장면이 끝날 때 도착하지 않았다면 이동시키지 말고 출발만 묘사한다.',
+      '7-1. 인물 사이의 실제 거리와 인지 여부(다른인물)를 지킨다. "보임"은 서로 눈에 들어온 상태, "소리만 들림"은 누군가 있다는 것만 아는 상태, "알아채지 못함"은 그 사람이 있다는 것을 모르는 상태다. 말을 섞거나 물건을 건네거나 공격하려면 몇 m 안으로 다가가야 하고, 다가가는 동안 상대가 피하거나 숨을 수 있다. 같은 이름의 장소에 있다는 것만으로 마주쳤다고 쓰지 않는다.',
+      '8. outcomes는 prose와 정확히 일치해야 한다. prose에 쓴 이동, 부상, 획득, 건넴, 소비, 사망은 모두 outcomes에 넣고, prose에 없는 결과는 넣지 않는다. moves는 목적지로 출발하는 것이다: 도착은 표시된 이동 시간이 지난 뒤 세계가 처리하므로 prose에는 출발과 길을 나서는 모습까지만 쓴다. 함께 떠나는 사람도 한 명씩 모두 moves에 넣는다.',
       '9. outcomes의 참조에는 handle을 쓴다. who/by/from/to/holder는 P 번호, item은 I 번호, 장소 자원을 먹거나 마시면 consumed에 R 번호, 자원을 챙겨 가면 transfers에 R 번호와 받는 P 번호, 이동 to는 L 번호. 떨어뜨리거나 내려놓으면 transfers.to=null. 단 created.name에는 handle이 아니라 실제 물건 이름을 쓴다.',
       '10. severity는 1(긁힘)~5(치명상). needs는 이 장면에서 먹고(ate), 마시고(drank), 쉰(rested) 만큼의 회복량 0~10이다(조개 몇 개=2, 충분한 한 끼=5, 물을 실컷=6, 한 시간 휴식=2). 먹거나 쉬지 않았으면 0. relations.trust는 -3~3.',
       '11. memories에는 인물마다 이 장면을 그 인물이 알 수 있는 것만으로 한 문장씩 적는다.',

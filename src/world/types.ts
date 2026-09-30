@@ -81,6 +81,9 @@ export interface AgentPublicState {
   lastAction: string | null
   lastActiveAt: string
   localArea?: string
+  // Continuous world position (meters) — the same value the simulation uses.
+  coord?: import('../../server/world/geo/geoTypes').GeoPoint
+  travel?: import('../../server/world/geo/geoTypes').GeoTravel
 }
 
 export interface AgentKnowledgeEntry {
@@ -196,6 +199,7 @@ export interface ChronicleEntry {
 export interface WorldState {
   engine?: {
     minute: number
+    geo?: import('../../server/world/geo/geoTypes').WorldGeo
     connections: Array<{ fromPlaceId: string; toPlaceId: string; travelMinutes: number; blocked: boolean }>
     ongoingActions: Array<{ id: string; startedMinute: number; completesMinute: number; proposal: { actorId: string; actionType: string; locationId: string; destinationId?: string; areaHint?: string; searchPoint?:{x:number;y:number} } }>
   }

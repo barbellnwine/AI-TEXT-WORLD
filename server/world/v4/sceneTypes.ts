@@ -14,6 +14,8 @@ export interface V4State {
   lastGroupKey?: string
   repeatCount: number
   consecutiveFailures: number
+  // Fresh meetings from continuous movement, waiting for a scene (cleared once narrated).
+  encounters?: Array<{ ids: string[]; minute: number; sense: 'sight' | 'hearing' }>
   director: {
     enabled: boolean
     nextEventMinute: number

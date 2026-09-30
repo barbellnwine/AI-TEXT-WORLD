@@ -2,10 +2,21 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { WorldState } from '../types'
 import { useWorldExperience } from '../i18n'
+import { GeoMap } from './GeoMap'
 
 // The island is a schematic backdrop. Only public server locations determine grouping;
 // spreading occupants within a location makes each person individually selectable.
-export function WorldMiniMap({ state, selectedAgentId, onSelectAgent }: {
+// Worlds with continuous space (engine.geo) get the real top-down map; older node-based worlds
+// keep this schematic view.
+export function WorldMiniMap(props: {
+  state: WorldState
+  selectedAgentId: string | null
+  onSelectAgent: (id: string | null) => void
+}) {
+  return props.state.engine?.geo ? <GeoMap {...props} /> : <NodeMiniMap {...props} />
+}
+
+function NodeMiniMap({ state, selectedAgentId, onSelectAgent }: {
   state: WorldState
   selectedAgentId: string | null
   onSelectAgent: (id: string | null) => void

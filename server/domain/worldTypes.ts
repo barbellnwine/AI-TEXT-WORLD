@@ -93,6 +93,10 @@ export interface AgentPublicState {
   // Where within locationId this agent currently is, for places large enough to have sub-areas
   // (see actionSchema.ts's LOCAL_AREAS). Sticky across actions that don't specify one.
   localArea?: string
+  // Continuous world position in meters — the source of truth when engine.geo exists
+  // (locationId is then a label derived from it). See server/world/geo/.
+  coord?: import('../world/geo/geoTypes.ts').GeoPoint
+  travel?: import('../world/geo/geoTypes.ts').GeoTravel
 }
 
 export interface AgentKnowledgeEntry {

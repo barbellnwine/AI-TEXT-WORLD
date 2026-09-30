@@ -26,6 +26,9 @@ export interface StudioConfig {
   // v4 content intensity. mature = adult dark survival (brutal violence, killing, betrayal).
   // Absent = inferred from the premise (last-survivor or adult/dark genre).
   maturity?: 'standard' | 'mature'
+  // Continuous world size in meters (server/world/geo). Absent = 2000 × 2000.
+  widthMeters?: number
+  heightMeters?: number
 }
 export function defaultStudio(limit = 10): StudioConfig { return { version: 2, climate: '온대', rainChance: 35, persistence: 65, baseTemperature: 18, activeLimit: Math.min(3, limit), minutesPerTick: 5, seed: 12345, characters: {}, items: [], events: [], truths: [], relationships: [], endings: [], endMode: 'OR' } }
 export function defaultCharacter(): StudioCharacter { return { orientation: '이성애', health: 10, energy: 8, hunger: 2, thirst: 2, loneliness: 2 } }
