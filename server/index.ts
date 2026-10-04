@@ -61,9 +61,17 @@ const MIME: Record<string, string> = {
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
   '.json': 'application/json; charset=utf-8',
   '.webmanifest': 'application/manifest+json; charset=utf-8',
 }
+// Hashed bundles never change; artwork (the world map) changes only when it is repainted, and a
+// megabyte of island should not come down the wire on every page view.
+const PICTURES = new Set(['.png', '.jpg', '.jpeg', '.webp', '.svg', '.ico'])
 
 function serveStatic(pathname: string, res: import('node:http').ServerResponse): boolean {
   if (!existsSync(distDir)) return false
@@ -77,7 +85,8 @@ function serveStatic(pathname: string, res: import('node:http').ServerResponse):
   const body = readFileSync(target)
   res.writeHead(200, {
     'content-type': MIME[extname(target)] ?? 'application/octet-stream',
-    'cache-control': relative(distDir, target).startsWith('assets') ? 'public, max-age=31536000, immutable' : 'no-cache',
+    'cache-control': relative(distDir, target).startsWith('assets') ? 'public, max-age=31536000, immutable'
+      : PICTURES.has(extname(target)) ? 'public, max-age=86400' : 'no-cache',
   })
   res.end(body)
   return true
