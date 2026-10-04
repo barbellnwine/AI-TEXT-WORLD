@@ -1,19 +1,21 @@
 import { test, expect } from '@playwright/test'
 import { ISLAND_MASK } from '../server/world/geo/islandMask'
+import { ISLAND_PLACES } from '../server/world/geo/islandMap'
 
 // The minimap draws the painted island and nothing else: markers sit at simulation coordinates,
 // and when the engine reports a new coordinate the marker walks there.
 test('the island minimap draws the painted map and keeps markers on simulation coordinates', async ({ page, request }, info) => {
   const current = await (await request.get('/api/world/current')).json()
   const world = current.worldState
-  const places = ['동쪽 해변', '깊은 숲', '샘터'].map((name, i) => ({
-    ...world.places[0], id: `island-${i}`, name, description: name, currentAgentIds: [], resources: [], isDiscovered: true,
+  // The island as it really is: every place the artwork labels, where the artwork labels it.
+  const places = ISLAND_PLACES.map((p, i) => ({
+    ...world.places[0], id: `island-${i}`, name: p.name, description: p.name, currentAgentIds: [], resources: [], isDiscovered: true,
   }))
   world.places = places
   world.agents = world.agents.slice(0, 2)
   const [walker, other] = world.agents
-  walker.publicState.locationId = places[1].id
-  other.publicState.locationId = places[0].id
+  walker.publicState.locationId = places[5].id
+  other.publicState.locationId = places[6].id
   walker.publicState.coord = { x: 1400, y: 900 }
   other.publicState.coord = { x: 1800, y: 900 }
   // The same geography the server builds: the generated mask, the painted picture, real regions.
@@ -25,12 +27,8 @@ test('the island minimap draws the painted map and keeps markers on simulation c
       version: 1, widthMeters: ISLAND_MASK.widthMeters, heightMeters: ISLAND_MASK.heightMeters,
       cellMeters: ISLAND_MASK.cellMeters, cols: ISLAND_MASK.cols, rows: ISLAND_MASK.rows,
       cells: ISLAND_MASK.cells, image: ISLAND_MASK.image, minute: 600,
-      cellRegion: Array.from({ length: ISLAND_MASK.cols * ISLAND_MASK.rows }, (_, i) => i % 3),
-      regions: [
-        { placeId: places[0].id, kind: 'TERRAIN', terrain: 'BEACH', center: { x: 1831, y: 904 }, radius: 320, source: 'designer' },
-        { placeId: places[1].id, kind: 'TERRAIN', terrain: 'FOREST', center: { x: 1435, y: 871 }, radius: 460, source: 'designer' },
-        { placeId: places[2].id, kind: 'POI', terrain: 'GRASS', center: { x: 1047, y: 928 }, radius: 90, source: 'designer' },
-      ],
+      cellRegion: Array.from({ length: ISLAND_MASK.cols * ISLAND_MASK.rows }, (_, i) => i % places.length),
+      regions: ISLAND_PLACES.map((p, i) => ({ placeId: places[i].id, kind: p.kind, terrain: p.terrain, center: p.seed, label: p.seed, radius: p.radius, source: 'designer' })),
     },
     objects: [{ id: 'drop-1', name: '반자동 소총', kind: 'tool', quantity: 1, condition: 'intact', location: { kind: 'place', id: places[0].id }, coord: { x: 1700, y: 1000 } }],
     zones: [{ placeId: places[0].id, effectiveMinute: 1320, closed: false }],
@@ -74,9 +72,42 @@ test('the island minimap draws the painted map and keeps markers on simulation c
   // It really passed through the middle: a trail of where it has been is drawn behind it.
   await expect(page.locator('.geo-trail')).toHaveCount(1)
 
+  // Zoomed out, the island reads as a map: place names on, no scrim, no character name tags.
+  await expect(page.locator('.geo-scrim')).toHaveCount(0)
+  await expect(page.locator('.geo-agent-name')).toHaveCount(0)
+  await expect(page.locator('.geo-region-label').first()).toBeVisible()
+  expect(await page.locator('.geo-region-label').count()).toBeGreaterThanOrEqual(5)
+  await expect(page.locator('.geo-region-label').first()).toBeVisible()
+  await page.locator('.geo-map').screenshot({ path: `data/logs/island-minimap-wide-${info.project.name}.png` })
+  const dotAt = async () => Number(await page.locator('.geo-agent .geo-agent-dot').first().getAttribute('r'))
+  const viewWidth = async () => Number((await page.locator('.geo-map svg').getAttribute('viewBox'))!.split(' ')[2])
+  const wide = await viewWidth(), wideDot = await dotAt()
+
+  // Zooming in: the painted map (and the place names painted into it) steps back, and every
+  // person on screen gets a readable name tag and a bigger marker.
+  for (let i = 0; i < 4; i++) await page.getByRole('button', { name: '확대' }).click()
+  await expect.poll(viewWidth).toBeLessThan(wide * 0.62)
+  await expect(page.locator('.geo-scrim')).toHaveCount(1)
+  await expect(page.locator('.geo-agent-name')).toHaveCount(2)
+  // The place names step aside entirely — they are drawn by the app, not baked into the picture.
+  await expect(page.locator('.geo-region-label')).toHaveCount(0)
+  // Marker size is measured in map metres, so a bigger number at a smaller view means a bigger
+  // marker on screen relative to the map — the whole point of the zoom.
+  expect(await dotAt() / await viewWidth()).toBeGreaterThan(wideDot / wide * 1.4)
+
   // Engagement shows on the map as soon as the engine reports it.
   world.engine.fighting = [walker.id, other.id]
   await page.evaluate(payload => window.dispatchEvent(new CustomEvent('test-frame', { detail: { type: 'worldState', payload } })), world)
   await expect(page.locator('.geo-agent.is-fighting')).toHaveCount(2)
+  // The person you are following is marked out from the rest: a ring, a louder tag, bigger type.
+  await page.getByRole('button', { name: '전체', exact: true }).click()
+  await marker.click()
+  await expect(page.locator('.geo-agent.is-selected')).toHaveCount(1)
+  await expect(page.locator('.geo-agent.is-selected .geo-agent-halo')).toHaveCount(1)
+  await expect(page.locator('.geo-agent-name')).toHaveCount(1, { timeout: 2000 })
+  const pickedDot = Number(await page.locator('.geo-agent.is-selected .geo-agent-dot').getAttribute('r'))
+  const plainDot = Number(await page.locator('.geo-agent:not(.is-selected) .geo-agent-dot').first().getAttribute('r'))
+  expect(pickedDot).toBeGreaterThan(plainDot)
+  await expect(page.locator('.geo-agent-info')).toContainText(walker.name)
   await page.locator('.geo-map').screenshot({ path: `data/logs/island-minimap-${info.project.name}.png` })
 })

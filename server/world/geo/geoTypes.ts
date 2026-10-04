@@ -18,6 +18,9 @@ export interface GeoRegion {
   radius: number
   // auto = inferred from name/description; designer = set explicitly (future studio field).
   source: 'auto' | 'designer'
+  // Where the name belongs on a painted map. The artwork labelled the place here; `center` may
+  // have been pulled onto walkable ground some way off.
+  label?: GeoPoint
 }
 
 export interface GeoTravel {

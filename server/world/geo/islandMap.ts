@@ -128,6 +128,7 @@ export function buildIslandGeo(places: Array<Pick<Place, 'id' | 'name'>>, minute
       center: seed,
       radius: design?.radius ?? 200,
       source: 'designer' as const,
+      label: design?.seed,
     }
   })
   // Ground ownership: nearest seed wins, so the labels partition the island with no gaps.

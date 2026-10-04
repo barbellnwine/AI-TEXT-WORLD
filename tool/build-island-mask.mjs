@@ -82,6 +82,50 @@ function writePng({ width, height, data }) {
     chunk('IDAT', deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))])
 }
 
+// Rubs the painted place names off the map, so the app can draw its own — and hide them when a
+// reader zooms in to follow a person. Only the lettering is touched: the pale glyphs and the dark
+// halo hugging them are marked, then filled in from the terrain around them until the hole closes.
+// Nothing is blurred wholesale, so there is no visible patch where a word used to be.
+function eraseLettering(img, box) {
+  const { width, height, data } = img
+  const x0 = Math.max(1, Math.floor(box.x)), x1 = Math.min(width - 1, Math.ceil(box.x + box.w))
+  const y0 = Math.max(1, Math.floor(box.y)), y1 = Math.min(height - 1, Math.ceil(box.y + box.h))
+  const hole = new Uint8Array(width * height)
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+    const i = (y * width + x) * 3
+    if (Math.min(data[i], data[i + 1], data[i + 2]) > 160) hole[y * width + x] = 1
+  }
+  // Grow the mark to swallow the anti-aliased fringe and the dark outline around each glyph.
+  for (let grow = 0; grow < 9; grow++) {
+    const previous = Uint8Array.from(hole)
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      if (previous[y * width + x]) continue
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]])
+        if (previous[(y + dy) * width + x + dx]) { hole[y * width + x] = 1; break }
+    }
+  }
+  // Close the hole from its rim inwards, one ring of pixels per pass.
+  for (let pass = 0; pass < 60; pass++) {
+    const source = Buffer.from(data), filling = Uint8Array.from(hole)
+    let filled = 0
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      if (!filling[y * width + x]) continue
+      let r = 0, g = 0, b = 0, n = 0
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (filling[(y + dy) * width + x + dx]) continue
+        const i = ((y + dy) * width + x + dx) * 3
+        r += source[i]; g += source[i + 1]; b += source[i + 2]; n++
+      }
+      if (!n) continue
+      const o = (y * width + x) * 3
+      data[o] = Math.round(r / n); data[o + 1] = Math.round(g / n); data[o + 2] = Math.round(b / n)
+      hole[y * width + x] = 0
+      filled++
+    }
+    if (!filled) break
+  }
+}
+
 function resize(img, size) {
   const out = Buffer.alloc(size * size * 3)
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
@@ -164,7 +208,25 @@ mkdirSync(dirname(file), { recursive: true })
 writeFileSync(file, header)
 console.log('wrote', file)
 
+// Where the artwork wrote each place name, in metres, so those words can be rubbed out. Keep this
+// in step with ISLAND_PLACES in server/world/geo/islandMap.ts.
+const LABELS = [
+  { name: '바위 고지대', x: 987, y: 300 }, { name: '서쪽 바위굴', x: 268, y: 560 },
+  { name: '좁은 협곡', x: 625, y: 993 }, { name: '버려진 야영지', x: 552, y: 1334 },
+  { name: '샘터', x: 1047, y: 928 }, { name: '깊은 숲', x: 1435, y: 871 },
+  { name: '동쪽 해변', x: 1831, y: 904 },
+]
+
+const WEB_SIZE = 1024
 const web = join(outDir, 'public/world/island-map.png')
 mkdirSync(dirname(web), { recursive: true })
-writeFileSync(web, writePng(resize(img, 1024)))
-console.log('wrote', web, (readFileSync(web).length / 1048576).toFixed(2), 'MB')
+// Lettering is erased at full resolution, where the glyphs are crisp enough to mark precisely.
+const perMetre = img.width / WORLD_METERS
+for (const label of LABELS) {
+  const w = (label.name.length * 30 + 44) * (img.width / 1232)
+  const h = 62 * (img.width / 1232)
+  eraseLettering(img, { x: label.x * perMetre - w / 2, y: label.y * perMetre - h / 2, w, h })
+}
+const picture = resize(img, WEB_SIZE)
+writeFileSync(web, writePng(picture))
+console.log('wrote', web, (readFileSync(web).length / 1048576).toFixed(2), 'MB', `(${LABELS.length} place names rubbed out)`)

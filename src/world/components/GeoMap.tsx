@@ -107,12 +107,28 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
   const agents = state.agents.filter(a => a.publicState.coord)
   const living = agents.filter(a => a.publicState.status !== 'deceased')
   const selected = agents.find(a => a.id === selectedAgentId)
+  // `unit` is a fixed fraction of the visible width, so anything sized in units keeps the same
+  // size on screen at every zoom level. Closing in dims the painted map — its place names are part
+  // of the picture and cannot be switched off — and grows the markers, so the people win the eye.
   const h = view.w * H / W, unit = view.w / 400
+  const closeness = Math.min(1, Math.max(0, (1 - view.w / W) * 1.6))
+  const close = view.w < W * 0.62
+  const mark = close ? 1.5 : 1
 
   const zones = state.engine?.zones ?? []
   const fighting = new Set(state.engine?.fighting ?? [])
   const supplies = (state.engine?.objects ?? []).filter(o => o.coord && o.location.kind === 'place' && o.quantity > 0 && o.condition !== 'destroyed')
   const zoneAreas = useMemo(() => zones.map(z => ({ ...z, rects: regionCells(geo, z.placeId) })), [geo, zones.map(z => `${z.placeId}:${z.closed}`).join()])
+  // Names close enough to collide at this zoom: keep the first, drop the crowd behind it. A place
+  // the island is closing already shows its name with a countdown, so it is not labelled twice.
+  const spacedLabels = geo.regions.filter((r, i) => {
+    if (zones.some(z => z.placeId === r.placeId)) return false
+    const here = r.label ?? r.center
+    return !geo.regions.slice(0, i).some(other => {
+      const there = other.label ?? other.center
+      return Math.hypot(here.x - there.x, here.y - there.y) < view.w * 0.17
+    })
+  })
 
   // Markers follow the engine; the glide only fills the gap between two reported positions.
   const positions = useGlidingPositions(living.map(a => ({ id: a.id, coord: a.publicState.coord! })))
@@ -160,7 +176,9 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
   }, [W, H])
   function startPan(down: ReactPointerEvent<HTMLDivElement>) {
     const el = box.current
-    if (!el || (down.target instanceof Element && down.target.closest('.geo-agent'))) return
+    // Dragging the map must not start on something you meant to press: capturing the pointer here
+    // would swallow the button's own click.
+    if (!el || (down.target instanceof Element && down.target.closest('.geo-agent, .geo-map-controls'))) return
     const r = el.getBoundingClientRect(), start = { ...view }, sx = down.clientX, sy = down.clientY
     el.setPointerCapture(down.pointerId)
     const onMove = (m: PointerEvent) => setView(clampView({ w: start.w, x: start.x - (m.clientX - sx) / r.width * start.w, y: start.y - (m.clientY - sy) / r.height * start.w * H / W }))
@@ -190,6 +208,8 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
         {geo.image
           ? <image href={geo.image} x={0} y={0} width={W} height={H} preserveAspectRatio="none" aria-hidden="true" />
           : <g aria-hidden="true">{runs.map((r, i) => <rect key={i} x={r.x} y={r.y} width={r.w + 0.5} height={geo.cellMeters + 0.5} className={`geo-t geo-t-${r.terrain}`} />)}</g>}
+        {/* The further in you look, the further back the artwork steps — including its own labels. */}
+        {geo.image && closeness > 0 && <rect className="geo-scrim" x={0} y={0} width={W} height={H} fillOpacity={closeness * 0.34} aria-hidden="true" />}
 
         {zoneAreas.map(z => <g key={z.placeId} className={`geo-zone${z.closed ? ' is-closed' : ' is-closing'}`} aria-hidden="true">
           {z.rects.map((r, i) => <rect key={i} x={r.x} y={r.y} width={r.w} height={geo.cellMeters} />)}
@@ -199,7 +219,9 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
           </text>
         </g>)}
 
-        {!geo.image && geo.regions.filter(r => r.kind === 'TERRAIN').map(r => <text key={r.placeId} x={r.center.x} y={r.center.y} className="geo-region-label" fontSize={unit * 11} textAnchor="middle">{placeName(r.placeId)}</text>)}
+        {!close && spacedLabels.map(r => <text key={r.placeId} x={r.label?.x ?? r.center.x} y={r.label?.y ?? r.center.y}
+          className={`geo-region-label${r.kind === 'POI' ? ' is-poi' : ''}`} fontSize={unit * (r.kind === 'POI' ? 10 : 12)}
+          strokeWidth={unit * 1.1} textAnchor="middle">{placeName(r.placeId)}</text>)}
 
         {supplies.map(o => <g key={o.id} className="geo-supply">
           <title>{`${o.name} (${SUPPLY_LABEL[o.kind] ?? '보급품'})`}</title>
@@ -226,16 +248,26 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
         {agents.map(a => {
           const p = at(a), face = heading(a)
           const angle = face ? Math.atan2(face.y - p.y, face.x - p.x) * 180 / Math.PI : null
-          return <g key={a.id} className={`geo-agent${a.id === selectedAgentId ? ' is-selected' : ''}${a.publicState.status === 'deceased' ? ' is-dead' : ''}${fighting.has(a.id) ? ' is-fighting' : ''}`}
-            transform={`translate(${p.x} ${p.y})`} role="button" tabIndex={0} aria-label={a.name} aria-pressed={a.id === selectedAgentId}
-            onClick={() => onSelectAgent(a.id === selectedAgentId ? null : a.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectAgent(a.id === selectedAgentId ? null : a.id) } }}>
+          const picked = a.id === selectedAgentId
+          const dot = unit * (picked ? 5.4 : 4.4) * mark
+          // A name tag only earns its space up close, or when it is the person being followed.
+          const named = picked || close
+          const font = unit * (picked ? 13 : 11) * mark
+          const tag = { w: a.name.length * font * 1.06 + font * 0.9, h: font * 1.5, top: dot + unit * 2 * mark }
+          return <g key={a.id} className={`geo-agent${picked ? ' is-selected' : ''}${a.publicState.status === 'deceased' ? ' is-dead' : ''}${fighting.has(a.id) ? ' is-fighting' : ''}`}
+            transform={`translate(${p.x} ${p.y})`} role="button" tabIndex={0} aria-label={a.name} aria-pressed={picked}
+            onClick={() => onSelectAgent(picked ? null : a.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectAgent(picked ? null : a.id) } }}>
             <title>{`${a.name}${fighting.has(a.id) ? ' · 교전 중' : ''}`}</title>
-            <circle r={unit * 8} className="geo-agent-target" />
-            {fighting.has(a.id) && a.publicState.status !== 'deceased' && <circle r={unit * 6} className="geo-agent-fight" strokeWidth={unit * 0.9} />}
+            <circle r={unit * 9 * mark} className="geo-agent-target" />
+            {picked && <circle r={dot * 2.1} className="geo-agent-halo" strokeWidth={unit * 1.1 * mark} />}
+            {fighting.has(a.id) && a.publicState.status !== 'deceased' && <circle r={dot * 1.5} className="geo-agent-fight" strokeWidth={unit * 1 * mark} />}
             {angle !== null && a.publicState.status !== 'deceased' &&
-              <polygon className="geo-agent-heading" points={`${unit * 4},0 ${unit * 9},${unit * 2.6} ${unit * 9},${-unit * 2.6}`} transform={`rotate(${angle})`} />}
-            <circle r={unit * 4.2} className="geo-agent-dot" strokeWidth={unit * 1.3} />
-            {(a.id === selectedAgentId || view.w < W / 2) && <text y={unit * 13} fontSize={unit * 10} textAnchor="middle" className="geo-agent-label">{a.name}</text>}
+              <polygon className="geo-agent-heading" points={`${dot},0 ${dot * 2.2},${dot * 0.62} ${dot * 2.2},${-dot * 0.62}`} transform={`rotate(${angle})`} />}
+            <circle r={dot} className="geo-agent-dot" strokeWidth={unit * 1.4 * mark} />
+            {named && <g className="geo-agent-name">
+              <rect x={-tag.w / 2} y={tag.top} width={tag.w} height={tag.h} rx={tag.h * 0.35} strokeWidth={unit * 0.5} />
+              <text y={tag.top + font * 1.1} fontSize={font} textAnchor="middle" strokeWidth={unit * 0.9}>{a.name}</text>
+            </g>}
           </g>
         })}
       </svg>

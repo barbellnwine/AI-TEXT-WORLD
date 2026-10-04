@@ -1134,7 +1134,11 @@ body:has(.observatory), body:has(.world-welcome), body:has(.world-shell), body:h
 .geo-map-controls button { min-width: 28px; height: 26px; padding: 0 7px; border-radius: 6px; border: 1px solid #7c9b8a66; background: #0d1a22cc; color: #d8e6dc; font-size: 12px; cursor: pointer; }
 .geo-t-GRASS { fill: #5d7a4c; } .geo-t-FOREST { fill: #2f5234; } .geo-t-BEACH { fill: #c9b27c; } .geo-t-ROCK { fill: #7b7f80; } .geo-t-CANYON { fill: #a4562f; }
 .geo-t-CLIFF { fill: #5b5552; } .geo-t-WATER { fill: #1f4a6b; } .geo-t-RIVER { fill: #2d6c8f; } .geo-t-RUINS { fill: #8a7a66; } .geo-t-URBAN { fill: #6d6f78; }
-.geo-region-label { fill: #eef5ef; fill-opacity: .55; font-weight: 600; pointer-events: none; paint-order: stroke; stroke: #0b161d; stroke-opacity: .5; stroke-width: .4px; }
+/* The map's own typography, drawn by us: present when you are reading the island, gone when you
+   are following a person. Stroke width is set per-render in map metres so it looks the same at
+   every zoom. */
+.geo-region-label { fill: #fdfdf7; font-weight: 700; letter-spacing: .04em; pointer-events: none; paint-order: stroke; stroke: #11191fcc; }
+.geo-region-label.is-poi { fill: #ffeab8; }
 .geo-poi-area { fill: #f3e2a2; fill-opacity: .12; stroke: #f3e2a2; stroke-opacity: .45; stroke-dasharray: 4 3; }
 .geo-poi-mark { fill: #f3e2a2; }
 .geo-poi-label { fill: #fff4cc; pointer-events: none; paint-order: stroke; stroke: #0b161d; stroke-width: 2px; }
@@ -1147,6 +1151,18 @@ body:has(.observatory), body:has(.world-welcome), body:has(.world-shell), body:h
 .geo-supply rect { fill: #ffd98a; stroke: #4a3209; }
 .geo-supply line { stroke: #4a3209; }
 .geo-trail { fill: none; stroke: #f5f7f5; stroke-opacity: .45; stroke-linecap: round; }
+/* Zooming in pushes the painted map (and the place names painted into it) into the background. */
+/* A mid tone, not black: fog flattens the contrast of the white lettering painted into the map,
+   where a dark wash would dim it and the terrain by the same amount and keep it just as readable. */
+.geo-scrim { fill: #3c4a54; pointer-events: none; }
+/* Name tags sit above everything on the map, including the artwork's own lettering. */
+.geo-agent-name { pointer-events: none; }
+.geo-agent-name rect { fill: #0a141ae6; stroke: #ffffff4d; }
+.geo-agent-name text { fill: #fff; font-weight: 700; paint-order: stroke; stroke: #0a141a; }
+.geo-agent.is-selected .geo-agent-name rect { fill: #c9322de6; stroke: #ffd9d9aa; }
+.geo-agent.is-dead .geo-agent-name rect { fill: #11161ac2; stroke: #ffffff2e; }
+.geo-agent.is-dead .geo-agent-name text { fill: #b9c2bb; }
+.geo-agent-halo { fill: none; stroke: #ef5b5b; stroke-opacity: .85; }
 .geo-agent-heading { fill: #f5f7f5; stroke: #0b161d; stroke-width: .6px; }
 .geo-agent.is-selected .geo-agent-heading { fill: #ef5b5b; }
 .geo-agent-fight { fill: none; stroke: #ff6a3d; stroke-dasharray: 3 2; }
@@ -1159,7 +1175,6 @@ body:has(.observatory), body:has(.world-welcome), body:has(.world-shell), body:h
 .geo-agent-dot { fill: #f5f7f5; stroke: #0b161d; }
 .geo-agent.is-selected .geo-agent-dot { fill: #ef5b5b; }
 .geo-agent.is-dead .geo-agent-dot { fill: #555; }
-.geo-agent-label { fill: #fff; font-weight: 700; paint-order: stroke; stroke: #0b161d; stroke-width: 3px; pointer-events: none; }
 .geo-legend-poi { background: #f3e2a2 !important; transform: rotate(45deg); border-radius: 1px !important; }
 .geo-agent-info { display: grid; gap: 4px; margin: 10px 0 0; font-size: 13px; }
 .geo-agent-info > div { display: flex; gap: 10px; }
