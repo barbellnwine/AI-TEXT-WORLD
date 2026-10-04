@@ -3,9 +3,15 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { WorldState } from '../types'
 import { TERRAIN_BY_CODE, type GeoPoint, type Terrain, type WorldGeo } from '../../../server/world/geo/geoTypes'
 
-// Continuous top-down map. SVG user units ARE simulation meters: a marker is drawn exactly at
-// agent.publicState.coord, with no per-place layout or offsets.
-const TERRAIN_LABEL: Record<Terrain, string> = { GRASS: '풀밭', FOREST: '숲', BEACH: '모래사장', ROCK: '바위 지대', CLIFF: '절벽', WATER: '물', RIVER: '강', RUINS: '폐허', URBAN: '건물 지대' }
+// The map IS the simulation. SVG user units are simulation metres and the painted island fills
+// (0,0)-(width,height), so a marker drawn at agent.publicState.coord sits exactly where the engine
+// says that person stands. Nothing here invents a position, a path or a place.
+const TERRAIN_LABEL: Record<Terrain, string> = { GRASS: '풀밭', FOREST: '숲', BEACH: '모래사장', ROCK: '바위 지대', CANYON: '협곡', CLIFF: '절벽', WATER: '물', RIVER: '강', RUINS: '폐허', URBAN: '건물 지대' }
+
+// How long a marker takes to glide from the last server position to the new one. Tick updates
+// arrive in steps; the eye should see one continuous walk, never a teleport.
+const GLIDE_MS = 1100
+const TRAIL_POINTS = 8
 
 function terrainAt(geo: WorldGeo, p: GeoPoint): Terrain {
   const col = Math.min(geo.cols - 1, Math.max(0, Math.floor(p.x / geo.cellMeters)))
@@ -13,7 +19,7 @@ function terrainAt(geo: WorldGeo, p: GeoPoint): Terrain {
   return TERRAIN_BY_CODE[geo.cells[row * geo.cols + col]] ?? 'GRASS'
 }
 
-// Horizontal runs of equal terrain: far fewer rects than one per cell.
+// Horizontal runs of equal terrain — the fallback picture for worlds with no painted map.
 function terrainRuns(geo: WorldGeo) {
   const runs: Array<{ x: number; y: number; w: number; terrain: Terrain }> = []
   for (let row = 0; row < geo.rows; row++) {
@@ -28,17 +34,105 @@ function terrainRuns(geo: WorldGeo) {
   return runs
 }
 
+// The outline of the ground a region owns, as the cells the engine assigned to it. Used to shade
+// a zone the island is closing — the same cells that will actually start hurting people.
+function regionCells(geo: WorldGeo, placeId: string) {
+  const index = geo.regions.findIndex(r => r.placeId === placeId)
+  if (index < 0) return []
+  const rects: Array<{ x: number; y: number; w: number }> = []
+  for (let row = 0; row < geo.rows; row++) {
+    let start = -1
+    for (let col = 0; col <= geo.cols; col++) {
+      const owned = col < geo.cols && geo.cellRegion[row * geo.cols + col] === index && TERRAIN_BY_CODE[geo.cells[row * geo.cols + col]] !== 'WATER'
+      if (owned && start < 0) start = col
+      if (!owned && start >= 0) { rects.push({ x: start * geo.cellMeters, y: row * geo.cellMeters, w: (col - start) * geo.cellMeters }); start = -1 }
+    }
+  }
+  return rects
+}
+
+// Glides every marker from where it was drawn to where the engine now says it is.
+function useGlidingPositions(targets: Array<{ id: string; coord: GeoPoint }>): Map<string, GeoPoint> {
+  const shown = useRef(new Map<string, GeoPoint>())
+  const legs = useRef(new Map<string, { from: GeoPoint; to: GeoPoint; start: number }>())
+  const frame = useRef(0)
+  const [, repaint] = useState(0)
+  const key = targets.map(t => `${t.id}:${Math.round(t.coord.x)}:${Math.round(t.coord.y)}`).join('|')
+
+  useEffect(() => {
+    const now = performance.now()
+    let moving = false
+    for (const { id, coord } of targets) {
+      const current = shown.current.get(id)
+      if (!current) { shown.current.set(id, coord); continue }
+      if (Math.round(current.x) === Math.round(coord.x) && Math.round(current.y) === Math.round(coord.y)) continue
+      legs.current.set(id, { from: current, to: coord, start: now })
+      moving = true
+    }
+    for (const id of [...shown.current.keys()]) if (!targets.some(t => t.id === id)) { shown.current.delete(id); legs.current.delete(id) }
+    if (!moving) return
+    const step = () => {
+      const t = performance.now()
+      let running = false
+      for (const [id, leg] of legs.current) {
+        const progress = Math.min(1, (t - leg.start) / GLIDE_MS)
+        // Ease out: a walker slows into the spot the engine reported rather than snapping to it.
+        const eased = 1 - (1 - progress) * (1 - progress)
+        shown.current.set(id, { x: leg.from.x + (leg.to.x - leg.from.x) * eased, y: leg.from.y + (leg.to.y - leg.from.y) * eased })
+        if (progress >= 1) legs.current.delete(id)
+        else running = true
+      }
+      repaint(n => n + 1)
+      if (running) frame.current = requestAnimationFrame(step)
+    }
+    cancelAnimationFrame(frame.current)
+    frame.current = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(frame.current)
+  }, [key])
+  useEffect(() => () => cancelAnimationFrame(frame.current), [])
+
+  return new Map(targets.map(t => [t.id, shown.current.get(t.id) ?? t.coord]))
+}
+
+const SUPPLY_LABEL: Record<string, string> = { food: '식량', water: '식수', medicine: '의약품', tool: '장비', item: '보급품', fuel: '연료' }
+
 export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: WorldState; selectedAgentId: string | null; onSelectAgent: (id: string | null) => void }) {
   const geo = state.engine!.geo!
   const W = geo.widthMeters, H = geo.heightMeters, minute = state.engine!.minute
   const [view, setView] = useState({ x: 0, y: 0, w: W })
   const [large, setLarge] = useState(false)
   const box = useRef<HTMLDivElement>(null)
-  const runs = useMemo(() => terrainRuns(geo), [geo.cells, geo.cols, geo.rows, geo.cellMeters])
+  const runs = useMemo(() => geo.image ? [] : terrainRuns(geo), [geo.image, geo.cells, geo.cols, geo.rows, geo.cellMeters])
   const placeName = (id: string | null | undefined) => state.places.find(p => p.id === id)?.name ?? ''
   const agents = state.agents.filter(a => a.publicState.coord)
+  const living = agents.filter(a => a.publicState.status !== 'deceased')
   const selected = agents.find(a => a.id === selectedAgentId)
   const h = view.w * H / W, unit = view.w / 400
+
+  const zones = state.engine?.zones ?? []
+  const fighting = new Set(state.engine?.fighting ?? [])
+  const supplies = (state.engine?.objects ?? []).filter(o => o.coord && o.location.kind === 'place' && o.quantity > 0 && o.condition !== 'destroyed')
+  const zoneAreas = useMemo(() => zones.map(z => ({ ...z, rects: regionCells(geo, z.placeId) })), [geo, zones.map(z => `${z.placeId}:${z.closed}`).join()])
+
+  // Markers follow the engine; the glide only fills the gap between two reported positions.
+  const positions = useGlidingPositions(living.map(a => ({ id: a.id, coord: a.publicState.coord! })))
+  const trails = useRef(new Map<string, GeoPoint[]>())
+  for (const a of living) {
+    const trail = trails.current.get(a.id) ?? []
+    const last = trail.at(-1), now = a.publicState.coord!
+    if (!last || Math.hypot(last.x - now.x, last.y - now.y) > 8) trails.current.set(a.id, [...trail, now].slice(-TRAIL_POINTS))
+  }
+  const at = (a: typeof agents[number]) => positions.get(a.id) ?? a.publicState.coord!
+  // Where a person is facing: the next waypoint of their trip, else the way they just came from.
+  const heading = (a: typeof agents[number]): GeoPoint | null => {
+    const travel = a.publicState.travel
+    const now = at(a)
+    const next = travel?.path.find(p => p.minute > minute) ?? travel?.to
+    if (next && Math.hypot(next.x - now.x, next.y - now.y) > 4) return next
+    const trail = trails.current.get(a.id) ?? []
+    const back = trail.at(-2)
+    return back && Math.hypot(back.x - now.x, back.y - now.y) > 4 ? { x: now.x * 2 - back.x, y: now.y * 2 - back.y } : null
+  }
 
   const clampView = (v: { x: number; y: number; w: number }) => {
     const w = Math.min(W, Math.max(150, v.w)), vh = w * H / W
@@ -78,8 +172,9 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
   const remaining = (a: typeof agents[number]) => {
     const t = a.publicState.travel
     if (!t) return null
-    return [a.publicState.coord!, ...t.path.filter(p => p.minute > minute).map(p => ({ x: p.x, y: p.y }))]
+    return [at(a), ...t.path.filter(p => p.minute > minute).map(p => ({ x: p.x, y: p.y }))]
   }
+  const closingIn = (z: { effectiveMinute: number }) => Math.max(0, z.effectiveMinute - minute)
 
   return <>
     <div className={`world-minimap geo-map${large ? ' geo-map-large' : ''}`} ref={box} onPointerDown={startPan}>
@@ -91,38 +186,77 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
         <button type="button" onClick={() => setLarge(!large)}>{large ? '작게' : '크게'}</button>
       </div>
       <svg viewBox={`${view.x} ${view.y} ${view.w} ${h}`} preserveAspectRatio="xMidYMid meet" role="group" aria-label="WORLD 지도">
-        <g aria-hidden="true">{runs.map((r, i) => <rect key={i} x={r.x} y={r.y} width={r.w + 0.5} height={geo.cellMeters + 0.5} className={`geo-t geo-t-${r.terrain}`} />)}</g>
-        {geo.regions.filter(r => r.kind === 'TERRAIN').map(r => <text key={r.placeId} x={r.center.x} y={r.center.y} className="geo-region-label" fontSize={unit * 11} textAnchor="middle">{placeName(r.placeId)}</text>)}
-        {geo.regions.filter(r => r.kind === 'POI').map(r => <g key={r.placeId} className="geo-poi">
-          <circle cx={r.center.x} cy={r.center.y} r={r.radius} className="geo-poi-area" />
-          <rect x={r.center.x - unit * 3} y={r.center.y - unit * 3} width={unit * 6} height={unit * 6} transform={`rotate(45 ${r.center.x} ${r.center.y})`} className="geo-poi-mark" />
-          <text x={r.center.x} y={r.center.y - unit * 7} fontSize={unit * 9} textAnchor="middle" className="geo-poi-label">{placeName(r.placeId)}</text>
+        {/* The island itself: one painted picture, drawn once and never per tick. */}
+        {geo.image
+          ? <image href={geo.image} x={0} y={0} width={W} height={H} preserveAspectRatio="none" aria-hidden="true" />
+          : <g aria-hidden="true">{runs.map((r, i) => <rect key={i} x={r.x} y={r.y} width={r.w + 0.5} height={geo.cellMeters + 0.5} className={`geo-t geo-t-${r.terrain}`} />)}</g>}
+
+        {zoneAreas.map(z => <g key={z.placeId} className={`geo-zone${z.closed ? ' is-closed' : ' is-closing'}`} aria-hidden="true">
+          {z.rects.map((r, i) => <rect key={i} x={r.x} y={r.y} width={r.w} height={geo.cellMeters} />)}
+          <text x={(geo.regions.find(r => r.placeId === z.placeId)?.center.x ?? 0)} y={(geo.regions.find(r => r.placeId === z.placeId)?.center.y ?? 0)}
+            fontSize={unit * 11} textAnchor="middle" className="geo-zone-label">
+            {z.closed ? `${placeName(z.placeId)} 폐쇄` : `${placeName(z.placeId)} ${Math.floor(closingIn(z) / 60)}시간 후 폐쇄`}
+          </text>
         </g>)}
-        {agents.map(a => {
+
+        {!geo.image && geo.regions.filter(r => r.kind === 'TERRAIN').map(r => <text key={r.placeId} x={r.center.x} y={r.center.y} className="geo-region-label" fontSize={unit * 11} textAnchor="middle">{placeName(r.placeId)}</text>)}
+
+        {supplies.map(o => <g key={o.id} className="geo-supply">
+          <title>{`${o.name} (${SUPPLY_LABEL[o.kind] ?? '보급품'})`}</title>
+          <rect x={o.coord!.x - unit * 3} y={o.coord!.y - unit * 3} width={unit * 6} height={unit * 6} rx={unit} strokeWidth={unit * 0.8} />
+          <line x1={o.coord!.x - unit * 3} y1={o.coord!.y} x2={o.coord!.x + unit * 3} y2={o.coord!.y} strokeWidth={unit * 0.8} />
+        </g>)}
+
+        {living.map(a => {
           const path = remaining(a)
           return path && (a.id === selectedAgentId || !selectedAgentId) ? <g key={`trip-${a.id}`} className="geo-trip">
             <polyline points={path.map(p => `${p.x},${p.y}`).join(' ')} strokeWidth={unit * 1.4} strokeDasharray={`${unit * 4} ${unit * 3}`} />
             <circle cx={path.at(-1)!.x} cy={path.at(-1)!.y} r={unit * 3.5} strokeWidth={unit} />
           </g> : null
         })}
-        {agents.map(a => <g key={a.id} className={`geo-agent${a.id === selectedAgentId ? ' is-selected' : ''}${a.publicState.status === 'deceased' ? ' is-dead' : ''}`}
-          transform={`translate(${a.publicState.coord!.x} ${a.publicState.coord!.y})`} role="button" tabIndex={0} aria-label={a.name} aria-pressed={a.id === selectedAgentId}
-          onClick={() => onSelectAgent(a.id === selectedAgentId ? null : a.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectAgent(a.id === selectedAgentId ? null : a.id) } }}>
-          <title>{a.name}</title>
-          <circle r={unit * 8} className="geo-agent-target" />
-          <circle r={unit * 3.2} className="geo-agent-dot" strokeWidth={unit} />
-          {a.id === selectedAgentId && <text y={unit * 13} fontSize={unit * 10} textAnchor="middle" className="geo-agent-label">{a.name}</text>}
-        </g>)}
+
+        {living.map(a => {
+          // Only someone who has actually walked leaves a trail; standing still draws nothing.
+          const walked = trails.current.get(a.id) ?? []
+          return walked.length > 1
+            ? <polyline key={`trail-${a.id}`} className="geo-trail" points={[...walked, at(a)].map(p => `${p.x},${p.y}`).join(' ')} strokeWidth={unit * 1.2} />
+            : null
+        })}
+
+        {agents.map(a => {
+          const p = at(a), face = heading(a)
+          const angle = face ? Math.atan2(face.y - p.y, face.x - p.x) * 180 / Math.PI : null
+          return <g key={a.id} className={`geo-agent${a.id === selectedAgentId ? ' is-selected' : ''}${a.publicState.status === 'deceased' ? ' is-dead' : ''}${fighting.has(a.id) ? ' is-fighting' : ''}`}
+            transform={`translate(${p.x} ${p.y})`} role="button" tabIndex={0} aria-label={a.name} aria-pressed={a.id === selectedAgentId}
+            onClick={() => onSelectAgent(a.id === selectedAgentId ? null : a.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectAgent(a.id === selectedAgentId ? null : a.id) } }}>
+            <title>{`${a.name}${fighting.has(a.id) ? ' · 교전 중' : ''}`}</title>
+            <circle r={unit * 8} className="geo-agent-target" />
+            {fighting.has(a.id) && a.publicState.status !== 'deceased' && <circle r={unit * 6} className="geo-agent-fight" strokeWidth={unit * 0.9} />}
+            {angle !== null && a.publicState.status !== 'deceased' &&
+              <polygon className="geo-agent-heading" points={`${unit * 4},0 ${unit * 9},${unit * 2.6} ${unit * 9},${-unit * 2.6}`} transform={`rotate(${angle})`} />}
+            <circle r={unit * 4.2} className="geo-agent-dot" strokeWidth={unit * 1.3} />
+            {(a.id === selectedAgentId || view.w < W / 2) && <text y={unit * 13} fontSize={unit * 10} textAnchor="middle" className="geo-agent-label">{a.name}</text>}
+          </g>
+        })}
       </svg>
     </div>
-    <div className="minimap-legend"><span><i />등장인물</span><span><i className="selected-dot" />선택</span><span><i className="geo-legend-poi" />장소(POI)</span>{selectedAgentId && <button type="button" onClick={() => onSelectAgent(null)}>선택 해제</button>}</div>
+    <div className="minimap-legend">
+      <span><i />등장인물</span>
+      <span><i className="selected-dot" />선택</span>
+      <span><i className="geo-legend-supply" />보급품</span>
+      <span><i className="geo-legend-zone" />폐쇄 구역</span>
+      {selectedAgentId && <button type="button" onClick={() => onSelectAgent(null)}>선택 해제</button>}
+    </div>
     {selected && <dl className="geo-agent-info">
-      <div><dt>이름</dt><dd>{selected.name}{selected.publicState.status === 'deceased' ? ' (사망)' : ''}</dd></div>
+      <div><dt>이름</dt><dd>{selected.name}{selected.publicState.status === 'deceased' ? ' (사망)' : fighting.has(selected.id) ? ' · 교전 중' : ''}</dd></div>
       <div><dt>좌표</dt><dd>X {Math.round(selected.publicState.coord!.x)}m · Y {Math.round(selected.publicState.coord!.y)}m</dd></div>
       <div><dt>위치</dt><dd>{placeName(selected.publicState.locationId)} · {TERRAIN_LABEL[terrainAt(geo, selected.publicState.coord!)]}</dd></div>
       <div><dt>이동</dt><dd>{selected.publicState.travel ? `${placeName(selected.publicState.travel.destinationPlaceId) || '목적지'}(으)로 이동 중 · 약 ${Math.max(0, selected.publicState.travel.arriveMinute - minute)}분 남음` : '멈춰 있음'}</dd></div>
       <div><dd><button type="button" onClick={() => focus(selected.publicState.coord!)}>이 위치로 확대</button></dd></div>
     </dl>}
+    {zones.length > 0 && <p className="map-caption">
+      {zones.map(z => z.closed ? `${placeName(z.placeId)} 폐쇄됨` : `${placeName(z.placeId)} ${Math.floor(closingIn(z) / 60)}시간 ${closingIn(z) % 60}분 후 폐쇄`).join(' · ')}
+    </p>}
     <p className="map-caption">{W}×{H}m · 시뮬레이션 좌표 그대로 표시 · 휠/버튼으로 확대, 드래그로 이동</p>
   </>
 }

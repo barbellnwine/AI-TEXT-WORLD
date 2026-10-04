@@ -5,7 +5,8 @@
 
 export interface GeoPoint { x: number; y: number }
 
-export type Terrain = 'GRASS' | 'FOREST' | 'BEACH' | 'ROCK' | 'CLIFF' | 'WATER' | 'RIVER' | 'RUINS' | 'URBAN'
+// CANYON is passable but slow and blind; CLIFF and WATER are not passable at all.
+export type Terrain = 'GRASS' | 'FOREST' | 'BEACH' | 'ROCK' | 'CLIFF' | 'WATER' | 'RIVER' | 'RUINS' | 'URBAN' | 'CANYON'
 
 // Terrain = a region that occupies map area. POI = a point of interest sitting on terrain.
 export interface GeoRegion {
@@ -43,7 +44,10 @@ export interface WorldGeo {
   regions: GeoRegion[]
   // Last world minute movement/perception was advanced to.
   minute: number
+  // A hand-painted map this world is played on. The minimap draws it as the background; the
+  // image's corners are (0,0) and (widthMeters,heightMeters), so markers need no transform.
+  image?: string
 }
 
-export const TERRAIN_CODES: Record<Terrain, string> = { GRASS: 'g', FOREST: 'f', BEACH: 'b', ROCK: 'r', CLIFF: 'c', WATER: 'w', RIVER: 'v', RUINS: 'u', URBAN: 'n' }
+export const TERRAIN_CODES: Record<Terrain, string> = { GRASS: 'g', FOREST: 'f', BEACH: 'b', ROCK: 'r', CLIFF: 'c', WATER: 'w', RIVER: 'v', RUINS: 'u', URBAN: 'n', CANYON: 'y' }
 export const TERRAIN_BY_CODE: Record<string, Terrain> = Object.fromEntries(Object.entries(TERRAIN_CODES).map(([k, v]) => [v, k as Terrain]))

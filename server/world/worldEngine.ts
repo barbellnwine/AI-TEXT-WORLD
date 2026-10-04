@@ -91,6 +91,10 @@ export function selectDecisionAgents(world: WorldState, limit: number): Agent[] 
   const engine = world.engine
   if (!engine) return []
   const busy = new Set(engine.ongoingActions.map(a => a.proposal.actorId))
+  // Equal scores are broken by cast order, which is the same in every run. Agent ids are random
+  // UUIDs, so ordering by id would hand the turn to a different person each time the same world
+  // was replayed — the engine must not depend on how a id happens to sort.
+  const rank = new Map(world.agents.map((a, i) => [a.id, i]))
   return world.agents.filter(a => {
     const v = ensureAgentV2(a, world)
     v.nextDecisionAt = a.nextDecisionAt ?? v.nextDecisionAt
@@ -105,7 +109,7 @@ export function selectDecisionAgents(world: WorldState, limit: number): Agent[] 
         const waitingTurn=last===undefined?20:Math.min(20,Math.max(0,(engine.minute-last)/30))
         return (c.wakeReason ? 100 : 0) + waitingTurn + Math.max(c.humanState?.survival_need ?? 1, c.humanState?.fatigue ?? 1) * 2 + Math.min(50, engine.minute - (c.nextDecisionAt ?? 0)) + (world.places.find(p=>p.id===c.publicState.locationId)?.flooded?20:0) + (c.exposure?.coldExposure??0) + c.relationships.filter(r=>r.stance==='hostile'&&world.agents.some(a=>a.id===r.otherAgentId&&a.publicState.locationId===c.publicState.locationId)).length*3
       }
-      return score(b) - score(a) || (a.nextDecisionAt ?? 0) - (b.nextDecisionAt ?? 0) || a.id.localeCompare(b.id)
+      return score(b) - score(a) || (a.nextDecisionAt ?? 0) - (b.nextDecisionAt ?? 0) || rank.get(a.id)! - rank.get(b.id)!
     }).slice(0, Math.max(1, limit))
 }
 

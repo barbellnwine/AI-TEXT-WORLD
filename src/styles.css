@@ -1132,12 +1132,26 @@ body:has(.observatory), body:has(.world-welcome), body:has(.world-shell), body:h
 .geo-map-large { aspect-ratio: auto; height: min(78vh, 900px); }
 .geo-map-controls { position: absolute; left: 6px; top: 6px; z-index: 1; display: flex; gap: 4px; }
 .geo-map-controls button { min-width: 28px; height: 26px; padding: 0 7px; border-radius: 6px; border: 1px solid #7c9b8a66; background: #0d1a22cc; color: #d8e6dc; font-size: 12px; cursor: pointer; }
-.geo-t-GRASS { fill: #5d7a4c; } .geo-t-FOREST { fill: #2f5234; } .geo-t-BEACH { fill: #c9b27c; } .geo-t-ROCK { fill: #7b7f80; }
+.geo-t-GRASS { fill: #5d7a4c; } .geo-t-FOREST { fill: #2f5234; } .geo-t-BEACH { fill: #c9b27c; } .geo-t-ROCK { fill: #7b7f80; } .geo-t-CANYON { fill: #a4562f; }
 .geo-t-CLIFF { fill: #5b5552; } .geo-t-WATER { fill: #1f4a6b; } .geo-t-RIVER { fill: #2d6c8f; } .geo-t-RUINS { fill: #8a7a66; } .geo-t-URBAN { fill: #6d6f78; }
 .geo-region-label { fill: #eef5ef; fill-opacity: .55; font-weight: 600; pointer-events: none; paint-order: stroke; stroke: #0b161d; stroke-opacity: .5; stroke-width: .4px; }
 .geo-poi-area { fill: #f3e2a2; fill-opacity: .12; stroke: #f3e2a2; stroke-opacity: .45; stroke-dasharray: 4 3; }
 .geo-poi-mark { fill: #f3e2a2; }
 .geo-poi-label { fill: #fff4cc; pointer-events: none; paint-order: stroke; stroke: #0b161d; stroke-width: 2px; }
+/* Ground the island is taking back: amber while the clock runs, red once it is lethal. */
+.geo-zone rect { pointer-events: none; }
+.geo-zone.is-closing rect { fill: #e7a13a26; stroke: #e7a13a66; stroke-width: 2px; }
+.geo-zone.is-closed rect { fill: #d6303033; stroke: #ef5b5b88; stroke-width: 2px; }
+.geo-zone-label { fill: #ffd9a8; font-weight: 700; paint-order: stroke; stroke: #1a0d06; stroke-width: 3px; pointer-events: none; }
+.geo-zone.is-closed .geo-zone-label { fill: #ffc4c4; }
+.geo-supply rect { fill: #ffd98a; stroke: #4a3209; }
+.geo-supply line { stroke: #4a3209; }
+.geo-trail { fill: none; stroke: #f5f7f5; stroke-opacity: .45; stroke-linecap: round; }
+.geo-agent-heading { fill: #f5f7f5; stroke: #0b161d; stroke-width: .6px; }
+.geo-agent.is-selected .geo-agent-heading { fill: #ef5b5b; }
+.geo-agent-fight { fill: none; stroke: #ff6a3d; stroke-dasharray: 3 2; }
+.geo-legend-supply { background: #ffd98a; border-radius: 2px; }
+.geo-legend-zone { background: #e7a13a66; border: 1px solid #e7a13a; }
 .geo-trip polyline { fill: none; stroke: #e7b85a; }
 .geo-trip circle { fill: none; stroke: #e7b85a; }
 .geo-agent { cursor: pointer; }

@@ -12,6 +12,8 @@ export interface WorldObject {
   physical?: PhysicalProperties
   localArea?: string
   concealedBy?: string
+  // Where the thing physically lies, in world metres. Dropped supplies have to be walked to.
+  coord?: import('./geo/geoTypes.ts').GeoPoint
   id: string; name: string; kind: 'item' | 'food' | 'water' | 'medicine' | 'tool' | 'fuel'
   quantity: number; location: { kind: 'place' | 'agent'; id: string }; condition: 'intact' | 'damaged' | 'destroyed'
 }
@@ -40,6 +42,9 @@ export interface WorldTruth {
 export interface WorldConnection { fromPlaceId: string; toPlaceId: string; travelMinutes: number; blocked: boolean; requirements: string }
 export interface OngoingAction { causalEventIds?:string[]; responseToActionId?:string; noticedEventId?:string; adjudication?:import('./traumaAdjudication.ts').Adjudication; detail?:ActionDetail; id: string; proposal: ProposedAction; startedMinute: number; completesMinute: number; startEventId: string }
 export interface EngineState {
+  // Map overlays the minimap draws. Derived from v4 state on the way out; never authored here.
+  zones?: Array<{ placeId: string; effectiveMinute: number; closed: boolean }>
+  fighting?: string[]
   objectiveStatus?: { elapsedMinute: number; remainingMinutes: number|null; remainingCompetitors: number|null; targets: Array<{type:'time'|'survivors'|'place'; target:number|string; current:number|string; gap:number}> }
   competition?: { endMinute: number|null; lastSurvivor: boolean }
   requireCombatAdjudication?:boolean

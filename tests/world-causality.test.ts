@@ -99,7 +99,16 @@ test('G, H: a 180-minute demo tick gives multiple agents two causal decision win
   const decisions=world.agents.flatMap(a=>a.v2?.recentActions??[])
   assert.ok(decisions.some(a=>a.minute===90))
   assert.ok(decisions.some(a=>a.minute===180))
-  assert.ok(world.agents.filter(a=>a.v2?.recentActions.length).length>=4)
+  // The second window must be a new window, not a replay of the first: somebody who did not act
+  // at 90 acts at 180. It is NOT everybody — only three may act at once here, and whoever was
+  // spoken to in the first window is woken for the second — so the test checks rotation, not a
+  // head count. (Ordering of equally urgent people follows cast order, so this is reproducible.)
+  const acting=(minute:number)=>world.agents.filter(a=>(a.v2?.recentActions??[]).some(r=>r.minute===minute)).map(a=>a.id)
+  const first=acting(90), second=acting(180)
+  assert.ok(first.length>=2,`first window acted: ${first.length}`)
+  assert.ok(second.length>=2,`second window acted: ${second.length}`)
+  assert.ok(second.some(id=>!first.includes(id)),'the second decision window reaches someone the first did not')
+  assert.ok(world.agents.filter(a=>a.v2?.recentActions.length).length>=3)
  }finally{await store.shutdownWorldRuntime();db.close()}
 })
 

@@ -3,6 +3,7 @@
 // except an optional surrounding sea when the premise says it is an island.
 import type { Agent, Place, WorldState } from '../../domain/worldTypes.ts'
 import { TERRAIN_BY_CODE, TERRAIN_CODES, type GeoPoint, type GeoRegion, type Terrain, type WorldGeo } from './geoTypes.ts'
+import { buildIslandGeo, isWalkable, matchesIslandMap, WALKABLE_POINTS } from './islandMap.ts'
 
 export const DEFAULT_WORLD_METERS = 2000
 export const CELL_METERS = 50
@@ -110,6 +111,54 @@ export function pointNear(geo: WorldGeo, placeId: string, salt: string, jitter =
 
 export function isIslandWorld(text: string): boolean { return /섬|무인도|island/i.test(text) }
 
+// --- starting positions --------------------------------------------------------------------------
+
+// Where a person can be put down: walkable ground, and on a painted map, ground connected to the
+// rest of the island. Never the sea, never a cliff, never a crag nobody could leave.
+export function standablePoints(geo: WorldGeo): GeoPoint[] {
+  if (geo.image) return WALKABLE_POINTS
+  const points: GeoPoint[] = []
+  for (let row = 0; row < geo.rows; row++) for (let col = 0; col < geo.cols; col++) {
+    const p = { x: Math.round((col + 0.5) * geo.cellMeters), y: Math.round((row + 0.5) * geo.cellMeters) }
+    if (isWalkable(terrainAt(geo, p))) points.push(p)
+  }
+  return points
+}
+
+// Scatters a cast across the map: each next person is dropped as far as possible from everyone
+// already placed (farthest-point sampling), so a season never opens with two people face to face.
+export function spawnPoints(geo: WorldGeo, count: number, salt = ''): GeoPoint[] {
+  const ground = standablePoints(geo)
+  if (!ground.length || count <= 0) return []
+  const chosen: GeoPoint[] = [ground[Math.floor(hash01(`spawn:${salt}`) * ground.length)]]
+  while (chosen.length < count) {
+    let best = ground[0], bestGap = -1
+    for (const p of ground) {
+      const nearest = Math.min(...chosen.map(c => dist(c, p)))
+      // The hash only breaks ties between equally lonely spots; the spread itself is not random.
+      const score = nearest + hash01(`${salt}:${p.x}:${p.y}`) * 20
+      if (score > bestGap) { bestGap = score; best = p }
+    }
+    chosen.push(best)
+  }
+  return chosen
+}
+
+// Somewhere inside a region that something can actually be dropped on and picked up from.
+export function dropPoint(geo: WorldGeo, placeId: string, salt: string): GeoPoint {
+  const wanted = pointNear(geo, placeId, salt, 120)
+  if (isWalkable(terrainAt(geo, wanted))) return wanted
+  const ground = standablePoints(geo)
+  return ground.length ? ground.reduce((best, c) => dist(c, wanted) < dist(best, wanted) ? c : best) : wanted
+}
+
+// True separation between the closest two starting spots — what the "not too close" rule means.
+export function closestPair(points: GeoPoint[]): number {
+  let closest = Infinity
+  for (let i = 0; i < points.length; i++) for (let j = i + 1; j < points.length; j++) closest = Math.min(closest, dist(points[i], points[j]))
+  return closest
+}
+
 // Place names follow coordinates: locationId, occupancy and the movement log are derived.
 export function syncLabels(world: WorldState): void {
   const geo = world.engine?.geo
@@ -127,13 +176,36 @@ export function syncLabels(world: WorldState): void {
 
 export function ensureGeo(world: WorldState, draft: { places: Array<{ id: string; type?: string }>; studio?: { widthMeters?: number; heightMeters?: number }; genre: string; intro: string; background: string }): WorldGeo {
   const engine = world.engine!
+  const fresh = !engine.geo
+  // A season that was laid out by the automatic Voronoi before the island was painted moves onto
+  // the painting: same places, same people, real ground. Positions follow the place each person
+  // was standing in, and trips in the old coordinates are dropped rather than reinterpreted.
+  if (engine.geo && !engine.geo.image && matchesIslandMap(world.places)) {
+    const rebuilt = buildIslandGeo(world.places, engine.minute)
+    for (const agent of world.agents) {
+      agent.publicState.coord = dropPoint(rebuilt, agent.publicState.locationId, agent.id)
+      agent.publicState.travel = undefined
+    }
+    for (const object of engine.objects) if (object.coord) object.coord = dropPoint(rebuilt, object.location.id, object.id)
+    engine.geo = rebuilt
+  }
   if (!engine.geo) {
     const places = world.places.map(p => ({ ...p, type: draft.places.find(d => d.id === p.id)?.type }))
-    const island = isIslandWorld(`${draft.genre} ${draft.intro} ${draft.background}`) || places.some(p => classifyPlace(p).terrain === 'BEACH')
-    engine.geo = buildGeo(places, { widthMeters: draft.studio?.widthMeters, heightMeters: draft.studio?.heightMeters, island, minute: engine.minute })
+    // A world whose places are the painted island is played on the painted island.
+    if (matchesIslandMap(places)) engine.geo = buildIslandGeo(places, engine.minute)
+    else {
+      const island = isIslandWorld(`${draft.genre} ${draft.intro} ${draft.background}`) || places.some(p => classifyPlace(p).terrain === 'BEACH')
+      engine.geo = buildGeo(places, { widthMeters: draft.studio?.widthMeters, heightMeters: draft.studio?.heightMeters, island, minute: engine.minute })
+    }
   }
-  // Anyone without a coordinate (new season, or a checkpoint from before continuous space)
-  // starts near the place they were recorded at.
+  // A season opens with the cast scattered: everyone starts alone, far from everyone else, on
+  // ground they can walk off. This is the moment the painted map is first laid down; anyone who
+  // arrives later just starts near the place they were last recorded at.
+  const unplaced = world.agents.filter(a => !a.publicState.coord)
+  if (fresh && engine.geo.image && unplaced.length > 1) {
+    const spots = spawnPoints(engine.geo, unplaced.length, world.agents.map(a => a.id).join(','))
+    unplaced.forEach((agent, i) => { agent.publicState.coord = spots[i] ?? pointNear(engine.geo!, agent.publicState.locationId, agent.id) })
+  }
   for (const agent of world.agents) agent.publicState.coord ??= pointNear(engine.geo, agent.publicState.locationId, agent.id)
   syncLabels(world)
   return engine.geo

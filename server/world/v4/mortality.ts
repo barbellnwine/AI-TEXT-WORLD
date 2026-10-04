@@ -12,6 +12,8 @@ export function killAgent(world: WorldState, agent: Agent, changes: StateChange[
   // The body's possessions stay where they fell, for anyone to take.
   for (const obj of world.engine!.objects.filter(x => x.location.kind === 'agent' && x.location.id === agent.id)) {
     obj.location = { kind: 'place', id: agent.publicState.locationId }
+    // Dropped where they fell, for whoever reaches the body.
+    if (agent.publicState.coord) obj.coord = { ...agent.publicState.coord }
     changes.push({ field: `object:${obj.id}:holder`, from: agent.id, to: `place:${agent.publicState.locationId}` })
   }
   agent.inventory = []

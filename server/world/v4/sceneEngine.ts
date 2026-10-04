@@ -22,6 +22,17 @@ export interface SceneHooks {
 
 const alive = (a: Agent) => a.publicState.status === 'alive' || a.publicState.status === 'injured'
 
+// A fight is only still a fight while both sides are alive and can still reach each other. It also
+// cannot own the spotlight forever: six scenes is the hard ceiling, whatever the GM keeps reporting.
+export function pruneStandoff(world: WorldState, v4: V4State): void {
+  const standoff = v4.standoff
+  if (!standoff) return
+  const geo = world.engine!.geo
+  const people = standoff.ids.map(id => world.agents.find(a => a.id === id)).filter((a): a is Agent => Boolean(a && alive(a) && a.publicState.coord))
+  const together = Boolean(geo) && people.some(a => people.some(b => b.id !== a.id && aware(world, geo!, a, b)))
+  if (people.length < 2 || !together || standoff.scenes >= 7) delete v4.standoff
+}
+
 // Scene groups are people who actually perceive each other (real distance, terrain, light) —
 // never people who merely share a place name. Whoever has waited longest gets the spotlight; a
 // fresh mid-route encounter or a closing zone jumps the queue; a group of several counts as 90
@@ -39,17 +50,21 @@ export function selectSpotlight(world: WorldState, v4: V4State): { place: Place;
   const waited = (a: Agent) => minute - (v4.lastSceneMinute[a.id] ?? -100_000)
   // People standing in a closing or closed zone must get a chance to flee before it kills them.
   const endangered = new Set([...closedPlaceIds(v4, minute), ...v4.director.closures.map(c => c.placeId)])
+  // People locked in an unresolved fight: the scene must keep returning to them until it ends.
+  const locked = new Set(v4.standoff?.ids ?? [])
   const candidates = [...groups.values()].flatMap(members => {
-    // A crowd larger than a scene: the longest-waiting person and those nearest to them.
-    const lead = [...members].sort((a, b) => waited(b) - waited(a))[0]
+    // A crowd larger than a scene: the longest-waiting person and those nearest to them — but a
+    // party to an unresolved fight leads, so the fight itself is never cropped out of its scene.
+    const lead = [...members].sort((a, b) => (locked.has(b.id) ? 1 : 0) - (locked.has(a.id) ? 1 : 0) || waited(b) - waited(a))[0]
     const agents = [...members].sort((a, b) => dist(a.publicState.coord!, lead.publicState.coord!) - dist(b.publicState.coord!, lead.publicState.coord!)).slice(0, MAX_SCENE_CAST)
     const place = world.places.find(p => p.id === regionAt(geo, lead.publicState.coord!).placeId)
     if (!place) return []
     const ids = agents.map(a => a.id)
     const key = [...ids].sort().join(',')
     const fresh = (v4.encounters ?? []).some(e => e.ids.every(id => ids.includes(id)))
-    const score = (agents.some(a => endangered.has(a.publicState.locationId)) ? 10_000 : 0) + (fresh ? 500 : 0) + (agents.length > 1 ? 90 : 0)
-      + Math.max(...agents.map(waited)) - (key === v4.lastGroupKey && v4.repeatCount >= 3 ? 50_000 : 0)
+    const fight = ids.filter(id => locked.has(id)).length >= 2
+    const score = (fight ? 100_000 : 0) + (agents.some(a => endangered.has(a.publicState.locationId)) ? 10_000 : 0) + (fresh ? 500 : 0) + (agents.length > 1 ? 90 : 0)
+      + Math.max(...agents.map(waited)) - (!fight && key === v4.lastGroupKey && v4.repeatCount >= 3 ? 50_000 : 0)
     return [{ place, agents, key, score }]
   })
   if (!candidates.length) return null
@@ -96,6 +111,7 @@ async function decide(world: WorldState, execution: WorldExecution, v4: V4State,
 export async function runScene(world: WorldState, execution: WorldExecution, seasonId: string, hooks: SceneHooks): Promise<AppliedScene | null> {
   const v4 = ensureV4State(world, execution)
   ensureGeo(world, execution.draft)
+  pruneStandoff(world, v4)
   const spotlight = selectSpotlight(world, v4)
   if (!spotlight) return null
   const ctx = buildSceneContext(world, v4, spotlight.place, spotlight.agents)
@@ -119,7 +135,9 @@ export async function runScene(world: WorldState, execution: WorldExecution, sea
     corrections = issues.join('\n').slice(0, 1500)
     console.warn('[world-v4] GM result rejected', attempt, corrections.slice(0, 400))
   }
-  // Unusable twice: publish nothing, but rotate the spotlight so one bad scene can't stall the world.
+  // Unusable twice: publish nothing, but rotate the spotlight so one bad scene can't stall the
+  // world — including releasing a fight the GM could not adjudicate.
   for (const a of spotlight.agents) v4.lastSceneMinute[a.id] = world.engine!.minute
+  if (ctx.standoff) delete v4.standoff
   return null
 }

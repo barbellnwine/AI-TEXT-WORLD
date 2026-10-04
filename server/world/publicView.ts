@@ -26,6 +26,8 @@ export function toPublicWorld(world: WorldState): WorldState {
   const visible = new Set(places.map(p => p.id))
   return { ...world, places: places.map(p => ({ ...p, connectedPlaceIds: p.connectedPlaceIds.filter(id => visible.has(id)) })), agents: world.agents.map(toPublicAgent),
     engine: world.engine ? { ...world.engine, decisions: undefined, interactions: undefined, outcomes: undefined, studio: undefined, truths: [], behavior: undefined, combatAlerts: undefined, v4: undefined,
+      zones: world.engine.v4?.director.closures.map(c => ({ placeId: c.placeId, effectiveMinute: c.effectiveMinute, closed: c.effectiveMinute <= world.engine!.minute })) ?? [],
+      fighting: world.engine.v4?.standoff?.ids ?? [],
       connections: world.engine.connections.filter(c => visible.has(c.fromPlaceId) && visible.has(c.toPlaceId)).map(c => ({ ...c, requirements: '' })),
       objects: world.engine.objects.filter(o => o.location.kind === 'place' && visible.has(o.location.id)),
       ongoingActions: world.engine.ongoingActions.map(a => ({ ...a, adjudication:undefined, proposal: { actorId: a.proposal.actorId, actionType: a.proposal.actionType,

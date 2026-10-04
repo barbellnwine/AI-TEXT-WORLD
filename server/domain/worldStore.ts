@@ -47,6 +47,8 @@ import { applyStateChanges } from '../world/stateTransition.ts'
 import { eraseWorldDesign } from './worldDrafts.ts'
 import { runScene } from '../world/v4/sceneEngine.ts'
 import { runDirector, ensureV4State } from '../world/v4/director.ts'
+import { ensureGeo } from '../world/geo/geoBuild.ts'
+import { matchesIslandMap } from '../world/geo/islandMap.ts'
 import { advanceSpace } from '../world/v4/spatialTick.ts'
 
 const DEFAULT_TICK_MS = 5_000
@@ -147,6 +149,9 @@ export function initializeWorldRuntime(db: DatabaseSync, adapter: WorldModelAdap
     delete (state as State & { recentActions?: unknown; nextAgentIndex?: unknown }).recentActions
     delete (state as State & { nextAgentIndex?: unknown }).nextAgentIndex
     if (state.execution) initializeEngine(state.worldState, state.execution.draft)
+    // A season played on a painted map gets its ground the moment the server comes back, so the
+    // map, the scattered starting positions and every distance exist before the first tick.
+    if (state.execution && matchesIslandMap(state.worldState.places)) ensureGeo(state.worldState, state.execution.draft)
     revision++
     state.runtime.lockHolder = null
     state.runtime.lockExpiresAt = null

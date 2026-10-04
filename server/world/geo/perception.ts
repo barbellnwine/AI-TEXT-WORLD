@@ -10,9 +10,9 @@ export const LOUD_HEARING_METERS = 120
 // Close enough to talk, hand things over or strike.
 export const CONTACT_METERS = 6
 
-const TERRAIN_SIGHT: Record<Terrain, number> = { GRASS: 1, FOREST: 0.45, BEACH: 1.15, ROCK: 1.25, CLIFF: 1.4, WATER: 1.2, RIVER: 1, RUINS: 0.7, URBAN: 0.6 }
+const TERRAIN_SIGHT: Record<Terrain, number> = { GRASS: 1, FOREST: 0.45, BEACH: 1.15, ROCK: 1.25, CANYON: 0.5, CLIFF: 1.4, WATER: 1.2, RIVER: 1, RUINS: 0.7, URBAN: 0.6 }
 // How well the terrain around a target hides them from someone looking in.
-const TERRAIN_COVER: Record<Terrain, number> = { GRASS: 1, FOREST: 0.7, BEACH: 1, ROCK: 0.85, CLIFF: 0.9, WATER: 1, RIVER: 1, RUINS: 0.75, URBAN: 0.8 }
+const TERRAIN_COVER: Record<Terrain, number> = { GRASS: 1, FOREST: 0.7, BEACH: 1, ROCK: 0.85, CANYON: 0.65, CLIFF: 0.9, WATER: 1, RIVER: 1, RUINS: 0.75, URBAN: 0.8 }
 
 export function sightRange(world: WorldState, geo: WorldGeo, at: GeoPoint): number {
   const light = { lateNight: 0.4, night: 0.4, dawn: 0.75, evening: 0.75, morning: 1, afternoon: 1 }[world.clock.timeOfDay] ?? 1

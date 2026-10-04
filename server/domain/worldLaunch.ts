@@ -4,6 +4,8 @@
 // (section 47: Builder produces INITIAL WORLD DATA, WORLD ENGINE runs the world).
 import type { DatabaseSync } from 'node:sqlite'
 import { randomUUID } from 'node:crypto'
+import { ensureGeo } from '../world/geo/geoBuild.ts'
+import { matchesIslandMap } from '../world/geo/islandMap.ts'
 import type { Agent, Place, Relationship, RelationshipStance, Resource, Season, WorldClock, WorldEvent, WorldState, WorldTimeOfDay } from './worldTypes.ts'
 import type { DraftDTO } from './worldDrafts.ts'
 import { getRulePreset } from './rulePresets.ts'
@@ -120,6 +122,9 @@ export function startWorldFromDraft(db: DatabaseSync, draft: DraftDTO): LaunchRe
     updatedAt: nowIso,
   }
   initializeEngine(worldState, draft)
+  // A world played on a painted map is laid out the moment it starts: the ground exists, and the
+  // cast is already scattered across it before the first tick (and before anyone opens the map).
+  if (matchesIslandMap(places)) ensureGeo(worldState, draft)
 
   const initialEvent: WorldEvent = {
     id: randomUUID(),

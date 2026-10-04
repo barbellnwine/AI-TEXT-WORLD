@@ -5,9 +5,31 @@ import type { WorldEvent, WorldState } from '../../domain/worldTypes.ts'
 import type { WorldExecution } from '../../domain/worldAgent.ts'
 import type { V4State } from './sceneTypes.ts'
 import { hurtAgent } from './mortality.ts'
+import type { WorldObject } from '../engineTypes.ts'
+import { dropPoint } from '../geo/geoBuild.ts'
 
 const DIRECTOR_INTERVAL = 120
-const ZONE_WARNING_MINUTES = 120
+// The island is told twelve hours before a zone turns on it — long enough to be a plan, not a jump.
+const ZONE_WARNING_MINUTES = 720
+
+// The only things that ever fall from the sky, each landing at a real coordinate.
+const SUPPLIES: Array<{ name: string; kind: WorldObject['kind']; physical?: WorldObject['physical'] }> = [
+  { name: '비상식량 상자', kind: 'food' },
+  { name: '밀봉 식수통', kind: 'water' },
+  { name: '구급 의약품 꾸러미', kind: 'medicine' },
+  { name: '반자동 소총', kind: 'tool', physical: { material: 'metal', edge: 'blunt', portable: true, attackPower: 8, cover: 0 } },
+  { name: '소총 탄약 상자', kind: 'item' },
+  { name: '사냥용 칼', kind: 'tool', physical: { material: 'metal', edge: 'sharp', portable: true, attackPower: 3, cover: 0 } },
+  { name: '방탄 조끼', kind: 'item', physical: { material: 'kevlar', portable: true, attackPower: 0, cover: 3 } },
+]
+
+// A last-survivor world that has gone a day without a death has stalled. The director stops
+// waiting for the characters to do it and starts taking the island away from them: zones close
+// sooner, more often, and staying in one hurts more.
+export function deathPressure(v4: V4State, minute: number): 0 | 1 | 2 {
+  const since = minute - (v4.director.lastDeathMinute ?? minute)
+  return since >= 2880 ? 2 : since >= 1440 ? 1 : 0
+}
 
 export function isLastSurvivorWorld(world: WorldState, execution: WorldExecution): boolean {
   if (world.engine?.studio?.config.endings.some(e => e.type === 'survivors' && e.value === 1)) return true
@@ -44,6 +66,11 @@ export function runDirector(world: WorldState, execution: WorldExecution): World
   const v4 = ensureV4State(world, execution), engine = world.engine!, events: WorldEvent[] = []
   if (!v4.director.enabled) return events
   const minute = engine.minute
+  // Every death counts, whoever or whatever caused it: a scene, a closing zone, or thirst.
+  const dead = world.agents.filter(a => a.publicState.status === 'deceased').length
+  v4.director.lastDeathMinute ??= minute
+  if (dead > (v4.director.deadCount ?? 0)) { v4.director.deadCount = dead; v4.director.lastDeathMinute = minute }
+  const pressure = deathPressure(v4, minute)
   // Zone warnings become closures; anyone still inside is hurt once per world hour.
   for (const closure of v4.director.closures) {
     if (closure.effectiveMinute > minute) continue
@@ -60,7 +87,7 @@ export function runDirector(world: WorldState, execution: WorldExecution): World
       for (const agent of world.agents.filter(a => a.publicState.locationId === place.id && a.publicState.status !== 'deceased')) {
         const changes: WorldEvent['stateChanges'] = []
         // Staying in a closed zone is survivable for a while, then lethal.
-        if (hurtAgent(world, agent, 2, changes)) {
+        if (hurtAgent(world, agent, 2 + pressure, changes)) {
           const text = `${agent.name}은(는) 위험 구역이 된 ${place.name}을(를) 끝내 벗어나지 못하고 숨을 거두었다.`
           announce(world, v4, text, 'ZONE_CLOSED')
           events.push(systemEvent(world, 'director:zone_death', place.id, `${agent.name} 사망`, text, 'critical', [agent.id], changes))
@@ -72,29 +99,28 @@ export function runDirector(world: WorldState, execution: WorldExecution): World
     }
   }
   if (minute < v4.director.nextEventMinute) return events
-  v4.director.nextEventMinute = minute + DIRECTOR_INTERVAL
+  v4.director.nextEventMinute = minute + Math.round(DIRECTOR_INTERVAL / (1 + pressure))
   const closed = closedPlaceIds(v4, minute), warned = new Set(v4.director.closures.map(c => c.placeId))
   const open = world.places.filter(p => !closed.has(p.id) && !warned.has(p.id) && p.accessible !== false)
   if (!open.length) return events
   const pick = <T,>(items: T[], salt: number) => items[(Math.floor(minute / 60) + salt * 7) % items.length]
-  const closing = v4.director.dropCount > 0 && v4.director.dropCount % 2 === 1 && open.length > 2
+  // Under pressure every director beat is a closure: the map itself does the squeezing.
+  const closing = v4.director.dropCount > 0 && (pressure >= 1 || v4.director.dropCount % 2 === 1) && open.length > 2
   if (closing) {
     // Close the open place with the fewest people so the zone squeezes survivors together.
     const people = (id: string) => world.agents.filter(a => a.publicState.locationId === id && a.publicState.status !== 'deceased').length
     const target = [...open].sort((a, b) => people(a.id) - people(b.id) || a.connectedPlaceIds.length - b.connectedPlaceIds.length)[0]
     v4.director.closures.push({ placeId: target.id, effectiveMinute: minute + ZONE_WARNING_MINUTES, lastDamageMinute: -1 })
-    const text = `섬 전체에 안내 방송이 울렸다. "한 시간 뒤 ${target.name}은(는) 위험 구역이 된다. 그곳에 있는 사람은 떠나라."`
+    const text = `섬 전체에 안내 방송이 울렸다. "${Math.round(ZONE_WARNING_MINUTES / 60)}시간 뒤 ${target.name}은(는) 폐쇄된다. 그곳에 있는 사람은 떠나라." 모두의 GPS에 그 구역이 붉게 표시되었다.`
     announce(world, v4, text, 'ZONE_WARNING')
     events.push(systemEvent(world, 'director:zone_warning', target.id, `${target.name} 폐쇄 예고`, text, 'high'))
   } else {
     const target = pick(open, v4.director.dropCount)
-    const supplies: Array<{ name: string; kind: 'food' | 'water' | 'medicine' | 'tool' }> = [
-      { name: '밀봉된 생수병', kind: 'water' }, { name: '비상식량 한 봉', kind: 'food' },
-      v4.director.dropCount % 2 === 0 ? { name: '붕대와 소독약', kind: 'medicine' } : { name: '사냥용 칼', kind: 'tool' },
-    ]
-    for (const s of supplies) engine.objects.push({ id: `drop-${randomUUID()}`, name: s.name, kind: s.kind, quantity: 1, condition: 'intact',
-      location: { kind: 'place', id: target.id }, ...(s.kind === 'tool' ? { physical: { material: 'metal', edge: 'sharp' as const, portable: true, attackPower: 3, cover: 0 } } : {}) })
-    const text = `낙하산을 단 보급 상자가 ${target.name} 쪽으로 떨어졌다. 섬 어디서든 그 낙하산이 보였다.`
+    const at = dropPoint(engine.geo!, target.id, `drop:${v4.director.dropCount}:${minute}`)
+    const chosen = [0, 1, 2].map(n => SUPPLIES[(v4.director.dropCount * 3 + n) % SUPPLIES.length])
+    for (const s of chosen) engine.objects.push({ id: `drop-${randomUUID()}`, name: s.name, kind: s.kind, quantity: 1, condition: 'intact',
+      location: { kind: 'place', id: target.id }, coord: at, ...(s.physical ? { physical: s.physical } : {}) })
+    const text = `낙하산을 단 보급 상자가 ${target.name} 일대에 떨어졌다. 섬 어디서든 그 낙하산이 보였고, 모두의 GPS에 투하 지점이 찍혔다. 안에는 ${chosen.map(s => s.name).join(', ')}이(가) 들어 있다.`
     announce(world, v4, text, 'SUPPLY_DROP')
     events.push(systemEvent(world, 'director:supply_drop', target.id, `${target.name} 보급 투하`, text, 'high'))
   }

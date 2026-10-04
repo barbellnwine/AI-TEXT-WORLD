@@ -200,6 +200,10 @@ export interface WorldState {
   engine?: {
     minute: number
     geo?: import('../../server/world/geo/geoTypes').WorldGeo
+    // Public map overlays: dropped supplies, closing ground, and who is mid-fight.
+    objects?: Array<{ id: string; name: string; kind: string; quantity: number; condition: string; location: { kind: string; id: string }; coord?: import('../../server/world/geo/geoTypes').GeoPoint }>
+    zones?: Array<{ placeId: string; effectiveMinute: number; closed: boolean }>
+    fighting?: string[]
     connections: Array<{ fromPlaceId: string; toPlaceId: string; travelMinutes: number; blocked: boolean }>
     ongoingActions: Array<{ id: string; startedMinute: number; completesMinute: number; proposal: { actorId: string; actionType: string; locationId: string; destinationId?: string; areaHint?: string; searchPoint?:{x:number;y:number} } }>
   }
