@@ -14,6 +14,13 @@ test('public world panels work on desktop and mobile without overflow', async ({
   await page.addInitScript(() => localStorage.setItem('ai_world_locale', 'ko-KR'))
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
+  // The seeded season is shared with every other spec, and one of them may relaunch it — leaving a
+  // world that is running but has no story yet. These assertions are about the panels, not about
+  // which records the server happens to hold, so the feed and the timeline are given their own.
+  const record = (i: number) => ({ id: `panel-${i}`, type: 'OBSERVATION', occurredAt: new Date(2026, 0, 1, 0, i).toISOString(),
+    day: 1, worldMinute: i, worldTime: `09:${String(i).padStart(2, '0')}`, placeId: 'panel-place', agentIds: [], title: `Panel ${i}`,
+    summary: `Recorded action ${i}. This is an actual completed observation in the feed.`, stateChanges: [], relatedEventIds: [], importance: 'normal', phase: 'COMPLETED' })
+  await page.route('**/api/world/events?*', route => route.fulfill({ json: { items: Array.from({ length: 8 }, (_, i) => record(8 - i)), total: 8, hasMore: false } }))
   await page.goto('/')
   await expect(page.getByText('AI TEXT WORLD', { exact: true }).first()).toBeVisible()
   await expect(page.locator('.world-vitals-clock')).toContainText(/DAY \d+ · \d{2}:\d{2}/)
@@ -22,7 +29,7 @@ test('public world panels work on desktop and mobile without overflow', async ({
   await expect(page.locator('.world-vitals-counts')).toContainText('Active Locations')
   await expect(page.locator('.world-vitals-counts')).toContainText('Major Events')
   await expect(page.getByRole('tab', { name: 'LIVE', exact: true })).toHaveAttribute('aria-selected', 'true')
-  await expect(page.locator('.world-live-list li').first()).toBeVisible()
+  await expect(page.locator('.world-live-story article').first()).toBeVisible()
   await page.getByRole('tab', { name: 'TEXT', exact: true }).click()
   await expect(page.getByRole('tab', { name: 'TEXT', exact: true })).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('.reader-shell')).toBeVisible()
