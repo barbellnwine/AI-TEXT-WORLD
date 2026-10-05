@@ -843,15 +843,6 @@ body:has(.observatory), body:has(.world-welcome), body:has(.world-shell) { backg
 .map-place.is-selected .map-node-halo { fill: #9ac67920; stroke: #abd084; }
 .map-event { fill: #d1b580; }
 .map-caption { font-size: 9px; color: #8b9b82; margin-top: 8px; text-align: center; }
-.observatory-resource { margin-top: 19px; }
-.observatory-resource > div { display: flex; justify-content: space-between; font-size: 11px; color: #b3c0aa; }
-.observatory-resource small { display: block; font-size: 9px; color: #72866b; margin-top: 3px; }
-.observatory-resource strong { font: 12px Consolas, monospace; }
-.observatory-resource strong span { margin-left: 6px; color: #929d7b; }
-.observatory-resource meter { display: block; width: 100%; height: 5px; margin-top: 8px; background: #283326; border: 0; }
-.observatory-resource meter::-webkit-meter-bar { background: #283326; border: 0; }
-.observatory-resource meter::-webkit-meter-optimum-value { background: #94a876; }
-.observatory-resource meter::-moz-meter-bar { background: #94a876; }
 .observatory-events { grid-column: 1; padding: 25px 28px; border: 1px solid var(--world-line); border-radius: 7px; background: #111a16; }
 .observatory-events ol { list-style: none; padding: 15px 0 0; }
 .observatory-events li button { display: flex; align-items: center; text-align: left; background: transparent; color: #bdc8b6; gap: 15px; width: 100%; padding: 16px 0; border-bottom: 1px solid #253026; }
@@ -931,7 +922,6 @@ body:has(.observatory), body:has(.world-welcome), body:has(.world-shell) { backg
  .observatory-grid:not([data-tab=events]) .observatory-events,
  .observatory-grid[data-tab=events] .observatory-sidebar,
  .observatory-grid[data-tab=characters] .observatory-map,
- .observatory-grid[data-tab=characters] .observatory-resources,
  .observatory-grid[data-tab=map] .observatory-characters { display: none; }
  .observatory-people { max-height: none; }
  .world-minimap { max-width: 430px; margin-left: auto; margin-right: auto; }
@@ -1050,9 +1040,6 @@ body:has(.observatory), body:has(.world-welcome), body:has(.world-shell), body:h
 .observatory-person { border-color: #202a3b; color: #d6dde8; }
 .observatory-person:hover, .observatory-person[aria-pressed=true] { background: #67c6bd0a; }
 .observatory-person-status, .status-alive { color: #72c995; }
-.observatory-resource meter::-webkit-meter-bar { background: #1b2535; }
-.observatory-resource meter::-webkit-meter-optimum-value { background: #67c6bd; }
-.observatory-resource meter::-moz-meter-bar { background: #67c6bd; }
 .island-minimap { background: radial-gradient(ellipse at 50% 48%, #142936, #0c1825 75%); border-color: #26384b; border-radius: 3px; }
 .island-coast { stroke: #6aa9a5; }
 .island-contours { stroke: #6f94a4; }
