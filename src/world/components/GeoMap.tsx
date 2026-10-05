@@ -12,6 +12,8 @@ const TERRAIN_LABEL: Record<Terrain, string> = { GRASS: '풀밭', FOREST: '숲',
 // arrive in steps; the eye should see one continuous walk, never a teleport.
 const GLIDE_MS = 1100
 const TRAIL_POINTS = 8
+// How long the camera takes to travel to the person you just picked from the character list.
+const PAN_MS = 520
 
 function terrainAt(geo: WorldGeo, p: GeoPoint): Terrain {
   const col = Math.min(geo.cols - 1, Math.max(0, Math.floor(p.x / geo.cellMeters)))
@@ -100,8 +102,16 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
   const geo = state.engine!.geo!
   const W = geo.widthMeters, H = geo.heightMeters, minute = state.engine!.minute
   const [view, setView] = useState({ x: 0, y: 0, w: W })
+  // The live viewport, readable from an animation frame without restarting it on every repaint.
+  const viewRef = useRef(view)
+  viewRef.current = view
   const [large, setLarge] = useState(false)
   const box = useRef<HTMLDivElement>(null)
+  // The camera ride to a newly picked character. It yields the moment the viewer touches the map
+  // themselves, so a drag, a wheel or a zoom button is never fought by a running animation.
+  const panFrame = useRef(0)
+  const stopAutoPan = () => cancelAnimationFrame(panFrame.current)
+  const reducedMotion = typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
   const runs = useMemo(() => geo.image ? [] : terrainRuns(geo), [geo.image, geo.cells, geo.cols, geo.rows, geo.cellMeters])
   const placeName = (id: string | null | undefined) => state.places.find(p => p.id === id)?.name ?? ''
   const agents = state.agents.filter(a => a.publicState.coord)
@@ -154,16 +164,20 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
     const w = Math.min(W, Math.max(150, v.w)), vh = w * H / W
     return { w, x: Math.min(W - w, Math.max(0, v.x)), y: Math.min(H - vh, Math.max(0, v.y)) }
   }
-  const zoom = (factor: number, at?: GeoPoint) => setView(v => {
-    const c = at ?? { x: v.x + v.w / 2, y: v.y + v.w * H / W / 2 }, w = v.w * factor
-    return clampView({ w, x: c.x - (c.x - v.x) * factor, y: c.y - (c.y - v.y) * factor })
-  })
+  const zoom = (factor: number, at?: GeoPoint) => {
+    stopAutoPan()
+    setView(v => {
+      const c = at ?? { x: v.x + v.w / 2, y: v.y + v.w * H / W / 2 }, w = v.w * factor
+      return clampView({ w, x: c.x - (c.x - v.x) * factor, y: c.y - (c.y - v.y) * factor })
+    })
+  }
   // Wheel zoom around the cursor (a non-passive listener so the page doesn't scroll instead).
   useEffect(() => {
     const el = box.current
     if (!el) return
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
+      stopAutoPan()
       const r = el.getBoundingClientRect()
       setView(v => {
         const at = { x: v.x + (e.clientX - r.left) / r.width * v.w, y: v.y + (e.clientY - r.top) / r.height * v.w * H / W }
@@ -179,6 +193,7 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
     // Dragging the map must not start on something you meant to press: capturing the pointer here
     // would swallow the button's own click.
     if (!el || (down.target instanceof Element && down.target.closest('.geo-agent, .geo-map-controls'))) return
+    stopAutoPan()
     const r = el.getBoundingClientRect(), start = { ...view }, sx = down.clientX, sy = down.clientY
     el.setPointerCapture(down.pointerId)
     const onMove = (m: PointerEvent) => setView(clampView({ w: start.w, x: start.x - (m.clientX - sx) / r.width * start.w, y: start.y - (m.clientY - sy) / r.height * start.w * H / W }))
@@ -187,6 +202,35 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
     el.addEventListener('pointerup', onUp)
   }
   const focus = (p: GeoPoint) => setView(clampView({ w: 500, x: p.x - 250, y: p.y - 250 * H / W }))
+
+  // Picking someone in the character list brings the camera to them. The target is the agent's
+  // engine coord, so the camera lands exactly where the marker is drawn, and only the centre moves:
+  // view.w is read live from state every frame, so the zoom the viewer set is carried through
+  // untouched and clampView keeps the viewport inside the island at all times.
+  const focusCoord = selected?.publicState.coord
+  // Keyed on the id alone: the camera travels when the selection changes, not on every tick the
+  // selected person walks a metre — following them continuously would fight the viewer's own drag.
+  const focusKey = focusCoord ? selectedAgentId : null
+  useEffect(() => {
+    if (!focusKey || !focusCoord) return
+    const from = viewRef.current
+    const fromCentre = { x: from.x + from.w / 2, y: from.y + from.w * H / W / 2 }
+    const centre = (c: GeoPoint, w: number) => clampView({ w, x: c.x - w / 2, y: c.y - w * H / W / 2 })
+    // Already in the middle of the view: nothing to animate.
+    if (Math.hypot(fromCentre.x - focusCoord.x, fromCentre.y - focusCoord.y) < 1) return
+    if (reducedMotion) { setView(v => centre(focusCoord, v.w)); return }
+    const start = performance.now()
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / PAN_MS)
+      const ease = t * t * (3 - 2 * t)
+      setView(v => centre({ x: fromCentre.x + (focusCoord.x - fromCentre.x) * ease, y: fromCentre.y + (focusCoord.y - fromCentre.y) * ease }, v.w))
+      if (t < 1) panFrame.current = requestAnimationFrame(step)
+    }
+    stopAutoPan()
+    panFrame.current = requestAnimationFrame(step)
+    return stopAutoPan
+  }, [focusKey])
+  useEffect(() => stopAutoPan, [])
   const remaining = (a: typeof agents[number]) => {
     const t = a.publicState.travel
     if (!t) return null

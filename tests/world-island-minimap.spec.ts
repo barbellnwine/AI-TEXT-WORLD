@@ -12,12 +12,15 @@ test('the island minimap draws the painted map and keeps markers on simulation c
     ...world.places[0], id: `island-${i}`, name: p.name, description: p.name, currentAgentIds: [], resources: [], isDiscovered: true,
   }))
   world.places = places
-  world.agents = world.agents.slice(0, 2)
-  const [walker, other] = world.agents
-  walker.publicState.locationId = places[5].id
-  other.publicState.locationId = places[6].id
-  walker.publicState.coord = { x: 1400, y: 900 }
-  other.publicState.coord = { x: 1800, y: 900 }
+  // Two named people placed by hand: the running season's own cast can be relaunched by another
+  // spec, and this test is about coordinates, not about who happens to be alive on the server.
+  const person = (id: string, name: string, place: string, coord: { x: number; y: number }) => ({
+    ...world.agents[0], id, name, relationships: [], inventory: [], journal: [], movementLog: [],
+    publicState: { ...world.agents[0].publicState, status: 'alive', locationId: place, coord, travel: null },
+  })
+  const walker = person('island-walker', '걷는이', places[5].id, { x: 1400, y: 900 })
+  const other = person('island-other', '다른이', places[6].id, { x: 1800, y: 900 })
+  world.agents = [walker, other]
   // The same geography the server builds: the generated mask, the painted picture, real regions.
   world.engine = {
     minute: 600,
