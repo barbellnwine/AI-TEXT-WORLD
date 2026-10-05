@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import type { WorldState } from '../types'
+import type { ChronicleEntry, WorldState } from '../types'
+import { combatMark, type CombatMark } from '../combatMarks'
+import { Icon, ICON_PATHS } from '../../components/Icon'
 import { TERRAIN_BY_CODE, type GeoPoint, type Terrain, type WorldGeo } from '../../../server/world/geo/geoTypes'
 
 // The map IS the simulation. SVG user units are simulation metres and the painted island fills
@@ -14,6 +16,19 @@ const GLIDE_MS = 1100
 const TRAIL_POINTS = 8
 // How long the camera takes to travel to the person you just picked from the character list.
 const PAN_MS = 520
+
+// A body and an open wound read the same wherever a character is named: on the map, in the panel,
+// and in the character list. Driven by the engine's own status, never by a fresh judgement.
+export function statusIcon(status: string): 'skull' | 'blood' | null {
+  return status === 'deceased' ? 'skull' : status === 'injured' ? 'blood' : null
+}
+
+// One of those glyphs drawn into the map's own metres, centred on (0,0) of the enclosing group.
+function MapGlyph({ name, size, className }: { name: keyof typeof ICON_PATHS; size: number; className: string }) {
+  return <g className={className} transform={`scale(${size / 24}) translate(-12 -12)`}>
+    <path d={ICON_PATHS[name]} vectorEffect="non-scaling-stroke" />
+  </g>
+}
 
 function terrainAt(geo: WorldGeo, p: GeoPoint): Terrain {
   const col = Math.min(geo.cols - 1, Math.max(0, Math.floor(p.x / geo.cellMeters)))
@@ -98,7 +113,7 @@ function useGlidingPositions(targets: Array<{ id: string; coord: GeoPoint }>): M
 
 const SUPPLY_LABEL: Record<string, string> = { food: '식량', water: '식수', medicine: '의약품', tool: '장비', item: '보급품', fuel: '연료' }
 
-export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: WorldState; selectedAgentId: string | null; onSelectAgent: (id: string | null) => void }) {
+export function GeoMap({ state, selectedAgentId, onSelectAgent, scene }: { state: WorldState; selectedAgentId: string | null; onSelectAgent: (id: string | null) => void; scene?: ChronicleEntry | null }) {
   const geo = state.engine!.geo!
   const W = geo.widthMeters, H = geo.heightMeters, minute = state.engine!.minute
   const [view, setView] = useState({ x: 0, y: 0, w: W })
@@ -124,6 +139,12 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
   const closeness = Math.min(1, Math.max(0, (1 - view.w / W) * 1.6))
   const close = view.w < W * 0.62
   const mark = close ? 1.5 : 1
+
+  // Where this LIVE scene's fight happened, fixed the moment the scene arrives: the people who
+  // fought walk on afterwards, and the mark has to stay on the ground where it happened. Keyed on
+  // the scene id alone, so it lives exactly as long as the scene does — a new scene recomputes it
+  // (to nothing, when that scene held no fight) and nothing else can expire it.
+  const combat: CombatMark | null = useMemo(() => scene ? combatMark(scene, state.agents, geo) : null, [scene?.id])
 
   const zones = state.engine?.zones ?? []
   const fighting = new Set(state.engine?.fighting ?? [])
@@ -273,6 +294,21 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
           <line x1={o.coord!.x - unit * 3} y1={o.coord!.y} x2={o.coord!.x + unit * 3} y2={o.coord!.y} strokeWidth={unit * 0.8} />
         </g>)}
 
+        {/* Where this scene's fight happened. Gunfire carries the translucent report; a close-quarters
+            fight is the blade alone. The icon rides above the spot so it never covers a marker. */}
+        {combat && <g className={`geo-combat geo-combat-${combat.kind}`} role="img"
+          aria-label={combat.kind === 'gunfire' ? '이 장면의 총격 지점' : '이 장면의 근접전 지점'}
+          transform={`translate(${combat.coord.x} ${combat.coord.y})`}>
+          <title>{combat.kind === 'gunfire' ? '총격' : '근접전'}</title>
+          {combat.kind === 'gunfire' && <>
+            <circle className="geo-combat-blast" r={unit * 30} />
+            <circle className="geo-combat-ring" r={unit * 30} strokeWidth={unit * 1.2} />
+          </>}
+          <g transform={`translate(0 ${-unit * 15})`}>
+            <MapGlyph name={combat.kind === 'gunfire' ? 'gun' : 'blade'} size={unit * 22} className="geo-combat-icon" />
+          </g>
+        </g>}
+
         {living.map(a => {
           const path = remaining(a)
           return path && (a.id === selectedAgentId || !selectedAgentId) ? <g key={`trip-${a.id}`} className="geo-trip">
@@ -297,6 +333,7 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
           // A name tag only earns its space up close, or when it is the person being followed.
           const named = picked || close
           const font = unit * (picked ? 13 : 11) * mark
+          const status = statusIcon(a.publicState.status)
           const tag = { w: a.name.length * font * 1.06 + font * 0.9, h: font * 1.5, top: dot + unit * 2 * mark }
           return <g key={a.id} className={`geo-agent${picked ? ' is-selected' : ''}${a.publicState.status === 'deceased' ? ' is-dead' : ''}${fighting.has(a.id) ? ' is-fighting' : ''}`}
             transform={`translate(${p.x} ${p.y})`} role="button" tabIndex={0} aria-label={a.name} aria-pressed={picked}
@@ -308,6 +345,9 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
             {angle !== null && a.publicState.status !== 'deceased' &&
               <polygon className="geo-agent-heading" points={`${dot},0 ${dot * 2.2},${dot * 0.62} ${dot * 2.2},${-dot * 0.62}`} transform={`rotate(${angle})`} />}
             <circle r={dot} className="geo-agent-dot" strokeWidth={unit * 1.4 * mark} />
+            {status && <g transform={`translate(${dot * 1.9} ${-dot * 1.6})`}>
+              <MapGlyph name={status} size={unit * 13 * mark} className={`geo-agent-status is-${status}`} />
+            </g>}
             {named && <g className="geo-agent-name">
               <rect x={-tag.w / 2} y={tag.top} width={tag.w} height={tag.h} rx={tag.h * 0.35} strokeWidth={unit * 0.5} />
               <text y={tag.top + font * 1.1} fontSize={font} textAnchor="middle" strokeWidth={unit * 0.9}>{a.name}</text>
@@ -324,7 +364,7 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent }: { state: World
       {selectedAgentId && <button type="button" onClick={() => onSelectAgent(null)}>선택 해제</button>}
     </div>
     {selected && <dl className="geo-agent-info">
-      <div><dt>이름</dt><dd>{selected.name}{selected.publicState.status === 'deceased' ? ' (사망)' : fighting.has(selected.id) ? ' · 교전 중' : ''}</dd></div>
+      <div><dt>이름</dt><dd>{selected.name}{(() => { const s = statusIcon(selected.publicState.status); return s ? <span className={`status-mark is-${s}`}><Icon name={s} size={13} /></span> : null })()}{selected.publicState.status === 'deceased' ? ' (사망)' : selected.publicState.status === 'injured' ? ' (부상)' : ''}{fighting.has(selected.id) && selected.publicState.status !== 'deceased' ? ' · 교전 중' : ''}</dd></div>
       <div><dt>좌표</dt><dd>X {Math.round(selected.publicState.coord!.x)}m · Y {Math.round(selected.publicState.coord!.y)}m</dd></div>
       <div><dt>위치</dt><dd>{placeName(selected.publicState.locationId)} · {TERRAIN_LABEL[terrainAt(geo, selected.publicState.coord!)]}</dd></div>
       <div><dt>이동</dt><dd>{selected.publicState.travel ? `${placeName(selected.publicState.travel.destinationPlaceId) || '목적지'}(으)로 이동 중 · 약 ${Math.max(0, selected.publicState.travel.arriveMinute - minute)}분 남음` : '멈춰 있음'}</dd></div>

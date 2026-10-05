@@ -1135,6 +1135,25 @@ body:has(.observatory), body:has(.world-welcome), body:has(.world-shell), body:h
 .geo-zone.is-closed rect { fill: #d6303033; stroke: #ef5b5b88; stroke-width: 2px; }
 .geo-zone-label { fill: #ffd9a8; font-weight: 700; paint-order: stroke; stroke: #1a0d06; stroke-width: 3px; pointer-events: none; }
 .geo-zone.is-closed .geo-zone-label { fill: #ffc4c4; }
+/* Where this scene's fight happened. Gunfire reports as a translucent red bloom; a close-quarters
+   fight is the blade alone, with nothing drawn around it. */
+.geo-combat { pointer-events: none; }
+.geo-combat-blast { fill: #e0493a; fill-opacity: .17; }
+.geo-combat-ring { fill: none; stroke: #e0493a; stroke-opacity: .5; }
+/* An emoji font draws these in colour and ignores the fill; where one is missing the glyph falls
+   back to a single colour, so it is given the light fill and dark halo the map's own labels use. */
+.geo-combat-icon path { fill: none; stroke: #fff; stroke-width: 1.9px; stroke-linecap: round; stroke-linejoin: round; paint-order: stroke; }
+.geo-combat-gunfire .geo-combat-icon path { stroke: #ffd9d2; }
+/* A body and an open wound, drawn beside the marker so neither hides the other. */
+.geo-agent-status path { fill: none; stroke-width: 2.2px; stroke-linecap: round; stroke-linejoin: round; }
+.geo-agent-status.is-skull path { stroke: #e7e2de; }
+.geo-agent-status.is-blood path { stroke: #ef6a5e; }
+.status-mark { display: inline-flex; vertical-align: -2px; margin-left: 5px; }
+.status-mark.is-skull { color: #c9c2bb; }
+.status-mark.is-blood { color: #e0574b; }
+@media (prefers-reduced-motion: no-preference) { .geo-combat-ring { animation: geo-combat-pulse 2.4s ease-out infinite; } }
+@keyframes geo-combat-pulse { 0% { stroke-opacity: .55; } 50% { stroke-opacity: .16; } 100% { stroke-opacity: .55; } }
+
 .geo-supply rect { fill: #ffd98a; stroke: #4a3209; }
 .geo-supply line { stroke: #4a3209; }
 .geo-trail { fill: none; stroke: #f5f7f5; stroke-opacity: .45; stroke-linecap: round; }

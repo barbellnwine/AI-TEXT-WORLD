@@ -1,6 +1,6 @@
 ﻿import { useEffect, useId, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import type { WorldState } from '../types'
+import type { ChronicleEntry, WorldState } from '../types'
 import { useWorldExperience } from '../i18n'
 import { GeoMap } from './GeoMap'
 
@@ -12,8 +12,12 @@ export function WorldMiniMap(props: {
   state: WorldState
   selectedAgentId: string | null
   onSelectAgent: (id: string | null) => void
+  // The LIVE scene being read right now. The real map marks where its fight happened; the
+  // schematic one has no simulation coordinates to mark, so it ignores this.
+  scene?: ChronicleEntry | null
 }) {
-  return props.state.engine?.geo ? <GeoMap {...props} /> : <NodeMiniMap {...props} />
+  const { scene: _scene, ...node } = props
+  return props.state.engine?.geo ? <GeoMap {...props} /> : <NodeMiniMap {...node} />
 }
 
 function NodeMiniMap({ state, selectedAgentId, onSelectAgent }: {
