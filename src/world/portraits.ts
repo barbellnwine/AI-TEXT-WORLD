@@ -9,7 +9,9 @@ export type Portrait = typeof PORTRAITS[number]
 
 // First match wins, so the more particular trades are listed before the broader ones.
 const BY_TRADE: Array<[RegExp, Portrait]> = [
-  [/간호|의사|의료|응급|구급|약사|수의사|위생병|군의/, 'medic'],
+  // The medical portrait is a figure in a gown in a ward, so it stands for the people a hospital
+  // holds as readily as the ones it employs — including someone who used to be the latter.
+  [/간호|의사|의료|응급|구급|약사|수의사|위생병|군의|사이코패스|정신|병동|환자|입원|요양/, 'medic'],
   [/조직폭력|조폭|야쿠자|건달|깡패|조직원|해결사/, 'gangster'],
   [/군인|부사관|장교|특전|해병|용병|경찰|경호|보안/, 'soldier'],
   [/사냥|엽사|가이드|레인저|산악|밀렵|어부|농부|벌목|측량/, 'hunter'],

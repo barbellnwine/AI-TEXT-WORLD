@@ -15,6 +15,14 @@ test('every character of the running season is given the portrait of their trade
   for (const [shortBio, expected] of SEASON) assert.equal(portraitNameFor({ shortBio }), expected, shortBio)
 })
 
+// shortBio is built as `occupation · personality` (server/domain/worldLaunch.ts), so the head this
+// reads is exactly the occupation field the studio holds — however that occupation is worded.
+test('the ward portrait covers both the staff and the held, by either wording', () => {
+  assert.equal(portraitNameFor({ shortBio: '응급실 간호사 출신 사이코패스 · 표정이 상황과 어긋난다.' }), 'medic')
+  assert.equal(portraitNameFor({ shortBio: '사이코패스 · 표정이 상황과 어긋난다.' }), 'medic')
+  assert.equal(portraitNameFor({ shortBio: '정신병동 입원 환자 · 조용하다.' }), 'medic')
+})
+
 test('an explicit avatarId outranks the guess from the bio', () => {
   assert.equal(portraitNameFor({ avatarId: 'gangster', shortBio: '응급실 간호사 · 침착하다.' }), 'gangster')
   // 'default' is what every character is launched with and names no picture, so the bio decides.
