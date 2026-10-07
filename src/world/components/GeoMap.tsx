@@ -3,6 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { ChronicleEntry, WorldState } from '../types'
 import { combatMark, type CombatMark } from '../combatMarks'
 import { Icon, ICON_PATHS } from '../../components/Icon'
+import { nightImageNeeded, nightLevelAt, TIME_OF_DAY_LABEL } from '../dayNight'
 import { TERRAIN_BY_CODE, type GeoPoint, type Terrain, type WorldGeo } from '../../../server/world/geo/geoTypes'
 
 // The map IS the simulation. SVG user units are simulation metres and the painted island fills
@@ -136,6 +137,7 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent, scene }: { state
   // size on screen at every zoom level. Closing in dims the painted map — its place names are part
   // of the picture and cannot be switched off — and grows the markers, so the people win the eye.
   const h = view.w * H / W, unit = view.w / 400
+  const night = nightLevelAt(minute)
   const closeness = Math.min(1, Math.max(0, (1 - view.w / W) * 1.6))
   const close = view.w < W * 0.62
   const mark = close ? 1.5 : 1
@@ -273,8 +275,16 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent, scene }: { state
         {geo.image
           ? <image href={geo.image} x={0} y={0} width={W} height={H} preserveAspectRatio="none" aria-hidden="true" />
           : <g aria-hidden="true">{runs.map((r, i) => <rect key={i} x={r.x} y={r.y} width={r.w + 0.5} height={geo.cellMeters + 0.5} className={`geo-t geo-t-${r.terrain}`} />)}</g>}
+        {/* The same ground painted at night, corner for corner. It is mounted before dusk so it is
+            already loaded when the fade starts, and carries the island's own place names, which is
+            why the app stops drawing its own as this one takes over. */}
+        {geo.nightImage && nightImageNeeded(minute) &&
+          <image className="geo-night" href={geo.nightImage} x={0} y={0} width={W} height={H}
+            preserveAspectRatio="none" opacity={night} aria-hidden="true" />}
         {/* The further in you look, the further back the artwork steps — including its own labels. */}
-        {geo.image && closeness > 0 && <rect className="geo-scrim" x={0} y={0} width={W} height={H} fillOpacity={closeness * 0.34} aria-hidden="true" />}
+        {/* Closing in pushes the artwork back so the people win the eye. At night the painting is
+            already dark, so the wash is eased off rather than stacked on top of it into mud. */}
+        {geo.image && closeness > 0 && <rect className="geo-scrim" x={0} y={0} width={W} height={H} fillOpacity={closeness * 0.34 * (1 - night * 0.6)} aria-hidden="true" />}
 
         {zoneAreas.map(z => <g key={z.placeId} className={`geo-zone${z.closed ? ' is-closed' : ' is-closing'}`} aria-hidden="true">
           {z.rects.map((r, i) => <rect key={i} x={r.x} y={r.y} width={r.w} height={geo.cellMeters} />)}
@@ -284,9 +294,9 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent, scene }: { state
           </text>
         </g>)}
 
-        {!close && spacedLabels.map(r => <text key={r.placeId} x={r.label?.x ?? r.center.x} y={r.label?.y ?? r.center.y}
+        {!close && night < 0.98 && <g opacity={1 - night}>{spacedLabels.map(r => <text key={r.placeId} x={r.label?.x ?? r.center.x} y={r.label?.y ?? r.center.y}
           className={`geo-region-label${r.kind === 'POI' ? ' is-poi' : ''}`} fontSize={unit * (r.kind === 'POI' ? 10 : 12)}
-          strokeWidth={unit * 1.1} textAnchor="middle">{placeName(r.placeId)}</text>)}
+          strokeWidth={unit * 1.1} textAnchor="middle">{placeName(r.placeId)}</text>)}</g>}
 
         {supplies.map(o => <g key={o.id} className="geo-supply">
           <title>{`${o.name} (${SUPPLY_LABEL[o.kind] ?? '보급품'})`}</title>
@@ -373,6 +383,6 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent, scene }: { state
     {zones.length > 0 && <p className="map-caption">
       {zones.map(z => z.closed ? `${placeName(z.placeId)} 폐쇄됨` : `${placeName(z.placeId)} ${Math.floor(closingIn(z) / 60)}시간 ${closingIn(z) % 60}분 후 폐쇄`).join(' · ')}
     </p>}
-    <p className="map-caption">{W}×{H}m · 시뮬레이션 좌표 그대로 표시 · 휠/버튼으로 확대, 드래그로 이동</p>
+    <p className="map-caption">DAY {state.clock.day} · {state.clock.time} · {TIME_OF_DAY_LABEL[state.clock.timeOfDay] ?? state.clock.timeOfDay} · {W}×{H}m · 휠/버튼으로 확대, 드래그로 이동</p>
   </>
 }

@@ -50,6 +50,9 @@ export interface WorldGeo {
   // A hand-painted map this world is played on. The minimap draws it as the background; the
   // image's corners are (0,0) and (widthMeters,heightMeters), so markers need no transform.
   image?: string
+  // The same island painted at night, corner for corner with `image`. Drawn over it and faded in
+  // as the engine's own clock turns, so the map darkens for the reason the characters go blind.
+  nightImage?: string
 }
 
 export const TERRAIN_CODES: Record<Terrain, string> = { GRASS: 'g', FOREST: 'f', BEACH: 'b', ROCK: 'r', CLIFF: 'c', WATER: 'w', RIVER: 'v', RUINS: 'u', URBAN: 'n', CANYON: 'y' }
