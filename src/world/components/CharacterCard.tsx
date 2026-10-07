@@ -2,6 +2,7 @@ import { Link } from '../../router/Link'
 import { Icon } from '../../components/Icon'
 import { AGENT_STATUS_LABEL, formatRelative, statusClass } from '../format'
 import type { Agent, Faction, Place } from '../types'
+import { portraitFor } from '../portraits'
 
 interface Props {
   agent: Agent
@@ -29,7 +30,9 @@ export function CharacterCard({ agent, place, factions, agentsById, isFollowed, 
       </button>
       <Link to={`/characters/${agent.id}`} className="world-character-card-link">
         <div className="world-character-card-head">
-          <span className="world-character-avatar" aria-hidden="true">{agent.name.slice(0, 1)}</span>
+          <span className={`world-character-avatar${portraitFor(agent) ? ' has-portrait' : ''}`} aria-hidden="true">
+            {portraitFor(agent) ? <img src={portraitFor(agent)!} alt="" loading="lazy" /> : agent.name.slice(0, 1)}
+          </span>
           <div>
             <p className="world-character-name">{agent.name}</p>
             <p className="world-micro world-mono">{agent.codeNumber}</p>

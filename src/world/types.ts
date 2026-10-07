@@ -111,6 +111,9 @@ export interface Agent {
   name: string
   codeNumber: string
   avatarId: string
+  // Both are already in every public payload; the character window shows them beside the portrait.
+  age?: number | null
+  profile?: { gender: string; orientation: string }
   shortBio: string
   factionIds: string[]
   publicState: AgentPublicState

@@ -820,6 +820,19 @@ body:has(.observatory), body:has(.world-welcome), body:has(.world-shell) { backg
 .observatory-person-status { margin-left: auto; font-size: 9px; color: #a5bb91; display: flex; gap: 6px; align-items: center; white-space: nowrap; }
 .status-injured, .status-missing { color: #d5b783; }
 .status-deceased { color: #ad9390; }
+/* A character's own picture, where there is one. The lettered tile stays for anyone without:
+   the frame is the same size either way, so a mixed cast does not make the list jump. */
+.observatory-avatar.has-portrait, .world-character-avatar.has-portrait { padding: 0; overflow: hidden; background: #11180f; }
+.observatory-avatar img, .world-character-avatar img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; display: block; }
+/* The window that opens on the person you picked: the face, the trade, and where they are. */
+.character-window { display: flex; gap: 12px; align-items: flex-start; margin: 10px 0 4px; }
+.character-window-portrait { width: 92px; aspect-ratio: 3 / 4; object-fit: cover; object-position: 50% 15%; border: 1px solid var(--world-line); border-radius: 7px; flex-shrink: 0; background: #11180f; }
+.character-window-body { min-width: 0; }
+.character-window-body h3 { margin: 0 0 6px; }
+.character-window-trade { margin: 0 0 7px !important; color: #cdd8c2; }
+.character-window .observatory-person-status { margin: 0; }
+@media (max-width: 900px) { .character-window-portrait { width: 78px; } }
+
 .observatory-character-detail, .map-place-info { margin-top: 15px; border-top: 1px solid var(--world-line); padding-top: 14px; font-size: 11px; color: #acb9a3; }
 .observatory-character-detail h3 { margin: 5px 0; }
 .observatory-character-detail p { margin: 8px 0; }
