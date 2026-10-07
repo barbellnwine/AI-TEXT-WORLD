@@ -33,6 +33,14 @@ export const ISLAND_PLACES: IslandPlace[] = [
 
 export const ISLAND_IMAGE = ISLAND_MASK.image
 
+// A season stores the geography it was built with, so worlds laid out before the island had a night
+// painting carry only the day one. Which pictures the artwork has is a fact about the artwork, not
+// about the season, so it is derived when the world is read: replacing either picture later needs
+// no migration of saved worlds, and a paused season shows the new one without being run.
+export function withIslandNight<T extends { image?: string; nightImage?: string }>(geo: T): T {
+  return geo.image === ISLAND_MASK.image && !geo.nightImage ? { ...geo, nightImage: ISLAND_MASK.nightImage } : geo
+}
+
 // Ground nobody walks on: open sea and sheer coastal rock.
 export const IMPASSABLE: ReadonlySet<Terrain> = new Set<Terrain>(['WATER', 'CLIFF'])
 export const isWalkable = (terrain: Terrain) => !IMPASSABLE.has(terrain)

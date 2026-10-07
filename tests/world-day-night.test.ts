@@ -44,3 +44,16 @@ test('the night picture is mounted before dusk needs it, and dropped in the morn
   assert.equal(nightImageNeeded(6 * 60), true)
   assert.equal(nightImageNeeded(8 * 60), false)
 })
+
+// A world saved before the island had a night painting must still get one, because the season
+// stores the geography it was built with and the production island was laid out long before.
+test('reading a world fills in the island night painting it was saved without', async () => {
+  const { withIslandNight } = await import('../server/world/geo/islandMap.ts')
+  const { ISLAND_MASK } = await import('../server/world/geo/islandMask.ts')
+  const saved = { image: ISLAND_MASK.image, cols: 40 }
+  assert.equal(withIslandNight(saved).nightImage, ISLAND_MASK.nightImage)
+  // Another world's map is left exactly as it is, and an explicit choice is never overwritten.
+  assert.equal(withIslandNight({ image: '/world/other.png' }).nightImage, undefined)
+  assert.equal(withIslandNight({ image: ISLAND_MASK.image, nightImage: '/world/custom.png' }).nightImage, '/world/custom.png')
+  assert.equal(withIslandNight({}).nightImage, undefined)
+})

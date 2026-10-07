@@ -1,6 +1,7 @@
 import type { Agent, ChronicleEntry, WorldEvent, WorldState } from '../domain/worldTypes.ts'
 import { actionFailure } from './actionNarrative.ts'
 import { eventProse } from '../domain/eventProse.ts'
+import { withIslandNight } from './geo/islandMap.ts'
 
 export function toPublicAgent(agent: Agent): Omit<Agent, 'hiddenNotes'> {
   const { hiddenNotes: _hidden, ...publicAgent } = agent
@@ -25,7 +26,7 @@ export function toPublicWorld(world: WorldState): WorldState {
   const places = world.places.filter(p => p.isDiscovered !== false)
   const visible = new Set(places.map(p => p.id))
   return { ...world, places: places.map(p => ({ ...p, connectedPlaceIds: p.connectedPlaceIds.filter(id => visible.has(id)) })), agents: world.agents.map(toPublicAgent),
-    engine: world.engine ? { ...world.engine, decisions: undefined, interactions: undefined, outcomes: undefined, studio: undefined, truths: [], behavior: undefined, combatAlerts: undefined, v4: undefined,
+    engine: world.engine ? { ...world.engine, geo: world.engine.geo && withIslandNight(world.engine.geo), decisions: undefined, interactions: undefined, outcomes: undefined, studio: undefined, truths: [], behavior: undefined, combatAlerts: undefined, v4: undefined,
       zones: world.engine.v4?.director.closures.map(c => ({ placeId: c.placeId, effectiveMinute: c.effectiveMinute, closed: c.effectiveMinute <= world.engine!.minute })) ?? [],
       fighting: world.engine.v4?.standoff?.ids ?? [],
       connections: world.engine.connections.filter(c => visible.has(c.fromPlaceId) && visible.has(c.toPlaceId)).map(c => ({ ...c, requirements: '' })),
