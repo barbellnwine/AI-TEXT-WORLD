@@ -104,6 +104,9 @@ export interface Agent {
   dispositions?: import('../../server/world/dispositions').Dispositions
   motivations?: import('../../server/world/dispositions').MotivationState
   humanState?: { survival_need: number; fatigue: number; stress: number; sexual_desire: number; greed: number; ambition: number }
+  // Both are already in every public payload; the character sheet draws them as gauges.
+  vitals?: { health: number; energy: number; hunger: number; thirst: number; loneliness: number }
+  exposure?: import('../../server/world/studioEngine').ExposureState
   emotion?: { mood: number; anger: number; fear: number }
   body?: { health: number; injury: number }
   nextDecisionAt?: number
@@ -204,7 +207,7 @@ export interface WorldState {
     minute: number
     geo?: import('../../server/world/geo/geoTypes').WorldGeo
     // Public map overlays: dropped supplies, closing ground, and who is mid-fight.
-    objects?: Array<{ id: string; name: string; kind: string; quantity: number; condition: string; location: { kind: string; id: string }; coord?: import('../../server/world/geo/geoTypes').GeoPoint }>
+    objects?: Array<{ id: string; name: string; kind: string; quantity: number; condition: string; location: { kind: string; id: string }; physical?: { material: string; edge?: 'sharp' | 'blunt'; portable: boolean; attackPower: number; cover: number }; coord?: import('../../server/world/geo/geoTypes').GeoPoint }>
     zones?: Array<{ placeId: string; effectiveMinute: number; closed: boolean }>
     fighting?: string[]
     connections: Array<{ fromPlaceId: string; toPlaceId: string; travelMinutes: number; blocked: boolean }>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { worldApi } from '../api'
 import { ChronicleReader } from '../components/ChronicleReader'
+import { CharacterDetailPanel } from '../components/CharacterDetailPanel'
 import { EventDetailPanel } from '../components/EventDetailPanel'
 import { ErrorState, LoadingState } from '../components/StateViews'
 import { WorldFooter } from '../components/WorldFooter'
@@ -28,6 +29,7 @@ export function WorldHomePage() {
   const [error, setError] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [detailEventId, setDetailEventId] = useState<string | null>(null)
+  const [sheetAgentId, setSheetAgentId] = useState<string | null>(null)
   const [detailEvent, setDetailEvent] = useState<WorldEvent | null>(null)
   const [latestStreamScene, setLatestStreamScene] = useState<ChronicleEntry | null>(null)
   const [eventCache, setEventCache] = useState<Map<string, WorldEvent>>(new Map())
@@ -170,7 +172,7 @@ export function WorldHomePage() {
                 <p className={`observatory-person-status status-${selectedAgent.publicState.status}`}><i />{t(selectedAgent.publicState.status)} · {placesById.get(selectedAgent.publicState.locationId)?.name ?? '—'}</p>
               </div>
             </div>
-            <p>{selectedAgent.shortBio}</p>{selectedAgent.publicState.lastAction && <p><strong>{t('recent')}</strong> · {selectedAgent.publicState.lastAction}</p>}<Link to={`/characters/${encodeURIComponent(selectedAgent.id)}`}>{t('profile')} →</Link></div>}</section>
+            <p>{selectedAgent.shortBio}</p>{selectedAgent.publicState.lastAction && <p><strong>{t('recent')}</strong> · {selectedAgent.publicState.lastAction}</p>}<button type="button" className="observatory-profile-open" onClick={() => setSheetAgentId(selectedAgent.id)}>{t('profile')} →</button></div>}</section>
           <section className="observatory-panel observatory-map"><header className="observatory-section-head"><h2><Icon name="map" size={16} />{t('map')}</h2><span className="observatory-kicker">MINIMAP</span></header><WorldMiniMap state={worldState} selectedAgentId={selectedAgentId} onSelectAgent={setSelectedAgentId} scene={latestStreamScene} /></section>
         </aside>
         <section className="observatory-events"><header className="observatory-section-head"><div><p className="observatory-kicker">WORLD TIMELINE</p><h2>{t('events')}</h2></div><span className="observatory-kicker">DAY {worldState.clock.day}</span></header>{eventsError && recentEvents.length === 0 ? <ErrorState onRetry={() => window.location.reload()} /> : recentEvents.length === 0 ? <p>{t('emptyEvents')}</p> : <ol>{recentEvents.map(event => <li key={event.id}><button onClick={() => setDetailEventId(event.id)}><span className="observatory-event-day">DAY {event.day}<small>{event.worldTime ?? '—'}</small></span><span className={`observatory-event-dot importance-${event.importance}`} /><span><strong>{eventProse(event, agentsById)}</strong><small>{placesById.get(event.placeId)?.name} · {event.agentIds.map(id => agentsById.get(id)?.name).filter(Boolean).join(', ')}</small></span><span className="observatory-event-arrow">↗</span></button></li>)}</ol>}</section>
@@ -178,6 +180,14 @@ export function WorldHomePage() {
       </main>
       <WorldFooter />
       <WorldStatusDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} worldState={current.worldState} spotlightEvent={current.spotlightEvent} />
+      <CharacterDetailPanel
+        agent={sheetAgentId ? agentsById.get(sheetAgentId) ?? null : null}
+        placesById={placesById}
+        agentsById={agentsById}
+        objects={worldState.engine?.objects}
+        onClose={() => setSheetAgentId(null)}
+        onSelectAgent={id => { setSelectedAgentId(id); setSheetAgentId(id) }}
+      />
       <EventDetailPanel
         event={detailEvent}
         placesById={placesById}
