@@ -1203,3 +1203,26 @@ test('large held inventory is compacted before any provider call without changin
   assert.equal(JSON.stringify(world),before)
  }finally{await ctx.close()}
 })
+
+
+// A snapshot says what minute it is true for; the pace says how to read the clock forward from
+// there, so a map can keep a planned walk moving without asking the server again. It describes
+// the moment the payload left, so it is never persisted and never part of the world itself.
+test('a public snapshot carries the pace a viewer needs, and a stopped world reports no motion', async () => {
+ const ctx=setup(undefined,false)
+ try{
+  store.advanceWorldTick(5)
+  const running=store.publicWorld().engine!.pace!
+  assert.ok(running.minutePerMs>0,"a running world tells viewers how fast its clock runs")
+  assert.ok(running.until>store.getWorldState().engine!.minute,"and how far ahead they may read")
+  assert.ok(Math.abs(Date.parse(running.at)-Date.now())<5000,"stamped as the payload leaves")
+  // One tick of lookahead and no more: a server that stops answering freezes every walk.
+  assert.equal(running.until,store.getWorldState().engine!.minute+(ctx.design.studio?.minutesPerTick??config.worldMinutesPerTick))
+  store.pauseSeason()
+  const paused=store.publicWorld().engine!.pace!
+  assert.equal(paused.minutePerMs,0,"a paused world holds the map still")
+  assert.equal(paused.until,store.getWorldState().engine!.minute)
+  // The pace describes the serialisation, never the simulation: it must not be in the world.
+  assert.equal(store.getWorldState().engine!.pace,undefined)
+ }finally{await ctx.close()}
+})

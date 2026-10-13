@@ -25,7 +25,7 @@ export function registerWorldRoutes(router: Router, db?: DatabaseSync): void {
     const spotlight = store.getSpotlightEvent()
     sendJson(ctx.res, 200, {
       season: store.getSeason(),
-      worldState: toPublicWorld(store.getWorldState()),
+      worldState: store.publicWorld(),
       spotlightEvent: spotlight ? toPublicEvent(spotlight) : null,
     })
   })

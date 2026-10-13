@@ -22,11 +22,18 @@ export function toPublicEvent(event: WorldEvent): Omit<WorldEvent, 'provenance'>
   return { ...publicEvent,detail, summary: display, title: event.cause?.startsWith('scheduled:') ? display : publicEvent.title, stateChanges: event.stateChanges.filter(c => !c.field.startsWith('knowledge:')) }
 }
 
-export function toPublicWorld(world: WorldState): WorldState {
+// How a viewer reads the clock between two snapshots. A payload is true for one world minute at
+// one real instant; with the rate, a map can draw a walker continuing along the path the engine
+// already planned instead of waiting a whole tick to jump. `until` is the furthest minute the
+// viewer may believe in — one tick of lookahead — so a stalled, paused or dead server freezes the
+// walk where it is rather than letting it stroll off the island.
+export interface WorldPace { at: string; minutePerMs: number; until: number }
+
+export function toPublicWorld(world: WorldState, pace?: WorldPace): WorldState {
   const places = world.places.filter(p => p.isDiscovered !== false)
   const visible = new Set(places.map(p => p.id))
   return { ...world, places: places.map(p => ({ ...p, connectedPlaceIds: p.connectedPlaceIds.filter(id => visible.has(id)) })), agents: world.agents.map(toPublicAgent),
-    engine: world.engine ? { ...world.engine, geo: world.engine.geo && withIslandNight(world.engine.geo), decisions: undefined, interactions: undefined, outcomes: undefined, studio: undefined, truths: [], behavior: undefined, combatAlerts: undefined, v4: undefined,
+    engine: world.engine ? { ...world.engine, pace, geo: world.engine.geo && withIslandNight(world.engine.geo), decisions: undefined, interactions: undefined, outcomes: undefined, studio: undefined, truths: [], behavior: undefined, combatAlerts: undefined, v4: undefined,
       zones: world.engine.v4?.director.closures.map(c => ({ placeId: c.placeId, effectiveMinute: c.effectiveMinute, closed: c.effectiveMinute <= world.engine!.minute })) ?? [],
       fighting: world.engine.v4?.standoff?.ids ?? [],
       connections: world.engine.connections.filter(c => visible.has(c.fromPlaceId) && visible.has(c.toPlaceId)).map(c => ({ ...c, requirements: '' })),

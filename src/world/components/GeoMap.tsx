@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { ChronicleEntry, WorldState } from '../types'
 import { combatMark, type CombatMark } from '../combatMarks'
+import { anyoneWalking, liveMinute, positionOnPath, type WorldPace } from '../geoMotion'
 import { Icon, ICON_PATHS } from '../../components/Icon'
 import { nightImageNeeded, nightLevelAt, TIME_OF_DAY_LABEL } from '../dayNight'
 import { TERRAIN_BY_CODE, type GeoPoint, type Terrain, type WorldGeo } from '../../../server/world/geo/geoTypes'
@@ -67,6 +68,27 @@ function regionCells(geo: WorldGeo, placeId: string) {
     }
   }
   return rects
+}
+
+// Reads the world clock forward between snapshots. While somebody is mid-trip this re-renders on
+// every animation frame so their marker travels continuously; with nobody walking — the usual
+// case — it returns the reported minute and starts no loop at all.
+function useLiveMinute(reportedMinute: number, pace: WorldPace | undefined, walking: boolean): number {
+  const [minute, setMinute] = useState(() => liveMinute(reportedMinute, pace, Date.now()))
+  const frame = useRef(0)
+  useEffect(() => {
+    setMinute(liveMinute(reportedMinute, pace, Date.now()))
+    if (!walking || !pace || !(pace.minutePerMs > 0)) return
+    const step = () => {
+      setMinute(liveMinute(reportedMinute, pace, Date.now()))
+      frame.current = requestAnimationFrame(step)
+    }
+    frame.current = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(frame.current)
+    // The pace object is new on every snapshot; its three fields are what actually matter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportedMinute, pace?.at, pace?.minutePerMs, pace?.until, walking])
+  return minute
 }
 
 // Glides every marker from where it was drawn to where the engine now says it is.
@@ -163,20 +185,30 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent, scene }: { state
     })
   })
 
-  // Markers follow the engine; the glide only fills the gap between two reported positions.
-  const positions = useGlidingPositions(living.map(a => ({ id: a.id, coord: a.publicState.coord! })))
+  // Markers follow the engine. Someone mid-trip is drawn along the path the engine already
+  // planned, advanced by the world clock — a continuous walk, not a jump once a tick. Everyone
+  // else glides from the last reported position to the new one, which is what a scene outcome,
+  // a chase verdict or a plain correction looks like.
+  const pace = state.engine?.pace
+  const walking = anyoneWalking(living.map(a => a.publicState.travel), minute)
+  const clock = useLiveMinute(minute, pace, walking)
+  const underway = new Map(living.flatMap(a => {
+    const travel = a.publicState.travel
+    return travel && clock < travel.arriveMinute ? [[a.id, positionOnPath(travel, clock)] as const] : []
+  }))
+  const positions = useGlidingPositions(living.filter(a => !underway.has(a.id)).map(a => ({ id: a.id, coord: a.publicState.coord! })))
   const trails = useRef(new Map<string, GeoPoint[]>())
   for (const a of living) {
     const trail = trails.current.get(a.id) ?? []
     const last = trail.at(-1), now = a.publicState.coord!
     if (!last || Math.hypot(last.x - now.x, last.y - now.y) > 8) trails.current.set(a.id, [...trail, now].slice(-TRAIL_POINTS))
   }
-  const at = (a: typeof agents[number]) => positions.get(a.id) ?? a.publicState.coord!
+  const at = (a: typeof agents[number]) => underway.get(a.id) ?? positions.get(a.id) ?? a.publicState.coord!
   // Where a person is facing: the next waypoint of their trip, else the way they just came from.
   const heading = (a: typeof agents[number]): GeoPoint | null => {
     const travel = a.publicState.travel
     const now = at(a)
-    const next = travel?.path.find(p => p.minute > minute) ?? travel?.to
+    const next = travel?.path.find(p => p.minute > clock) ?? travel?.to
     if (next && Math.hypot(next.x - now.x, next.y - now.y) > 4) return next
     const trail = trails.current.get(a.id) ?? []
     const back = trail.at(-2)
@@ -257,7 +289,7 @@ export function GeoMap({ state, selectedAgentId, onSelectAgent, scene }: { state
   const remaining = (a: typeof agents[number]) => {
     const t = a.publicState.travel
     if (!t) return null
-    return [at(a), ...t.path.filter(p => p.minute > minute).map(p => ({ x: p.x, y: p.y }))]
+    return [at(a), ...t.path.filter(p => p.minute > clock).map(p => ({ x: p.x, y: p.y }))]
   }
   const closingIn = (z: { effectiveMinute: number }) => Math.max(0, z.effectiveMinute - minute)
 

@@ -42,6 +42,10 @@ export interface WorldTruth {
 export interface WorldConnection { fromPlaceId: string; toPlaceId: string; travelMinutes: number; blocked: boolean; requirements: string }
 export interface OngoingAction { causalEventIds?:string[]; responseToActionId?:string; noticedEventId?:string; adjudication?:import('./traumaAdjudication.ts').Adjudication; detail?:ActionDetail; id: string; proposal: ProposedAction; startedMinute: number; completesMinute: number; startEventId: string }
 export interface EngineState {
+  // How fast world time runs, attached when the state is serialised for a viewer (publicView.ts).
+  // Never authored by the engine and never persisted: it describes the moment a payload left the
+  // server, so a map can keep a planned walk moving between two snapshots.
+  pace?: { at: string; minutePerMs: number; until: number }
   // Map overlays the minimap draws. Derived from v4 state on the way out; never authored here.
   zones?: Array<{ placeId: string; effectiveMinute: number; closed: boolean }>
   fighting?: string[]

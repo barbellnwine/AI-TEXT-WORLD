@@ -205,6 +205,9 @@ export interface ChronicleEntry {
 export interface WorldState {
   engine?: {
     minute: number
+    // How world time is running as of this payload, so a map can keep a planned walk moving
+    // between snapshots instead of waiting a whole tick to jump (server/world/publicView.ts).
+    pace?: import('./geoMotion').WorldPace
     geo?: import('../../server/world/geo/geoTypes').WorldGeo
     // Public map overlays: dropped supplies, closing ground, and who is mid-fight.
     objects?: Array<{ id: string; name: string; kind: string; quantity: number; condition: string; location: { kind: string; id: string }; physical?: { material: string; edge?: 'sharp' | 'blunt'; portable: boolean; attackPower: number; cover: number }; coord?: import('../../server/world/geo/geoTypes').GeoPoint }>

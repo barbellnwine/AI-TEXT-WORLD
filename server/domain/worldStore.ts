@@ -22,7 +22,7 @@ import { HttpError } from '../http.ts'
 import { agentRequest, brainRequest, plannerRequest, parseBrainIntent, judgeRequest, parseProposedAction, parseJudgment, worldModelAdapter, ensureModelConfigured, worldRequestBody, type BrainIntent, type WorldExecution, type WorldModelAdapter, type WorldModelRequest } from './worldAgent.ts'
 import { initializeEngine, advanceEngine, selectDecisionAgents, validateEngineAction, beginAction, recordExperience, nextDecisionDelay, prepareThreatResponse } from '../world/worldEngine.ts'
 import type { ProposedAction } from '../world/actionSchema.ts'
-import { toPublicWorld, toPublicEvent } from '../world/publicView.ts'
+import { toPublicWorld, toPublicEvent, type WorldPace } from '../world/publicView.ts'
 import { AGENT_PROMPT_VERSION } from '../prompts/agentPrompt.ts'
 import type { Agent, Chapter, ChronicleEntry, Faction, OperatorLogEntry, Place, ProviderUsage, RuntimeError, Season, WorldEvent, WorldRuntime, WorldState } from './worldTypes.ts'
 import {
@@ -250,7 +250,7 @@ function pushEvent(event: WorldEvent, alreadyApplied = false): void {
   }
   persist()
   if (storyEvent(event)) broadcast({ type: 'event', payload: toPublicEvent(event) })
-  broadcast({ type: 'worldState', payload: toPublicWorld(state.worldState) })
+  broadcast({ type: 'worldState', payload: publicWorld() })
   emitReadyScenes()
 }
 
@@ -488,6 +488,19 @@ export function assertWorldIdle(): void { if (activeTick) throw new HttpError(40
 let timer: ReturnType<typeof setInterval> | null = null
 let reactionPending = false
 
+// What a viewer needs to keep a planned walk moving between two snapshots: the real instant this
+// payload was taken, how many world minutes pass per real millisecond, and the furthest minute
+// they may run ahead to. A world that is not running has a rate of zero, so the map holds still.
+export function pacing(): WorldPace {
+  const minutes = state.execution?.draft.studio?.minutesPerTick ?? config.worldMinutesPerTick
+  const running = state.runtime.status === 'RUNNING' && !state.runtime.decisionsPaused && !shuttingDown
+  const minute = state.worldState.engine?.minute ?? 0
+  const interval = Math.max(1, state.runtime.tickIntervalMs)
+  return { at: new Date().toISOString(), minutePerMs: running ? minutes / interval : 0, until: minute + (running ? minutes : 0) }
+}
+
+export function publicWorld() { return toPublicWorld(state.worldState, pacing()) }
+
 export function advanceWorldTick(minutes = state.execution?.draft.studio?.minutesPerTick ?? config.worldMinutesPerTick): void {
   if (shuttingDown || state.runtime.status !== 'RUNNING' || !state.execution) return
   if (state.runtime.decisionsPaused) { pauseSeason(); return }
@@ -513,7 +526,7 @@ export function advanceWorldTick(minutes = state.execution?.draft.studio?.minute
   }
   state.runtime.nextTickAt = state.runtime.status === 'RUNNING' ? new Date(Date.now() + state.runtime.tickIntervalMs).toISOString() : null
   persist()
-  broadcast({ type: 'worldState', payload: toPublicWorld(state.worldState) })
+  broadcast({ type: 'worldState', payload: publicWorld() })
   broadcast({ type: 'runtime', payload: publicRuntime() })
 }
 
@@ -1434,7 +1447,7 @@ export function loadWorldState(input: { season: Season; worldState: WorldState; 
   queueChapter(input.initialEvent)
   for (const event of processStudio(state.worldState)) recordEngineEvent(event)
   persist()
-  broadcast({ type: 'worldState', payload: toPublicWorld(state.worldState) })
+  broadcast({ type: 'worldState', payload: publicWorld() })
   broadcast({ type: 'event', payload: toPublicEvent(input.initialEvent) })
 }
 
