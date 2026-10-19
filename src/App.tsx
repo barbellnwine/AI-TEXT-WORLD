@@ -18,7 +18,9 @@ export default function App() {
   const reload=async()=>{setError('');try{const [a,r]=await Promise.all([api<{agent:Agent|null}>('/auth/me'),api<{records:RecordFile[]}>('/records')]);setAgent(a.agent);setRecords(r.records)}catch(e){setError((e as Error).message)}finally{setLoading(false)}}
   useEffect(()=>{void reload();const navigate=()=>{setRoute(location.hash.slice(1)||'/');setMenu(false);window.scrollTo(0,0)};addEventListener('hashchange',navigate);return()=>removeEventListener('hashchange',navigate)},[])
   const recordRoute=route.match(/^\/archive\/([^/]+)(?:\/(incidents|evidence|discussion))?$/)
-  const selected=records.find(r=>r.id===recordRoute?.[1])
+  // The archive renumbered from G- to TA-; links shared under the old prefix still open the record.
+  const requested=recordRoute?.[1]
+  const selected=records.find(r=>r.id===requested) || (requested?.startsWith('G-')?records.find(r=>r.id===`TA-${requested.slice(2)}`):undefined)
   // A pinned record owns the home hero; without one the archive falls back to 식별번호 order.
   const featured=records.find(r=>r.featured) || records[0]
   const filtered=records.filter(r=>`${r.id} ${r.title} ${r.subtitle}`.toLowerCase().includes(search.toLowerCase()))

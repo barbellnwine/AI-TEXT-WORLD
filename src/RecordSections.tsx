@@ -2,8 +2,8 @@ import type { RecordFile } from './types'
 // Each record keeps its own section numbering, so the mirrored fields are declared per record
 // rather than assumed. PROTOCOL is the section shown as 대응 지침; EPISODES are the section
 // bodies that the 사건 기록 tab reproduces, in episode order.
-const PROTOCOL: Record<string,string> = { 'G-021': '04', 'G-013': '08' }
-const EPISODES: Record<string,string[]> = { 'G-021': ['06','07'], 'G-013': ['03','04','05','06'] }
+const PROTOCOL: Record<string,string> = { 'TA-021': '04', 'TA-013': '08' }
+const EPISODES: Record<string,string[]> = { 'TA-021': ['06','07'], 'TA-013': ['03','04','05','06'] }
 export default function RecordSections({record,change}:{record:RecordFile;change:(record:RecordFile)=>void}) {
   if (!record.sections?.length) return null
   const update=(index:number,key:'title'|'body',value:string)=>{

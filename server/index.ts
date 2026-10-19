@@ -22,7 +22,9 @@ async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
 function text(value: unknown, max = 20000, min = 1): string { if (typeof value !== 'string' || value.trim().length < min || value.length > max) fail(400, '입력 길이를 확인하십시오.'); return value.trim() }
 function level(value: unknown): number { if (!Number.isInteger(value) || Number(value) < 0 || Number(value) > 5) fail(400, '인가 등급은 0–5입니다.'); return Number(value) }
 function validateRecord(input: Record<string, unknown>): Anomaly {
-  const id = text(input.id, 16); if (!/^(?:AN|G)-\d{3,6}$/.test(id)) fail(400, '개체 번호 형식: G-021 또는 AN-001')
+  // TA is the live prefix. AN and G stay accepted so records filed under the old numbering,
+  // and links handed out before the change, still resolve.
+  const id = text(input.id, 16); if (!/^(?:TA|AN|G)-\d{3,6}$/.test(id)) fail(400, '개체 번호 형식: TA-021. 이전 AN·G 번호는 보존용으로만 받는다.')
   const risk = text(input.risk, 20); if (!['CRITICAL','HIGH','MODERATE','UNKNOWN','ORANGE'].includes(risk)) fail(400, '위험 등급을 확인하십시오.')
   if (!Array.isArray(input.episodes) || !Array.isArray(input.evidence) || input.episodes.length > 100 || input.evidence.length > 100) fail(400, '사건·증거 배열을 확인하십시오.')
   const episodes = input.episodes.map((e: Record<string, unknown>) => { const publishAt = text(e.publishAt, 40); if (!Number.isFinite(Date.parse(publishAt))) fail(400, '공개 일시를 확인하십시오.'); return { title: text(e.title, 200), body: text(e.body), clearance: level(e.clearance), publishAt } })
@@ -139,7 +141,7 @@ export const server = createServer(async (req, res) => {
         if (deleteMatch && method === 'DELETE') { db.prepare('DELETE FROM comments WHERE id=?').run(Number(deleteMatch[1])); audit(agent, 'DELETE_COMMENT', deleteMatch[1]); return json(res, 200, { ok: true }) }
       }
       if (path === '/api/records' && method === 'GET') return json(res, 200, { records: getRecords(db).filter(r => r.published).map(r => visibleRecord(r, agent)).filter(Boolean) })
-      const match = path.match(/^\/api\/records\/((?:AN|G)-\d{3,6})(?:\/(comments|mission))?$/)
+      const match = path.match(/^\/api\/records\/((?:TA|AN|G)-\d{3,6})(?:\/(comments|mission))?$/)
       if (match) {
         const record = getRecords(db).find(r => r.id === match[1]); if (!record || (!record.published && agent?.role !== 'ADMIN')) fail(404, '기록이 존재하지 않습니다.')
         if (record.clearance > (agent?.clearance ?? 0)) fail(403, '해당 기록에 대한 인가가 필요합니다.')
