@@ -11,7 +11,7 @@ const provisional = '잠수 #047 / 2026-03-17 기록. 영상 상단의 T.A.-071�
 const record = {
   id: 'TA-001', title: '수압의 왕관', subtitle: 'THE CROWN', category: '개체',
   risk: 'BLACK', riskLabel: 'BLACK — 통제 불가', status: 'ACTIVE / 미격리', clearance: 0,
-  summary: '개체는 발견되었으나 통제되지 않았다. 그 존재는 인정되었으나, 현재 어디에 있는지는 알 수 없다.',
+  summary: '2019년, 인류는 바다의 최심부에서 기존의 과학으로 설명할 수 없는 생명체를 발견했다.',
   description: section('01'), protocol: section('07'), art: 'crown', coverImage: '/media/ta-001-crown.png',
   phenomenon: '해양 생물형 / 공간 변칙형 · 심도 지배', discovered: '2019년 / 태평양 마리아나 해구 심부', region: '마리아나 해구 심부 · 접근 제한 해역', recordStatus: '미격리 / 비접근 통제',
   published: true, archived: false, membersOnly: false, sections,
