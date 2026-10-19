@@ -12,6 +12,12 @@ export function Censored({ src, title, className = '' }: { src?: string; title: 
     <span className="stamp" aria-hidden="true"><strong>CLASSIFIED</strong><small>열람 주의</small></span>
   </div>
 }
+// Each record numbers its own sections, so the open questions are found by what the section is
+// called rather than by a fixed number: TA-021 files them at 10, TA-059 at 12.
+export function unresolved(record: { sections?: { number: string; title: string; body: string }[]; mission?: { question?: string } | null }) {
+  const section = record.sections?.find(s => s.title.includes('미해결')) || record.sections?.find(s => s.number === '10')
+  return section?.body || record.mission?.question || ''
+}
 function inline(value: string): ReactNode[] { return value.split(/(\*\*[^*]+\*\*)/g).map((part,i) => part.startsWith('**') ? <strong key={i}>{part.slice(2,-2)}</strong> : part) }
 export function Prose({ text }: { text: string }) {
   const blocks = text.replace(/\r/g,'').split(/\n\s*\n/)
