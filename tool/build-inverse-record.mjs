@@ -10,7 +10,7 @@ const record = {
   summary: '그 사람은 잘못된 행동을 하는 것이 아니다. 그 행동이 잘못되었다는 사실을 모른다.',
   description: section('01'), protocol: section('08'), art: 'inverse', coverImage: '/media/g-013-inverse.png',
   phenomenon: '인간형 · 행동 모방 이상 · 행동 동화', discovered: '2025년 11월 / 대한민국 경기도', region: '국내 공동주택 · 장기 접촉 가구', recordStatus: '초안 / 최초 조사 자료',
-  published: true, archived: false, sections,
+  published: true, archived: false, membersOnly: true, sections,
   // The record reads as a serial: each investigation step overturns the previous one.
   // The incident card already prints its own title, so a leading sub-heading in the source
   // section would show twice; it stays in the 개체 기록서 and is dropped only here.

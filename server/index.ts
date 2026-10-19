@@ -38,6 +38,7 @@ function validateRecord(input: Record<string, unknown>): Anomaly {
   for (const key of ['riskLabel','phenomenon','discovered','region','recordStatus','incidentHeadline'] as const) if (input[key] !== undefined) optional[key] = text(input[key], 300, 0)
   // Pins the home hero to a chosen record instead of letting 식별번호 order decide it.
   if (input.featured !== undefined) optional.featured = input.featured === true
+  if (input.membersOnly !== undefined) optional.membersOnly = input.membersOnly === true
   if (input.coverImage !== undefined) { const coverImage = text(input.coverImage, 300, 0); if (coverImage && !/^\/media\/[a-zA-Z0-9_-]+\.(png|jpg|jpeg|webp)$/.test(coverImage)) fail(400, '공개 표지 이미지 경로를 확인하십시오.'); optional.coverImage = coverImage }
   if (input.sections !== undefined) {
     if (!Array.isArray(input.sections) || input.sections.length > 30) fail(400, '기록서 섹션을 확인하십시오.')
@@ -80,7 +81,7 @@ export const server = createServer(async (req, res) => {
         if (!file) fail(404, '자료를 찾을 수 없습니다.')
         const record = getRecords(db).find(r => r.id === file.anomaly_id)
         const evidence = record?.evidence.find(e => e.url === path)
-        if (!record || !evidence || (!record.published && agent?.role !== 'ADMIN') || Math.max(record.clearance, evidence.clearance) > (agent?.clearance ?? 0)) fail(403, '자료 접근 인가가 필요합니다.')
+        if (!record || !evidence || (!record.published && agent?.role !== 'ADMIN') || (record.membersOnly && !agent) || Math.max(record.clearance, evidence.clearance) > (agent?.clearance ?? 0)) fail(403, '자료 접근 인가가 필요합니다.')
         res.writeHead(200, { 'content-type': file.mime, 'cache-control': 'private, no-store' }); return res.end(file.content)
       }
       if (path === '/api/health' && method === 'GET') { db.prepare('SELECT 1').get(); return json(res, 200, { ok: true, service: 'THE ANOMALY' }) }
@@ -142,6 +143,9 @@ export const server = createServer(async (req, res) => {
       if (match) {
         const record = getRecords(db).find(r => r.id === match[1]); if (!record || (!record.published && agent?.role !== 'ADMIN')) fail(404, '기록이 존재하지 않습니다.')
         if (record.clearance > (agent?.clearance ?? 0)) fail(403, '해당 기록에 대한 인가가 필요합니다.')
+        // The record itself still answers, with the teaser visibleRecord builds, so the page can
+        // explain why it is closed. Everything hanging off it stays shut to a reader with no agent.
+        if (record.membersOnly && !agent && match[2]) fail(401, '요원 등록 후 열람할 수 있는 기록입니다.')
         if (!match[2] && method === 'GET') return json(res, 200, { record: visibleRecord(record, agent) })
         if (match[2] === 'comments') {
           if (method === 'GET') return json(res, 200, { comments: db.prepare('SELECT c.id,c.body,c.created_at,a.username,a.clearance FROM comments c JOIN agents a ON a.id=c.agent_id WHERE anomaly_id=? ORDER BY c.id DESC LIMIT 100').all(record.id) })
@@ -158,6 +162,10 @@ export const server = createServer(async (req, res) => {
     }
     if (!['GET','HEAD'].includes(method)) fail(405, '허용되지 않은 요청입니다.')
     if (path.split('/').some(p => p.startsWith('.')) || /^\/(data|server|src|node_modules|tool)(\/|$)/.test(path) || /\.(sqlite|env|ts|tsx|map)$/.test(path)) fail(404, '자료를 찾을 수 없습니다.')
+    // Withholding a photograph from the API is not enough while the same file is served
+    // straight out of /media by its own guessable name. A media file claimed by a
+    // members-only record needs an agent, exactly as the record itself does.
+    if (path.startsWith('/media/') && !current(req) && getRecords(db).some(r => r.membersOnly && (r.coverImage === path || r.evidence.some(e => e.url === path)))) fail(401, '요원 등록 후 열람할 수 있는 자료입니다.')
     const file = resolve(dist, '.' + path); if (relative(dist, file).startsWith('..')) fail(404, '자료를 찾을 수 없습니다.')
     const target = existsSync(file) && statSync(file).isFile() ? file : extname(path) ? '' : resolve(dist, 'index.html')
     if (!target || !existsSync(target)) fail(404, '자료를 찾을 수 없습니다.')

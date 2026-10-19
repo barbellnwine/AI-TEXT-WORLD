@@ -31,15 +31,15 @@ input,textarea,select{background:#131216;border:1px solid #433c38;color:#ded5c5;
 .evidence-image{height:auto;max-height:none;object-fit:contain}
 
 /* Withheld photographs: obscured until the reader chooses to look, stamped so the choice is obvious. */
-.censored{position:relative;display:block;width:100%;padding:0;border:0;overflow:hidden;background:#0b0b0c;cursor:pointer}
+.censored{position:relative;display:flex;align-items:center;justify-content:center;width:100%;min-height:330px;padding:0;border:0;overflow:hidden;background:#0b0b0c}
 .censored-plate{display:block;width:100%;height:auto;object-fit:contain;object-position:center;filter:blur(26px) saturate(.55) brightness(.62);transform:scale(1.12);transition:filter .25s}
 .censored:after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,#0f0e1055,#0b0b0ccc)}
-.censored:hover .censored-plate,.censored:focus-visible .censored-plate{filter:blur(21px) saturate(.6) brightness(.72)}
 .stamp{position:absolute;top:50%;left:50%;z-index:1;transform:translate(-50%,-50%) rotate(-8deg);display:flex;flex-direction:column;align-items:center;gap:7px;padding:16px 30px;border:3px solid #b8372a;color:#d94b3a;box-shadow:inset 0 0 0 1px #b8372a66;background:#14101099;white-space:nowrap}
 .stamp strong{font:700 clamp(19px,2.1vw,29px)/1 var(--mono);letter-spacing:4px;margin-right:-4px}
 .stamp small{font-size:13px;letter-spacing:5px;margin-right:-5px;color:#c5604f}
-.censored:hover .stamp,.censored:focus-visible .stamp{border-color:#d4493a;color:#e8614e}
 .archive-entry-image>.censored{align-self:center}.archive-entry-image>.censored .censored-plate{max-height:720px}
 .record-cover>.censored .censored-plate{max-height:85vh}
 @media(max-width:650px){.stamp{padding:12px 20px;gap:5px}.stamp strong{letter-spacing:3px}.stamp small{font-size:11px;letter-spacing:3px}}
 @media(prefers-reduced-motion:reduce){.censored-plate{transition:none}}
+.restricted-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:27px}
+.restricted-actions .button{margin-top:0}

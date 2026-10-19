@@ -18,7 +18,9 @@ try{
  writeFileSync(backupPath,JSON.stringify(await before.json(),null,2),{flag:'wx'})
  const result=await fetch(base+'/api/admin/records',{method:'PUT',headers:{Cookie:cookie,'Content-Type':'application/json'},body:JSON.stringify(record)})
  assert.equal(result.status,200,await result.text())
- const published=await fetch(`${base}/api/records/${record.id}`)
+ // Read it back as the administrator: a members-only record answers an anonymous caller
+ // with a teaser, which would make this check compare the gate against the record.
+ const published=await fetch(`${base}/api/records/${record.id}`,{headers:{Cookie:cookie}})
  assert.equal(published.status,200)
  const actual=(await published.json()).record
  assert.deepEqual(actual.sections,record.sections)

@@ -19,6 +19,7 @@
   "published": true,
   "archived": false,
   "featured": true,
+  "membersOnly": true,
   "incidentHeadline": "상자를 들인 뒤,\n자리가 하나 더 생겼다.",
   "sections": [
     {

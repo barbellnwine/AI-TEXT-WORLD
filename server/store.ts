@@ -5,7 +5,7 @@ import { hashPassword } from './password.ts'
 
 export type Episode = { title: string; body: string; clearance: number; publishAt: string }
 export type Evidence = { title: string; type: string; url: string; body: string; clearance: number }
-export type Anomaly = { id: string; title: string; subtitle: string; coverImage?: string; riskLabel?: string; phenomenon?: string; discovered?: string; region?: string; recordStatus?: string; featured?: boolean; incidentHeadline?: string; sections?: { number: string; title: string; body: string }[]; category: string; risk: string; status: string; clearance: number; summary: string; description: string; protocol: string; art: string; published: boolean; archived?: boolean; episodes: Episode[]; evidence: Evidence[]; mission: { title: string; question: string; answer: string; clearance: number } | null }
+export type Anomaly = { id: string; title: string; subtitle: string; coverImage?: string; riskLabel?: string; phenomenon?: string; discovered?: string; region?: string; recordStatus?: string; featured?: boolean; membersOnly?: boolean; incidentHeadline?: string; sections?: { number: string; title: string; body: string }[]; category: string; risk: string; status: string; clearance: number; summary: string; description: string; protocol: string; art: string; published: boolean; archived?: boolean; episodes: Episode[]; evidence: Evidence[]; mission: { title: string; question: string; answer: string; clearance: number } | null }
 export type Agent = { id: number; username: string; role: string; clearance: number }
 export function openStore(path: string) {
   mkdirSync(dirname(resolve(path)), { recursive: true })
@@ -36,6 +36,10 @@ export function getRecords(db: DatabaseSync): Anomaly[] {
 export function visibleRecord(record: Anomaly, agent?: Agent) {
   const level = agent?.role === 'ADMIN' ? 5 : (agent?.clearance ?? 0)
   if (!record.published && agent?.role !== 'ADMIN') return null
+  // Separate from clearance: a new agent also holds level 0, so clearance cannot express
+  // "signed in at all". The teaser keeps the name and risk — enough to be worth registering
+  // for — and withholds the photograph, the prose, the incidents and the evidence.
+  if (record.membersOnly && !agent) return { id: record.id, title: record.title, subtitle: record.subtitle, category: record.category, risk: record.risk, riskLabel: record.riskLabel, status: record.status, phenomenon: record.phenomenon, clearance: record.clearance, art: record.art, featured: record.featured, locked: true, membersOnly: true, summary: '요원 등록 후 열람할 수 있는 기록입니다.' }
   if (record.clearance > level) return { id: record.id, title: '기밀 접근 제한', subtitle: 'ACCESS RESTRICTED', category: record.category, risk: record.risk, status: record.status, clearance: record.clearance, art: record.art, locked: true, summary: `LEVEL ${record.clearance} 인가가 필요한 기록입니다.` }
   const admin = agent?.role === 'ADMIN'
   return { ...record, episodes: record.episodes.filter(e => admin || new Date(e.publishAt).getTime() <= Date.now()).map(e => e.clearance <= level ? e : { title: e.title, clearance: e.clearance, locked: true }), evidence: record.evidence.map(e => e.clearance <= level ? e : { title: e.title, type: e.type, clearance: e.clearance, locked: true }), mission: record.mission ? { title: record.mission.title, clearance: record.mission.clearance, ...(record.mission.clearance <= level ? { question: record.mission.question } : { locked: true }) } : null }

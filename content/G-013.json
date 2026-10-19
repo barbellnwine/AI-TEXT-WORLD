@@ -18,6 +18,7 @@
   "recordStatus": "초안 / 최초 조사 자료",
   "published": true,
   "archived": false,
+  "membersOnly": true,
   "sections": [
     {
       "number": "01",

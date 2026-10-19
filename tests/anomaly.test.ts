@@ -93,7 +93,8 @@ test('THE ANOMALY: authentication, clearance, publication, evidence, missions an
   await t.test('G-021 preserves the complete supplied record and supports G-prefix routes', async () => {
     const delivery = JSON.parse(readFileSync('content/G-021.json','utf8'))
     assert.equal((await request('/api/admin/records','PUT',delivery,adminCookie)).status,200)
-    const response = await request('/api/records/G-021')
+    // Read as an agent: G-021 is members-only, so an anonymous read returns the gate, not the record.
+    const response = await request('/api/records/G-021',undefined,undefined,adminCookie)
     assert.equal(response.status,200)
     const { record } = await response.json()
     assert.equal(record.id,'G-021'); assert.equal(record.risk,'ORANGE')
@@ -102,13 +103,14 @@ test('THE ANOMALY: authentication, clearance, publication, evidence, missions an
     assert.equal(record.sections.length,11);assert.equal(record.episodes.length,2)
     assert.equal(record.discovered,'2025년 겨울 / 대한민국 경기도')
     assert.equal((await request('/api/records/G-021/comments','POST',{body:'인원수 불일치 관련 조사 기록'},adminCookie)).status,201)
-    assert.equal((await (await request('/api/records/G-021/comments')).json()).comments.length,1)
+    assert.equal((await (await request('/api/records/G-021/comments',undefined,undefined,adminCookie)).json()).comments.length,1)
     assert.equal((await request('/api/admin/records','PUT',{...delivery,coverImage:'/media/../secret.png'},adminCookie)).status,400)
   })
   await t.test('G-013 preserves the complete supplied record and its four incident records', async () => {
     const inverse = JSON.parse(readFileSync('content/G-013.json','utf8'))
     assert.equal((await request('/api/admin/records','PUT',inverse,adminCookie)).status,200)
-    const response = await request('/api/records/G-013')
+    // Read as an agent: G-013 is members-only, so an anonymous read returns the gate, not the record.
+    const response = await request('/api/records/G-013',undefined,undefined,adminCookie)
     assert.equal(response.status,200)
     const { record } = await response.json()
     assert.equal(record.id,'G-013'); assert.equal(record.risk,'ORANGE')
@@ -125,6 +127,29 @@ test('THE ANOMALY: authentication, clearance, publication, evidence, missions an
     // Both supplied records coexist in the public archive.
     const { records } = await (await request('/api/records')).json()
     assert.deepEqual(records.map((r:{id:string})=>r.id).filter((id:string)=>['G-013','G-021'].includes(id)).sort(),['G-013','G-021'])
+  })
+  await t.test('a members-only record withholds photograph and prose until an agent signs in', async () => {
+    const inverse = { ...JSON.parse(readFileSync('content/G-013.json','utf8')), membersOnly: true }
+    assert.equal((await request('/api/admin/records','PUT',inverse,adminCookie)).status,200)
+    // Anonymous: the record still answers, so the page can explain itself, but carries nothing.
+    const { record } = await (await request('/api/records/G-013')).json()
+    assert.equal(record.locked,true); assert.equal(record.membersOnly,true)
+    for (const key of ['coverImage','sections','description','protocol','episodes','evidence'])
+      assert.equal(record[key],undefined,`${key} must not reach a reader with no agent`)
+    // Name and risk stay, or there is nothing worth registering for.
+    assert.equal(record.subtitle,'THE INVERSE'); assert.equal(record.riskLabel,'LEVEL III — ORANGE')
+    assert.equal((await request('/api/records/G-013/comments')).status,401)
+    // The photograph is served out of /media by a guessable name, so that path is gated too.
+    assert.equal((await request('/media/g-013-inverse.png')).status,401)
+    // An agent with clearance 0 - what registration grants - sees the whole record.
+    assert.equal((await request('/api/auth/register','POST',{username:'observer_g13',password:'observer-pass-1'})).status,200)
+    const cookie = (await request('/api/auth/login','POST',{username:'observer_g13',password:'observer-pass-1'})).headers.get('set-cookie').split(';')[0]
+    const open = (await (await request('/api/records/G-013',undefined,undefined,cookie)).json()).record
+    assert.equal(open.locked,undefined)
+    assert.equal(open.sections.length,8); assert.equal(open.episodes.length,4)
+    assert.equal(open.coverImage,'/media/g-013-inverse.png')
+    assert.equal((await request('/media/g-013-inverse.png',undefined,undefined,cookie)).status,200)
+    assert.equal((await request('/api/admin/records','PUT',JSON.parse(readFileSync('content/G-013.json','utf8')),adminCookie)).status,200)
   })
   await t.test('clearance hides complete record sections and cover metadata', async () => {
     const delivery = JSON.parse(readFileSync('content/G-021.json','utf8'))
