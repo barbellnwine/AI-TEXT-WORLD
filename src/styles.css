@@ -44,29 +44,18 @@ input,textarea,select{background:#131216;border:1px solid #433c38;color:#ded5c5;
 .restricted-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:27px}
 .restricted-actions .button{margin-top:0}
 
-/* Attached plates: every photograph the record carries, filed as numbered figures under the prose. */
-.reading-layout>.plates{grid-column:2;min-width:0}
-.plates{background:var(--paper);border:1px solid var(--paper-edge);margin-top:28px}
-.plate-head{display:flex;justify-content:space-between;gap:20px;padding:19px 26px;border-bottom:1px solid var(--paper-rule);font:12px/1.6 var(--mono);letter-spacing:1px;color:#8b8071}
-.plate-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;background:var(--paper-edge)}
-.plate{display:block;width:100%;padding:0;border:0;background:var(--paper);text-align:left;cursor:pointer}
-.plate img{display:block;width:100%;height:190px;object-fit:cover;object-position:center;background:#0b0b0c;transition:opacity .2s}
-.plate:hover img,.plate:focus-visible img{opacity:.78}
-.plate-caption{display:block;padding:15px 18px 18px}
-.plate-caption .mono{display:block;font-size:11px;letter-spacing:1.3px;color:var(--accent)}
-.plate-caption strong{display:block;font-size:15px;font-weight:550;line-height:1.6;color:var(--ink);margin-top:7px;word-break:keep-all}
-.lightbox{position:fixed;inset:0;z-index:50;background:#07070ae8;backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:clamp(16px,4vw,54px);overflow:auto}
-.lightbox figure{margin:0;max-width:1180px;display:flex;flex-direction:column;gap:18px}
-.lightbox img{display:block;width:100%;height:auto;max-height:76vh;object-fit:contain;background:#0b0b0c;cursor:default}
-.lightbox figcaption{color:var(--ink);max-width:860px}
-.lightbox figcaption .mono{font-size:12px;letter-spacing:1.3px;color:var(--accent)}
-.lightbox figcaption strong{display:block;font-size:19px;font-weight:550;margin:9px 0 0;word-break:keep-all}
-.lightbox figcaption p{font-size:15px;line-height:1.95;color:var(--ink-dim);margin:11px 0 0;word-break:keep-all}
-.lightbox .close{position:fixed;top:22px;right:28px;font-size:34px;line-height:1;color:#cfc6b6;padding:6px 12px}
-.lightbox-step{position:fixed;top:50%;transform:translateY(-50%);font-size:46px;line-height:1;color:#cfc6b6;padding:10px 18px}
-.lightbox-step.prev{left:10px}
-.lightbox-step.next{right:10px}
-.lightbox .close:hover,.lightbox-step:hover{color:var(--accent)}
-@media(max-width:850px){.reading-layout>.plates{grid-column:1}.plate img{height:160px}}
-@media(max-width:650px){.plate-head{padding:15px 18px;font-size:11px;gap:10px}.plate-grid{grid-template-columns:1fr}.plate img{height:210px}.lightbox-step{display:none}}
-@media(prefers-reduced-motion:reduce){.plate img{transition:none}}
+
+
+/* The cover pages sideways through every photograph the record carries. */
+.record-cover{position:relative}
+.cover-step{position:absolute;top:50%;z-index:2;transform:translateY(-50%);font-size:40px;line-height:1;color:#e4dccb;padding:14px 18px;background:#0b0b0cb0;border:1px solid #ffffff1f;transition:background .18s,color .18s}
+.cover-step.prev{left:16px}
+.cover-step.next{right:16px}
+.cover-step:hover{background:#0b0b0ce6;color:var(--accent)}
+.cover-dots{position:absolute;left:0;right:0;bottom:118px;z-index:2;display:flex;justify-content:center;gap:9px}
+.cover-dots button{width:34px;height:3px;padding:0;border:0;background:#ffffff40;transition:background .18s}
+.cover-dots button.on{background:var(--accent)}
+.cover-dots button:hover{background:#ffffff80}
+@media(max-width:850px){.cover-step{font-size:32px;padding:10px 13px}.cover-step.prev{left:10px}.cover-step.next{right:10px}.cover-dots{bottom:104px}}
+@media(max-width:650px){.cover-step{font-size:27px;padding:8px 11px}.cover-dots{bottom:96px;gap:7px}.cover-dots button{width:26px}}
+@media(prefers-reduced-motion:reduce){.cover-step,.cover-dots button{transition:none}}
