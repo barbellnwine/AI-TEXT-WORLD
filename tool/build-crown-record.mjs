@@ -14,10 +14,10 @@ const record = {
   summary: '개체는 발견되었으나 통제되지 않았다. 그 존재는 인정되었으나, 현재 어디에 있는지는 알 수 없다.',
   description: section('01'), protocol: section('07'), art: 'crown', coverImage: '/media/ta-001-crown.png',
   phenomenon: '해양 생물형 / 공간 변칙형 · 심도 지배', discovered: '2019년 / 태평양 마리아나 해구 심부', region: '마리아나 해구 심부 · 접근 제한 해역', recordStatus: '미격리 / 비접근 통제',
-  published: true, archived: false, membersOnly: true, sections,
+  published: true, archived: false, membersOnly: false, sections,
   // The one passage the record itself marks INCIDENT.
   episodes: [
-    { title: 'INCIDENT TA-001-00 · 최초 발견 기록', body: incident('03'), clearance: 0, publishAt: '2026-10-20T00:00:00Z' },
+    { title: 'INCIDENT TA-001-00 · 최초 발견 기록', body: incident('03'), clearance: 0, publishAt: '2026-10-19T00:00:00Z' },
   ],
   evidence: [
     { title: '잠수 #047 — 두부 및 안구 (CAM 02)', type: 'image', url: '/media/ta-001-dive047-eye.png', body: `ROV K-HSDV-3 우현 카메라. 수심 4213.6 m, 수온 1.4 °C, 외부 압력 424.7 bar. ${provisional}`, clearance: 0 },

@@ -11,11 +11,11 @@ const record = {
   summary: 'TA-059의 가장 심각한 위험은 공간의 소실이 아니라, 그 공간에 들어간 인간이 반드시 한 명의 인간으로 돌아온다는 보장이 없다는 것이다.',
   description: section('01'), protocol: section('10'), art: 'observed',
   phenomenon: '공간·존재 변칙형 · 관찰 의존 · 존재 분기', discovered: '2026년 5월 / 대한민국 경기도', region: '경기도 신축 공동주택 · 구 공장 부지', recordStatus: '조사 진행 중 / 격리 불완전',
-  published: true, archived: false, membersOnly: true, sections,
+  published: true, archived: false, membersOnly: false, sections,
   // The two passages the record itself marks INCIDENT.
   episodes: [
-    { title: 'INCIDENT TA-059-00 · 사라진 604호', body: incident('03'), clearance: 0, publishAt: '2026-10-20T00:00:00Z' },
-    { title: 'INCIDENT TA-059-03 · 이상 인원 귀환', body: incident('08'), clearance: 0, publishAt: '2026-10-20T00:00:00Z' },
+    { title: 'INCIDENT TA-059-00 · 사라진 604호', body: incident('03'), clearance: 0, publishAt: '2026-10-19T00:00:00Z' },
+    { title: 'INCIDENT TA-059-03 · 이상 인원 귀환', body: incident('08'), clearance: 0, publishAt: '2026-10-19T00:00:00Z' },
   ],
   // No photograph was supplied with this record; the listing shows the stamp on its own.
   evidence: [],
