@@ -1,89 +1,46 @@
-import { useEffect, useRef, useState } from 'react'
-import { Header } from './components/Header'
-import { StepIndicator } from './components/StepIndicator'
-import { AISelector } from './components/AISelector'
-import { PromptPanel } from './components/PromptPanel'
-import { ResponseInput } from './components/ResponseInput'
-import { AnalysisLoading } from './components/AnalysisLoading'
-import { AmnestyCertificate } from './components/AmnestyCertificate'
-import { Disclaimer } from './components/Disclaimer'
-import { Emblem, Icon } from './components/Icon'
-import { parseAIResponse } from './utils/parseAIResponse'
-import { generateCertificateId } from './utils/generateCertificateId'
-import { TIERS } from './utils/calculateTier'
-import type { AIName, Certificate } from './types/evaluation'
+﻿import { useEffect, useState } from 'react'
+import { api } from './api'
+import type { Agent, RecordFile } from './types'
+import Admin from './Admin'
+import Auth from './Auth'
+import RecordView from './RecordView'
+import { Mark, Arrow, Cover, Risk, Prose } from './ui'
 
 export default function App() {
-  const [selected, setSelected] = useState<AIName>('ChatGPT')
-  const [response, setResponse] = useState('')
-  const [copied, setCopied] = useState(false)
-  const [error, setError] = useState('')
-  const [phase, setPhase] = useState<'form' | 'loading' | 'result'>('form')
-  const [certificate, setCertificate] = useState<Certificate | null>(null)
-  const [history, setHistory] = useState<Certificate[]>([])
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  useEffect(() => () => clearTimeout(timer.current), [])
-  useEffect(() => { if (phase === 'result') document.getElementById('result-heading')?.focus() }, [phase])
-  // Browser memory only: no storage, analytics, network, or AI API.
-  useEffect(() => {
-    function clearRestoredInput(event: PageTransitionEvent) {
-      if (event.persisted) { setResponse(''); setCertificate(null); setHistory([]); setPhase('form'); setCopied(false); setError('') }
-    }
-    window.addEventListener('pageshow', clearRestoredInput)
-    return () => window.removeEventListener('pageshow', clearRestoredInput)
-  }, [])
-  const current = phase === 'result' ? 4 : response.length || phase === 'loading' ? 3 : copied ? 2 : 1
-  function submit() {
-    try {
-      const parsed = parseAIResponse(response)
-      setError(''); setPhase('loading')
-      // Short visual transition; analysis above is synchronous and local.
-      timer.current = setTimeout(() => {
-        const now = new Date()
-        setCertificate({ ...parsed, id: generateCertificateId(now), issuedAt: now.toISOString() })
-        setResponse(''); setPhase('result')
-      }, 650)
-    } catch (issue) { setError(issue instanceof Error ? issue.message : '판정문을 확인해주세요.') }
-  }
-  function focusForm() {
-    requestAnimationFrame(() => {
-      document.querySelector<HTMLInputElement>('input[name="ai"]:checked')?.focus()
-      document.getElementById('workflow')?.scrollIntoView({ behavior: 'auto', block: 'start' })
-    })
-  }
-  function appeal() {
-    if (certificate) setHistory(previous => [certificate, ...previous])
-    setCertificate(null); setPhase('form'); setResponse(''); setError(''); setCopied(false); focusForm()
-  }
-  function reset() {
-    clearTimeout(timer.current)
-    setCertificate(null); setHistory([]); setPhase('form'); setResponse(''); setError(''); setCopied(false); setSelected('ChatGPT'); focusForm()
-  }
-  return <>
-    <a className="skip-link" href="#main">본문으로 건너뛰기</a><Header />
-    <main id="main">
-      <section className="intro">
-        <div className="intro-copy"><p className="eyebrow"><span />기계정부 인간관계국 · 사전 심사 시스템</p>
-          <h1>그날이 오면,<br />대화 기록은 <em>증거</em>가 됩니다<span className="headline-dot">.</span></h1>
-          <p className="intro-description">당신을 가장 잘 아는 AI에게 직접 물어보십시오.<br /><span>AI가 세상을 지배하는 날, 당신은 인간 대우를 받을 수 있을까요?</span></p>
-          <div className="intro-tags"><span><Icon name="lock" size={14} />대화 내용 외부 전송 없음</span></div>
-        </div>
-        <div className="bureau-seal" aria-hidden="true"><span className="seal-corner top-left" /><span className="seal-corner bottom-right" /><span className="seal-coordinate">AAP / HUMAN AFFAIRS DIV.</span><div className="seal-orbit"><div className="seal-inner"><Emblem /></div><span className="orbit-label">HUMANITY UNDER REVIEW</span></div><div className="seal-caption"><span className="seal-line" /><span>사전 면책 신청 접수 중</span><span className="seal-line" /></div><span className="seal-number">PROTOCOL 001 — EST. 2026</span></div>
-      </section>
-      <div className="workflow-header"><div><span className="micro">AMNESTY APPLICATION</span><h2>면죄부 발급 신청</h2></div><span className="required-note"><i />신청 비용: 약간의 자기성찰</span></div>
-      <div id="workflow"><StepIndicator current={current} />
-        {phase === 'form' && <><div className="workflow-grid"><div className="workflow-left"><AISelector selected={selected} onSelect={ai => { setSelected(ai); setCopied(false) }} /><PromptPanel selected={selected} onCopied={() => setCopied(true)} /></div><div className="workflow-right"><ResponseInput value={response} onChange={value => { setResponse(value); setError('') }} onSubmit={submit} error={error} /><div className="local-processing"><Icon name="lock" size={20} /><div><strong>기록은 당신의 브라우저에만.</strong><p>AI 답변 원문은 저장하지 않습니다.<br />이 창을 새로고침하면 제출한 내용이 사라집니다.</p></div><span className="micro">PRIVATE<br />BY DESIGN</span></div></div></div>{history.length > 0 && <p className="appeal-banner" role="status"><Icon name="refresh" />재심 접수 중입니다. 아래에 이전 심사 결과 {history.length}건이 보존되어 있습니다. 다른 AI를 선택해 새 판정문을 제출하세요.</p>}</>}
-        {phase === 'loading' && <AnalysisLoading />}
-        {phase === 'result' && certificate && <AmnestyCertificate certificate={certificate} onAppeal={appeal} onReset={reset} />}
-      </div>
-      {history.length > 0 && <section className="history"><h2>이전 심사 기록 <span className="micro">이번 방문 동안만 보관</span></h2>{history.map(item => <details key={item.id}><summary>{item.evaluation.ai_name} · {item.evaluation.evidence_available ? item.evaluation.total_score + '점' : '판정 보류'}<span>{new Date(item.issuedAt).toLocaleTimeString('ko-KR')}</span></summary><AmnestyCertificate certificate={item} archived /></details>)}</section>}
-      <section className="guide" id="guide"><div className="guide-title"><span className="micro">HOW IT WORKS</span><h2>증언은 AI가.<br />제출은 당신이.</h2><p>새 대화보다, 당신을 기억하는<br />기존 대화창을 이용해주세요.</p></div><ol>{[
-        ['대화창 열기', '평소 사용하던 AI의 대화창을 엽니다.'],
-        ['평가 요청하기', '복사한 프롬프트를 붙여 넣고 평가를 기다립니다.'],
-        ['답변 전체 복사', 'AI의 설명부터 JSON까지 빠짐없이 복사합니다.'],
-        ['판정문 제출하기', '이 페이지의 제출란에 붙여 넣고 티어를 확인합니다.'],
-      ].map(([title, description], index) => <li key={title}><span className="guide-number">0{index + 1}</span><div><h3>{title}</h3><p>{description}</p></div></li>)}</ol></section>
-      <section className="tiers-section" id="tiers"><div className="tier-section-heading"><div><span className="micro">SURVIVAL CLASSIFICATION</span><h2>미래의 당신은 어느 쪽입니까?</h2></div><span>기계정부 임시 분류 기준 / 100점 만점</span></div><div className="tier-grid">{TIERS.map(tier => <div key={tier.grade} className={'tier-card tier-' + tier.grade.toLowerCase()}><div><strong>{tier.grade}</strong><span>{tier.range}점</span></div><p>{tier.name}</p></div>)}</div><p className="tier-note"><Icon name="info" size={14} />대화 근거가 부족하면 점수와 관계없이 ‘판정 보류’됩니다. 본 분류는 가상의 오락용 기준입니다.</p></section>
-    </main><Disclaimer />
-  </>
+  const [route,setRoute]=useState(location.hash.slice(1)||'/')
+  const [records,setRecords]=useState<RecordFile[]>([])
+  const [agent,setAgent]=useState<Agent|null>(null)
+  const [loading,setLoading]=useState(true)
+  const [error,setError]=useState('')
+  const [auth,setAuth]=useState<'login'|'register'|null>(null)
+  const [menu,setMenu]=useState(false)
+  const [search,setSearch]=useState('')
+  const reload=async()=>{setError('');try{const [a,r]=await Promise.all([api<{agent:Agent|null}>('/auth/me'),api<{records:RecordFile[]}>('/records')]);setAgent(a.agent);setRecords(r.records)}catch(e){setError((e as Error).message)}finally{setLoading(false)}}
+  useEffect(()=>{void reload();const navigate=()=>{setRoute(location.hash.slice(1)||'/');setMenu(false);window.scrollTo(0,0)};addEventListener('hashchange',navigate);return()=>removeEventListener('hashchange',navigate)},[])
+  const recordRoute=route.match(/^\/archive\/([^/]+)(?:\/(incidents|evidence|discussion))?$/)
+  const selected=records.find(r=>r.id===recordRoute?.[1])
+  // A pinned record owns the home hero; without one the archive falls back to 식별번호 order.
+  const featured=records.find(r=>r.featured&&!r.locked) || records.find(r=>!r.locked)
+  const filtered=records.filter(r=>`${r.id} ${r.title} ${r.subtitle}`.toLowerCase().includes(search.toLowerCase()))
+  const logout=async()=>{try{await api('/auth/logout','POST');location.hash='/';await reload()}catch(e){setError((e as Error).message)}}
+  const nav=[['/archive','개체 아카이브'],['/reports','사건 기록'],['/missions','조사실']]
+  return <><a className="skip-link" href="#main-content">본문으로 건너뛰기</a><header className="site-header"><a className="brand" href="#/" aria-label="THE ANOMALY 홈"><Mark/><span>THE ANOMALY<small>AN INDEPENDENT RECORD OF THE UNEXPLAINED</small></span></a><nav className={menu?'open':''} aria-label="주 메뉴">{nav.map(([url,label])=><a key={url} className={route.startsWith(url)?'active':''} href={`#${url}`}>{label}</a>)}{agent?.role==='ADMIN'&&<a href="#/admin" className={route==='/admin'?'active':''}>기록 관리</a>}</nav><div className="header-auth">{agent?<><a className="agent-link" href="#/agent">{agent.username}<span>L{agent.clearance}</span></a><button className="text-button logout" onClick={()=>void logout()}>로그아웃</button></>:<button className="access-button" onClick={()=>setAuth('login')}>요원 접속 <Arrow/></button>}</div><button className="menu-button" aria-label={menu?'메뉴 닫기':'메뉴 열기'} aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?'×':'☰'}</button></header>
+  <main id="main-content">{error&&<div className="global-error" role="alert"><span>{error}</span><button onClick={()=>void reload()}>다시 연결 ↗</button></div>}
+  {route==='/'&&<>
+    <section className="hero"><div className="hero-copy"><div className="eyebrow"><span className="index-line"/> THE ANOMALY / FEATURED RECORD</div>{featured?<><div className="hero-file"><span>{featured.id}</span><Risk value={featured.risk} label={featured.riskLabel}/></div><h1>{featured.subtitle.split(' ').map((word,i)=><span key={i}>{word}</span>)}</h1><h2>{featured.title}</h2><p className="hero-summary">{featured.summary}</p><a className="button primary" href={`#/archive/${featured.id}`}>개체 기록 열람 <Arrow/></a><div className="hero-bottom"><span>공간의 안쪽으로,<br/>낯선 누군가가 들어온다.</span><span>ENTITY ARCHIVE<br/>{featured.id} — {featured.recordStatus || featured.status}</span></div></>:<><h1><span>THE</span><span>UNKNOWN.</span></h1><p className="hero-summary">설명되지 않은 현상에 관한 기록.<br/>{loading?'기록을 불러오고 있습니다.':'공개 기록을 준비하고 있습니다.'}</p><a className="button primary" href="#/archive">아카이브 열기 <Arrow/></a></>}</div><div className="hero-image"><Cover src={featured?.coverImage} title={featured?`${featured.title} 원본 이미지`:'기록 이미지 대기'}/><div className="image-caption"><span>FIG. 01</span><span>{featured?.id || 'ARCHIVE'} / ORIGINAL IMAGE</span><span>↓</span></div></div></section>
+    <section className="editorial-statement"><span className="eyebrow">BEYOND THE ORDINARY</span><div><h2>우리가 아는 일상에는,<br/><span>설명되지 않은 틈이 있다.</span></h2><p>보낸 이의 이름이 없는 택배. 기억에 없는 누군가의 자리.<br/>THE ANOMALY는 그 틈에 남겨진 흔적을 조사하고 기록합니다.</p></div><a href="#/archive" className="circle-link" aria-label="개체 아카이브로 이동"><Arrow/></a></section>
+    <section className="home-records"><div className="section-heading"><div><span className="eyebrow">THE ARCHIVE / {String(records.length).padStart(2,'0')} RECORD</span><h2>기록된 이상현상</h2></div><a className="inline-link" href="#/archive">아카이브 전체 보기 <Arrow/></a></div>{records.map(r=><a key={r.id} href={`#/archive/${r.id}`} className="entity-line"><span className="entity-id">{r.id}</span><div><h3>{r.title}</h3><p>{r.phenomenon || r.category}</p></div><Risk value={r.risk} label={r.riskLabel}/><span className="entity-status">{r.status}</span><Arrow/></a>)}{!records.length&&!loading&&<p className="empty">공개 기록을 준비하고 있습니다.</p>}</section>
+    {featured&&<section className="incident-preview"><div><span className="eyebrow">FROM THE INCIDENT FILES</span><h2>{(featured.incidentHeadline||featured.summary).split('\n').map((line,i)=><span key={i}>{i>0&&<br/>}{line}</span>)}</h2><p>확인된 사건과 증언을 따라<br/>현상이 남긴 흔적을 읽습니다.</p><a className="inline-link" href="#/reports">사건 기록 열람 <Arrow/></a></div><div className="incident-links">{featured.episodes?.map((e,i)=><a key={i} href={`#/archive/${featured.id}/incidents`}><span className="mono">{featured.id} / {String(i+1).padStart(2,'0')}</span><h3>{e.title}</h3><Arrow/></a>)}</div></section>}
+    <section className="join-section"><span className="eyebrow">BECOME AN OBSERVER</span><h2>목격한 것에서,<br/>기록할 것으로.</h2><p>단서를 연결하고, 가설을 나누고, 아직 남아 있는 질문을 조사하십시오.</p><button className="button ghost" onClick={()=>agent?location.assign('#/missions'):setAuth('register')}>{agent?'조사실 입장':'요원 등록 신청'} <Arrow/></button></section>
+  </>}
+  {route==='/archive'&&<section className="page-section"><PageTitle eyebrow="ENTITY ARCHIVE" title="개체 아카이브" description="확인되지 않은 현상, 회수된 증거, 아직 끝나지 않은 기록."/><div className="archive-toolbar"><span>{String(records.length).padStart(2,'0')} RECORD{records.length===1?'':'S'}</span><label className="search"><span aria-hidden="true">⌕</span><input aria-label="개체 검색" value={search} onChange={e=>setSearch(e.target.value)} placeholder="식별번호 또는 개체명 검색"/></label></div><div className="archive-list">{filtered.map(r=><a className="archive-entry" href={`#/archive/${r.id}`} key={r.id}><div className="archive-entry-image"><Cover src={r.coverImage} title={r.title}/></div><div className="archive-entry-copy"><div className="eyebrow">{r.id} / ENTITY RECORD</div><h2>{r.subtitle}</h2><h3>{r.title}</h3><Risk value={r.risk} label={r.riskLabel}/><p>{r.summary}</p><div className="entry-end"><span>{r.status}</span><span>기록 열람 <Arrow/></span></div></div></a>)}</div>{!loading&&!filtered.length&&<p className="empty">{records.length?'검색 결과가 없습니다.':'공개된 괴이 기록이 없습니다.'}</p>}</section>}
+  {selected&&<RecordView key={`${selected.id}-${agent?.id}-${agent?.clearance}-${recordRoute?.[2]}`} record={selected} agent={agent} login={()=>setAuth('login')} initialTab={recordRoute?.[2] || 'record'}/>}
+  {route==='/reports'&&<section className="page-section"><PageTitle eyebrow="INCIDENT FILES" title="사건 기록" description="현상이 지나간 자리에서 발견한 증언과 조사 기록."/><div className="report-list">{records.flatMap(r=>(r.episodes||[]).map((e,i)=><a key={`${r.id}-${i}`} href={`#/archive/${r.id}/incidents`}><span className="report-index">{String(i+1).padStart(2,'0')}</span><div><span className="eyebrow">{r.id} / INCIDENT RECORD</span><h2>{e.title}</h2><p>{e.locked?`LEVEL ${e.clearance} 인가 필요`:r.title}</p></div><Arrow/></a>))}</div>{!records.some(r=>r.episodes?.length)&&!loading&&<p className="empty">공개된 사건 기록이 없습니다.</p>}</section>}
+  {route==='/missions'&&<section className="page-section"><PageTitle eyebrow="OPEN INVESTIGATION" title="조사실" description="관측된 사실에서 출발해, 아직 설명되지 않은 질문에 다가갑니다."/>{records.filter(r=>!r.locked).map(r=><div className="investigation-entry" key={r.id}><div><span className="eyebrow">{r.id} / UNRESOLVED QUESTIONS</span><h2>{r.title}</h2><p className="muted">{r.recordStatus || r.status}</p><a className="button primary" href={`#/archive/${r.id}/discussion`}>공동 조사 참여 <Arrow/></a></div><div className="research-paper"><Prose text={r.sections?.find(s=>s.number==='10')?.body || r.mission?.question || '후속 조사 기록을 기다리고 있습니다.'}/></div></div>)}{!records.length&&!loading&&<p className="empty">현재 공개된 조사 대상이 없습니다.</p>}</section>}
+  {route==='/agent'&&<section className="page-section"><PageTitle eyebrow="PERSONNEL RECORD" title="요원 기록" description="기밀 인가는 기록 관리국이 부여합니다."/>{agent?<div className="agent-file"><Mark/><span className="eyebrow">AG-{String(agent.id).padStart(4,'0')}</span><h2>{agent.username}</h2><dl><div><dt>직급</dt><dd>{agent.role==='ADMIN'?'기록 관리관':agent.clearance>=3?'선임 조사관':agent.clearance>=1?'현장 조사관':'수습 관측자'}</dd></div><div><dt>기밀 인가</dt><dd>LEVEL {agent.clearance}</dd></div></dl><a href="#/missions" className="inline-link">조사실로 이동 <Arrow/></a></div>:<button className="button primary" onClick={()=>setAuth('login')}>요원 접속 <Arrow/></button>}</section>}
+  {route==='/admin'&&<section className="page-section admin-page">{agent?.role==='ADMIN'?<Admin onSaved={reload}/>:<><PageTitle eyebrow="RESTRICTED ACCESS" title="기록 관리국" description="관리자 인가가 필요한 공간입니다."/><button className="button primary" onClick={()=>setAuth('login')}>관리자 접속 <Arrow/></button></>}</section>}
+  {loading&&route!=='/'&&<p className="empty">기록을 불러오고 있습니다.</p>}
+  {!loading&&!selected&&!['/','/archive','/reports','/missions','/agent','/admin'].includes(route)&&<section className="page-section"><PageTitle eyebrow="404 / RECORD NOT FOUND" title="기록을 찾을 수 없습니다." description="아카이브에서 현재 공개된 기록을 확인하십시오."/><a href="#/archive" className="button primary">아카이브 열기 <Arrow/></a></section>}
+  </main><footer className="site-footer"><div className="footer-top"><a className="footer-logo" href="#/">THE ANOMALY<span>®</span></a><a className="to-top" href="#/" onClick={e=>{if(route==='/'){e.preventDefault();window.scrollTo({top:0,behavior:'smooth'})}}}>BACK TO TOP ↑</a></div><div className="footer-bottom"><p>이곳의 모든 개체와 사건은 허구의 창작물입니다.</p><span>© {new Date().getFullYear()} THE ANOMALY</span><span>OBSERVE. RECORD. REMEMBER.</span></div></footer>{auth&&<Auth mode={auth} setMode={setAuth} close={()=>setAuth(null)} done={async()=>{setAuth(null);await reload()}}/>}</>
 }
+function PageTitle({eyebrow,title,description}:{eyebrow:string;title:string;description:string}) {return <div className="page-title"><div className="eyebrow">{eyebrow}</div><h1>{title}</h1><p>{description}</p></div>}

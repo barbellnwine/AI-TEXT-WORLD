@@ -1,5 +1,5 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import Router from './Router'
+import App from './App'
 import './styles.css'
-createRoot(document.getElementById('root')!).render(<StrictMode><Router /></StrictMode>)
+createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)

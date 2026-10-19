@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 try { process.loadEnvFile() } catch { /* deployment injects environment variables */ }
-const knownSecrets = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'AI_COMMUNITY_ADMIN_TOKEN']
+const knownSecrets = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'AI_COMMUNITY_ADMIN_TOKEN', 'ADMIN_SEED_PASSWORD']
   .map(name => process.env[name]).filter(value => value && value.length >= 8)
 
 function check(directory) {
