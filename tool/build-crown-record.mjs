@@ -7,7 +7,7 @@ const section = number => sections.find(s => s.number === number).body
 const incident = number => section(number).replace(/^###\s+.*\r?\n+/, '')
 // The dive stills carry a burned-in T.A.-071 overlay. Rather than hide them, the archive reads it
 // as the provisional observation number the footage was logged under before TA-001 was registered.
-const provisional = '잠수 #047 / 2026-03-17 기록. 영상 상단의 T.A.-071은 최초 등록 이전 임시 관측번호이며, 현재 식별번호는 TA-001이다.'
+const provisional = '잠수 #047 / 2019년 최초 탐사 기록. 영상 상단에 표기된 T.A.-071과 2026-03-17은 최초 등록 이전의 임시 관측번호와 장비 시각 오기록이며, 실제 촬영은 2019년, 현재 식별번호는 TA-001이다.'
 const record = {
   id: 'TA-001', title: '수압의 왕관', subtitle: 'THE CROWN', category: '개체',
   risk: 'BLACK', riskLabel: 'BLACK — 통제 불가', status: 'ACTIVE / 미격리', clearance: 0,

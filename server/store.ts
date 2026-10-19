@@ -5,7 +5,7 @@ import { hashPassword } from './password.ts'
 
 export type Episode = { title: string; body: string; clearance: number; publishAt: string }
 export type Evidence = { title: string; type: string; url: string; body: string; clearance: number }
-export type Anomaly = { id: string; title: string; subtitle: string; coverImage?: string; riskLabel?: string; phenomenon?: string; discovered?: string; region?: string; recordStatus?: string; featured?: boolean; membersOnly?: boolean; incidentHeadline?: string; sections?: { number: string; title: string; body: string }[]; category: string; risk: string; status: string; clearance: number; summary: string; description: string; protocol: string; art: string; published: boolean; archived?: boolean; episodes: Episode[]; evidence: Evidence[]; mission: { title: string; question: string; answer: string; clearance: number } | null }
+export type Anomaly = { id: string; title: string; subtitle: string; coverImage?: string; riskLabel?: string; phenomenon?: string; discovered?: string; region?: string; recordStatus?: string; featured?: boolean; membersOnly?: boolean; unresolvedSection?: string; incidentHeadline?: string; sections?: { number: string; title: string; body: string }[]; category: string; risk: string; status: string; clearance: number; summary: string; description: string; protocol: string; art: string; published: boolean; archived?: boolean; episodes: Episode[]; evidence: Evidence[]; mission: { title: string; question: string; answer: string; clearance: number } | null }
 export type Agent = { id: number; username: string; role: string; clearance: number }
 export function openStore(path: string) {
   mkdirSync(dirname(resolve(path)), { recursive: true })

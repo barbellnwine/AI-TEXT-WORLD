@@ -43,8 +43,8 @@ export function CoverGallery({ record }: { record: { id: string; title: string; 
 }
 // Each record numbers its own sections, so the open questions are found by what the section is
 // called rather than by a fixed number: TA-021 files them at 10, TA-059 at 12.
-export function unresolved(record: { sections?: { number: string; title: string; body: string }[]; mission?: { question?: string } | null }) {
-  const section = record.sections?.find(s => s.title.includes('미해결')) || record.sections?.find(s => s.number === '10')
+export function unresolved(record: { unresolvedSection?: string; sections?: { number: string; title: string; body: string }[]; mission?: { question?: string } | null }) {
+  const section = record.sections?.find(s => s.number === record.unresolvedSection) || record.sections?.find(s => s.title.includes('미해결'))
   return section?.body || record.mission?.question || ''
 }
 function inline(value: string): ReactNode[] { return value.split(/(\*\*[^*]+\*\*)/g).map((part,i) => part.startsWith('**') ? <strong key={i}>{part.slice(2,-2)}</strong> : part) }
