@@ -48,15 +48,45 @@ export function unresolved(record: { unresolvedSection?: string; sections?: { nu
   return section?.body || record.mission?.question || ''
 }
 function inline(value: string): ReactNode[] { return value.split(/(\*\*[^*]+\*\*)/g).map((part,i) => part.startsWith('**') ? <strong key={i}>{part.slice(2,-2)}</strong> : part) }
+// A short "항목: 값" line standing alone is a field of the file, not a sentence of it. A run of
+// them read as body paragraphs scatters the page; set as a list they read as the header block
+// they are. The key is kept short and punctuation-free so ordinary prose with a colon is not caught.
+const FIELD = /^([^:\n]{2,14}): (.+)$/
+const field = (block: string) => {
+  const line = block.trim()
+  if (line.includes('\n') || /^[-\d#>"“]/.test(line)) return null
+  const m = line.match(FIELD)
+  return m && !/[.!?]$/.test(m[1]) ? { key: m[1], value: m[2] } : null
+}
 export function Prose({ text }: { text: string }) {
-  const blocks = text.replace(/\r/g,'').split(/\n\s*\n/)
-  return <div className="prose">{blocks.map((block,i) => {
-    const lines = block.trim().split('\n')
-    if (!block.trim() || block.trim() === '---') return null
-    if (/^#{3,5}\s/.test(block)) { const level = block.startsWith('####') ? 4 : 3; const title = block.replace(/^#{3,5}\s/,''); return level === 4 ? <h4 key={i}>{inline(title)}</h4> : <h3 key={i}>{inline(title)}</h3> }
-    if (lines.every(line => /^-\s/.test(line))) return <ul key={i}>{lines.map((line,j) => <li key={j}>{inline(line.replace(/^-\s/,''))}</li>)}</ul>
-    if (lines.every(line => /^\d+\.\s/.test(line))) return <ol key={i}>{lines.map((line,j) => <li key={j}>{inline(line.replace(/^\d+\.\s/,''))}</li>)}</ol>
-    if (/^["“]/.test(block.trim())) return <blockquote key={i}>{inline(block)}</blockquote>
-    return <p key={i}>{lines.map((line,j) => <span key={j}>{j > 0 && <br/>}{inline(line.replace(/  $/,''))}</span>)}</p>
-  })}</div>
+  const blocks = text.replace(/\r/g,'').split(/\n\s*\n/).filter(b => b.trim() && b.trim() !== '---')
+  const out: ReactNode[] = []
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i], lines = block.trim().split('\n')
+    if (/^#{3,5}\s/.test(block)) {
+      const title = block.replace(/^#{3,5}\s/,'')
+      out.push(block.startsWith('####') ? <h4 key={i}>{inline(title)}</h4> : <h3 key={i}>{inline(title)}</h3>)
+      continue
+    }
+    if (lines.every(line => /^-\s/.test(line))) { out.push(<ul key={i}>{lines.map((line,j) => <li key={j}>{inline(line.replace(/^-\s/,''))}</li>)}</ul>); continue }
+    if (lines.every(line => /^\d+\.\s/.test(line))) { out.push(<ol key={i}>{lines.map((line,j) => <li key={j}>{inline(line.replace(/^\d+\.\s/,''))}</li>)}</ol>); continue }
+    // A transcript is one exchange, not a column of pull-quotes. Left as separate blocks, a
+    // seven-line interview filled a screen and a one-word answer cost 88px of it.
+    if (/^["“]/.test(block.trim())) {
+      const said = [block.trim()]
+      while (i + said.length < blocks.length && /^["“]/.test(blocks[i + said.length].trim())) said.push(blocks[i + said.length].trim())
+      out.push(<blockquote className="transcript" key={i}>{said.map((line,j) => <p key={j}>{inline(line)}</p>)}</blockquote>)
+      i += said.length - 1
+      continue
+    }
+    const run = []
+    while (i + run.length < blocks.length) { const f = field(blocks[i + run.length]); if (!f) break; run.push(f) }
+    if (run.length > 1) {
+      out.push(<dl className="fields" key={i}>{run.map((f,j) => <div key={j}><dt>{f.key}</dt><dd>{inline(f.value)}</dd></div>)}</dl>)
+      i += run.length - 1
+      continue
+    }
+    out.push(<p key={i}>{lines.map((line,j) => <span key={j}>{j > 0 && <br/>}{inline(line.replace(/  $/,''))}</span>)}</p>)
+  }
+  return <div className="prose">{out}</div>
 }
