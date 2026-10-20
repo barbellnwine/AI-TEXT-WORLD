@@ -70,11 +70,21 @@ export function Prose({ text }: { text: string }) {
     }
     if (lines.every(line => /^-\s/.test(line))) { out.push(<ul key={i}>{lines.map((line,j) => <li key={j}>{inline(line.replace(/^-\s/,''))}</li>)}</ul>); continue }
     if (lines.every(line => /^\d+\.\s/.test(line))) { out.push(<ol key={i}>{lines.map((line,j) => <li key={j}>{inline(line.replace(/^\d+\.\s/,''))}</li>)}</ol>); continue }
-    // A transcript is one exchange, not a column of pull-quotes. Left as separate blocks, a
-    // seven-line interview filled a screen and a one-word answer cost 88px of it.
+    // A quoted passage runs from the block that opens it to the block that closes it, and a
+    // transcript runs for as long as the lines keep coming. Both are one blockquote of several
+    // paragraphs: matching only on the opening mark dropped every middle paragraph of a long
+    // excerpt — and the paragraph carrying the closing mark — back into body text.
     if (/^["“]/.test(block.trim())) {
-      const said = [block.trim()]
-      while (i + said.length < blocks.length && /^["“]/.test(blocks[i + said.length].trim())) said.push(blocks[i + said.length].trim())
+      const said: string[] = []
+      const structural = (s: string) => /^#{3,5}\s/.test(s) || /^-\s/.test(s) || /^\d+\.\s/.test(s)
+      while (i + said.length < blocks.length && said.length < 24) {
+        const cur = blocks[i + said.length].trim()
+        if (said.length && structural(cur)) break
+        said.push(cur)
+        const next = blocks[i + said.length]?.trim()
+        // Still open: keep going whatever follows. Closed: only keep going for another line of dialogue.
+        if (/["”]\s*$/.test(cur) && !(next && /^["“]/.test(next))) break
+      }
       out.push(<blockquote className="transcript" key={i}>{said.map((line,j) => <p key={j}>{inline(line)}</p>)}</blockquote>)
       i += said.length - 1
       continue

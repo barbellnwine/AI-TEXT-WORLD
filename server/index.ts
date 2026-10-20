@@ -25,7 +25,7 @@ function validateRecord(input: Record<string, unknown>): Anomaly {
   // TA is the live prefix. AN and G stay accepted so records filed under the old numbering,
   // and links handed out before the change, still resolve.
   const id = text(input.id, 16); if (!/^(?:TA|AN|G)-\d{3,6}$/.test(id)) fail(400, '개체 번호 형식: TA-021. 이전 AN·G 번호는 보존용으로만 받는다.')
-  const risk = text(input.risk, 20); if (!['BLACK','CRITICAL','HIGH','MODERATE','UNKNOWN','ORANGE'].includes(risk)) fail(400, '위험 등급을 확인하십시오.')
+  const risk = text(input.risk, 20); if (!['WHITE','YELLOW','ORANGE','RED','BLACK'].includes(risk)) fail(400, '위험 등급을 확인하십시오.')
   if (!Array.isArray(input.episodes) || !Array.isArray(input.evidence) || input.episodes.length > 100 || input.evidence.length > 100) fail(400, '사건·증거 배열을 확인하십시오.')
   const episodes = input.episodes.map((e: Record<string, unknown>) => { const publishAt = text(e.publishAt, 40); if (!Number.isFinite(Date.parse(publishAt))) fail(400, '공개 일시를 확인하십시오.'); return { title: text(e.title, 200), body: text(e.body), clearance: level(e.clearance), publishAt } })
   const evidence = input.evidence.map((e: Record<string, unknown>) => {
