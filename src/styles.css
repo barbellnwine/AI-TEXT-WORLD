@@ -73,3 +73,19 @@ input,textarea,select{background:#131216;border:1px solid #433c38;color:#ded5c5;
 .prose blockquote.transcript p:first-child{margin-top:0}
 .prose blockquote.transcript p:last-child{margin-bottom:0}
 @media(max-width:650px){.prose blockquote.transcript{padding-left:16px}.prose blockquote.transcript p{font-size:16px;margin:10px 0}}
+
+/* Footage under the cover: the warning is read first, the reel plays whole, and the caption
+   sits below the frame rather than over it, as the photographs do. */
+.record-film{border:1px solid var(--paper-edge);border-top:0;background:#141317}
+.film-caution{display:flex;gap:16px;align-items:flex-start;margin:0;padding:18px 24px;border-bottom:1px solid #4a3a2e;background:#1c1718;color:#d8bca4}
+.film-caution .caution-mark{width:25px;height:25px;flex-shrink:0;margin-top:3px;color:#d94b3a}
+.film-caution>span{font-size:15px;line-height:1.95;word-break:keep-all}
+.film-caution strong{display:block;font:13px/1.7 var(--mono);letter-spacing:1.4px;color:#e07a52;margin-bottom:7px}
+.film-reel{margin:0;padding:24px}
+.film-reel+.film-reel{border-top:1px solid var(--paper-rule)}
+.film-reel video{display:block;width:100%;height:auto;max-height:70vh;background:#080808;object-fit:contain}
+.film-reel figcaption{display:flex;flex-direction:column;gap:9px;padding-top:18px}
+.film-reel figcaption .mono{font-size:12px;letter-spacing:1.1px;color:#8b8071}
+.film-reel figcaption strong{font-size:17px;font-weight:550;color:#ece5d5;letter-spacing:-.3px}
+.film-reel figcaption>span:last-child{font-size:14px;line-height:1.95;color:#96836c;word-break:keep-all}
+@media(max-width:650px){.film-caution{gap:12px;padding:16px 18px}.film-caution>span{font-size:14px}.film-caution .caution-mark{width:21px;height:21px}.film-reel{padding:18px}.film-reel video{max-height:60vh}.film-reel figcaption strong{font-size:16px}}

@@ -94,6 +94,13 @@
       "url": "/media/ta-013-inverse.png",
       "body": "TA-013 기록에 첨부된 원본 이미지. 최초 조사 사건의 진술에 해당하는 장면입니다.",
       "clearance": 0
+    },
+    {
+      "title": "손등 박수 동작 / 회수 영상",
+      "type": "video",
+      "url": "/media/ta-013-inverse-clap.mp4",
+      "body": "TA-013 기록에 첨부된 원본 영상. 최초 조사 사건의 진술에 해당하는 박수 동작이 기록되어 있습니다.",
+      "clearance": 0
     }
   ],
   "mission": null

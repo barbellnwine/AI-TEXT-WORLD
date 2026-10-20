@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { randomBytes, createHash } from 'node:crypto'
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, createReadStream } from 'node:fs'
 import { resolve, extname, relative } from 'node:path'
 import { openStore, getRecords, visibleRecord, type Agent, type Anomaly } from './store.ts'
 import { hashPassword, verifyPassword } from './password.ts'
@@ -171,8 +171,28 @@ export const server = createServer(async (req, res) => {
     const file = resolve(dist, '.' + path); if (relative(dist, file).startsWith('..')) fail(404, '자료를 찾을 수 없습니다.')
     const target = existsSync(file) && statSync(file).isFile() ? file : extname(path) ? '' : resolve(dist, 'index.html')
     if (!target || !existsSync(target)) fail(404, '자료를 찾을 수 없습니다.')
-    const mime: Record<string,string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4' }
-    res.writeHead(200, { 'content-type': mime[extname(target)] || 'application/octet-stream', 'cache-control': path.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache' }); res.end(method === 'HEAD' ? undefined : readFileSync(target))
+    const mime: Record<string,string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.mp4': 'video/mp4', '.webm': 'video/webm' }
+    const type = mime[extname(target)] || 'application/octet-stream'
+    const head: Record<string,string> = { 'content-type': type, 'cache-control': path.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache' }
+    // A reel is seekable only if the player may ask for a slice of it, and a file that size must
+    // not be read whole into memory to answer. Everything else is still sent in one piece.
+    if (/^(video|audio)\//.test(type)) {
+      const size = statSync(target).size
+      head['accept-ranges'] = 'bytes'
+      const asked = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || '').trim())
+      if (asked && (asked[1] || asked[2])) {
+        const start = asked[1] ? Number(asked[1]) : Math.max(0, size - Number(asked[2]))
+        const end = asked[1] && asked[2] ? Math.min(Number(asked[2]), size - 1) : size - 1
+        if (start >= size || start > end) { res.writeHead(416, { ...head, 'content-range': `bytes */${size}` }); return res.end() }
+        res.writeHead(206, { ...head, 'content-range': `bytes ${start}-${end}/${size}`, 'content-length': String(end - start + 1) })
+        if (method === 'HEAD') return res.end()
+        return void createReadStream(target, { start, end }).on('error', () => res.destroy()).pipe(res)
+      }
+      res.writeHead(200, { ...head, 'content-length': String(size) })
+      if (method === 'HEAD') return res.end()
+      return void createReadStream(target).on('error', () => res.destroy()).pipe(res)
+    }
+    res.writeHead(200, head); res.end(method === 'HEAD' ? undefined : readFileSync(target))
   } catch (error) {
     const status = error instanceof HttpError ? error.status : error instanceof URIError ? 400 : 500
     if (status === 500) console.error('[anomaly] Request failed', error instanceof Error ? error.message : 'unknown')

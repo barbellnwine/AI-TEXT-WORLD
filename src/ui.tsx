@@ -41,6 +41,23 @@ export function CoverGallery({ record }: { record: { id: string; title: string; 
     </div>
   </div>
 }
+// A triangle, not a word: the warning has to read before the sentence under it does.
+export function Caution() { return <svg className="caution-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4 22.2 21H1.8L12 3.4Z" stroke="currentColor" strokeWidth="1.5"/><path d="M12 9.3v5.1" stroke="currentColor" strokeWidth="1.7"/><circle cx="12" cy="17.4" r="1.05" fill="currentColor"/></svg> }
+// Footage belongs under the photographs in the same cover block, not in a tab of its own: the
+// still is the first frame and the reel is what follows it. This record says plainly what
+// watching has done to the people who watched, so the warning stands above the player, and the
+// player never starts on its own — the reader presses play having read it.
+export function CoverFilm({ record }: { record: { id: string; evidence?: { title: string; type: string; url?: string; body?: string; locked?: boolean }[] } }) {
+  const reels = (record.evidence || []).filter(e => e.type === 'video' && e.url && !e.locked)
+  if (!reels.length) return null
+  return <div className="record-film">
+    <p className="film-caution"><Caution/><span><strong>열람 주의 — 행동 동화 가능성</strong>개체의 동작이 그대로 기록된 자료입니다. 반복 재생을 권장하지 않습니다. 열람 후 자신의 습관적 동작에 변화가 없는지 확인하고, 이상이 확인되면 공동 조사에 보고하십시오.</span></p>
+    {reels.map((reel,i) => <figure className="film-reel" key={reel.url}>
+      <video src={reel.url} controls preload="metadata" playsInline aria-label={reel.title}/>
+      <figcaption><span className="mono">REEL {String(i+1).padStart(2,'0')} — {record.id}</span><strong>{reel.title}</strong>{reel.body && <span>{reel.body}</span>}</figcaption>
+    </figure>)}
+  </div>
+}
 // Each record numbers its own sections, so the open questions are found by what the section is
 // called rather than by a fixed number: TA-021 files them at 10, TA-059 at 12.
 export function unresolved(record: { unresolvedSection?: string; sections?: { number: string; title: string; body: string }[]; mission?: { question?: string } | null }) {
