@@ -46,7 +46,7 @@ function validateRecord(input: Record<string, unknown>): Anomaly {
     if (!Array.isArray(input.sections) || input.sections.length > 30) fail(400, '기록서 섹션을 확인하십시오.')
     optional.sections = input.sections.map((s: Record<string,unknown>) => ({ number: text(s.number, 4), title: text(s.title, 200), body: text(s.body) }))
   }
-  return { ...optional, id, title: text(input.title, 100), subtitle: text(input.subtitle, 150), category: text(input.category, 30), risk, status: text(input.status, 40), clearance: level(input.clearance), summary: text(input.summary, 1000), description: text(input.description), protocol: text(input.protocol), art: ['door','platform','letter','frequency','mirror','delivery','inverse','observed','crown','lazyriver'].includes(String(input.art)) ? String(input.art) : 'door', published: input.published === true, archived: input.archived === true, episodes, evidence, mission }
+  return { ...optional, id, title: text(input.title, 100), subtitle: text(input.subtitle, 150), category: text(input.category, 30), risk, status: text(input.status, 40), clearance: level(input.clearance), summary: text(input.summary, 1000), description: text(input.description), protocol: text(input.protocol), art: ['door','platform','letter','frequency','mirror','delivery','inverse','observed','crown','lazyriver','woodpecker','weeper'].includes(String(input.art)) ? String(input.art) : 'door', published: input.published === true, archived: input.archived === true, episodes, evidence, mission }
 }
 function rate(req: IncomingMessage, key: string, max: number) {
   const ip = req.socket.remoteAddress || 'unknown'; const now = Date.now()

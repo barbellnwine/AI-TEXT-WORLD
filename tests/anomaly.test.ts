@@ -128,6 +128,35 @@ test('THE ANOMALY: authentication, clearance, publication, evidence, missions an
     const { records } = await (await request('/api/records')).json()
     assert.deepEqual(records.map((r:{id:string})=>r.id).filter((id:string)=>['TA-013','TA-021'].includes(id)).sort(),['TA-013','TA-021'])
   })
+  await t.test('TA-061 and TA-062 preserve their originals and keep their distinct risk grades', async () => {
+    for (const [file,id,risk,sections,episodes,cover] of [
+      ['content/TA-061.json','TA-061','BLACK',10,3,'/media/ta-061-weeper.png'],
+      ['content/TA-062.json','TA-062','RED',9,2,'/media/ta-062-woodpecker.png'],
+    ] as const) {
+      const supplied = JSON.parse(readFileSync(file,'utf8'))
+      assert.equal((await request('/api/admin/records','PUT',supplied,adminCookie)).status,200)
+      // Both are public records, so an anonymous reader must receive the whole file.
+      const response = await request(`/api/records/${id}`)
+      assert.equal(response.status,200)
+      const { record } = await response.json()
+      assert.equal(record.risk,risk); assert.equal(record.riskLabel,supplied.riskLabel)
+      assert.equal(record.art,supplied.art,'the art key must survive the server allowlist')
+      assert.equal(record.coverImage,cover)
+      assert.deepEqual(record.sections,supplied.sections)
+      assert.equal(record.sections.length,sections); assert.equal(record.episodes.length,episodes)
+      // 조사실·공동 조사 read the open questions through this number, which differs per record.
+      assert.equal(record.unresolvedSection,supplied.unresolvedSection)
+      assert.ok(record.sections.some((s:{number:string})=>s.number===record.unresolvedSection))
+      // The incident card prints its own title, so the source sub-heading must not repeat.
+      assert.equal(record.episodes.every((e:{body:string})=>!e.body.startsWith('###')),true)
+    }
+    // The renumbered 딱따구리 must not leave the original TA-060 identifier in its prose.
+    assert.equal(readFileSync('content/TA-062-original.md','utf8').includes('TA-060'),false)
+    // Publishing the pair must not displace THE LAZY RIVER, which still holds TA-060.
+    const { records } = await (await request('/api/records')).json()
+    assert.deepEqual(records.map((r:{id:string})=>r.id).filter((id:string)=>['TA-061','TA-062'].includes(id)).sort(),['TA-061','TA-062'])
+  })
+
   await t.test('a members-only record withholds photograph and prose until an agent signs in', async () => {
     const inverse = { ...JSON.parse(readFileSync('content/TA-013.json','utf8')), membersOnly: true }
     assert.equal((await request('/api/admin/records','PUT',inverse,adminCookie)).status,200)

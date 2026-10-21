@@ -2,7 +2,7 @@
 
 - 작업 루트는 D:\the-anomaly. 현재 서비스 이름은 THE ANOMALY다.
 - 먼저 PROJECT_SPEC.md와 변경 관련 코드를 읽는다.
-- 현재 도감 범위는 사용자가 지정한 TA-001 THE CROWN, TA-013 THE INVERSE, TA-021 THE DELIVERY, TA-059 THE OBSERVED, TA-060 THE LAZY RIVER 5종이다. 사용자 승인 없이 예시 괴이를 추가하지 않는다. 기존 설정·이미지를 확인할 수 없으면 임의로 새로 만들지 말고 원본을 요청한다.
+- 현재 도감 범위는 사용자가 지정한 TA-001 THE CROWN, TA-013 THE INVERSE, TA-021 THE DELIVERY, TA-059 THE OBSERVED, TA-060 THE LAZY RIVER, TA-061 THE WEEPER, TA-062 THE WOODPECKER 7종이다. 사용자 승인 없이 예시 괴이를 추가하지 않는다. 기존 설정·이미지를 확인할 수 없으면 임의로 새로 만들지 말고 원본을 요청한다.
 - 미해결 사항 섹션은 기록마다 번호가 다르므로 unresolvedSection으로 지정한다. 조사실·공동 조사가 이 값을 읽는다.
 - 실존 지명·시설을 소재로 한 기록은 창작물임을 본문에 남긴다.
 - 괴이를 추가할 때는 원문을 content/<ID>-original.md에 보존하고 tool/build-<name>-record.mjs로 JSON을 생성한다. 원문에 없는 위험 등급·사건·미션은 사용자에게 확인한다.
